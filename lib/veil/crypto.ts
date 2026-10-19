@@ -1,4 +1,7 @@
 import { QUICKNET, BidOpening, BidEnvelope, commitmentFor, fromBase64, toBase64, randomHex, sha256, validateTimelockArmor } from './core';
+// Load the encryption dependency with the app. An action must not depend on a
+// later dynamic-chunk request, which can fail independently of the loaded page.
+import { Buffer, HttpChainClient, timelockDecrypt, timelockEncrypt } from 'tlock-js';
 
 function bytes(value: Uint8Array): ArrayBuffer { return value.slice().buffer as ArrayBuffer; }
 export async function generateAuctionKeys(): Promise<{ publicKey: JsonWebKey; privateKey: JsonWebKey }> {
@@ -27,26 +30,23 @@ export async function decryptForSeller(encrypted: string, privateKey: JsonWebKey
   await commitmentFor(opening);
   return opening;
 }
-async function beaconClient() {
-  const { HttpChainClient } = await import('tlock-js');
+function beaconClient() {
   return new HttpChainClient({ baseUrl: `${location.origin}/api/drand`, info: async () => QUICKNET }, {
     disableBeaconVerification: false, noCache: false,
     chainVerificationParams: { chainHash: QUICKNET.hash, publicKey: QUICKNET.public_key },
   });
 }
 export async function sealBid(auctionId: string, publicKey: JsonWebKey, unlockRound: number, amount: string) {
-  const { timelockEncrypt, Buffer } = await import('tlock-js');
   const opening: BidOpening = { version: 1, auctionId, bidId: crypto.randomUUID(), amount, salt: randomHex() };
   const inner = await encryptForSeller(opening, publicKey);
-  const ciphertext = await timelockEncrypt(unlockRound, Buffer.from(inner), await beaconClient());
+  const ciphertext = await timelockEncrypt(unlockRound, Buffer.from(inner), beaconClient());
   validateTimelockArmor(ciphertext, unlockRound);
   return { opening, id: opening.bidId, commitment: await commitmentFor(opening), ciphertext, ciphertextHash: await sha256(ciphertext) };
 }
 export async function openBid(envelope: BidEnvelope, privateKey: JsonWebKey, auctionId: string, unlockRound: number) {
   validateTimelockArmor(envelope.ciphertext, unlockRound);
   if (await sha256(envelope.ciphertext) !== envelope.ciphertextHash) throw new Error('The stored envelope changed. Tally stopped.');
-  const { timelockDecrypt } = await import('tlock-js');
-  const inner = await timelockDecrypt(envelope.ciphertext, await beaconClient());
+  const inner = await timelockDecrypt(envelope.ciphertext, beaconClient());
   const opening = await decryptForSeller(inner.toString('utf8'), privateKey, auctionId, envelope.id);
   if (await commitmentFor(opening) !== envelope.commitment) throw new Error('A bid does not match its acceptance receipt. Tally stopped.');
   return { ...opening, sequence: envelope.sequence };
