@@ -3,20 +3,28 @@ import { readdir, readFile } from 'node:fs/promises';
 import { createRequire } from 'node:module';
 import { pathToFileURL } from 'node:url';
 import { resolve } from 'node:path';
+import { build } from 'vite';
 const require = createRequire(import.meta.url);
-const { QUICKNET } = require('../.sites-runtime/test-build/lib/veil/core.js');
+const { sha256, commitmentFor } = require('../.sites-runtime/test-build/lib/veil/core.js');
 const fixture = JSON.parse(await readFile('tests/fixtures/quicknet-1000.json', 'utf8'));
 const directory = 'dist/client/_next/static/chunks';
-const filename = (await readdir(directory)).find(name => /^tlock-js-.*\.js$/.test(name));
-assert.ok(filename, 'Build the production bundle before testing it.');
-// Exercise the bundled browser branch without starting a browser or preview server.
-// The externalized Node crypto module must never be used by this branch.
+const filenames = await readdir(directory);
+assert.ok(!filenames.some(name => /^tlock-js-.*\.js$/.test(name)), 'Auction actions must not require a separate tlock dynamic chunk.');
+const appFile = filenames.find(name => /^veil-app-.*\.js$/.test(name));
+assert.ok(appFile, 'Build the production app before testing it.');
+const app = await readFile(`${directory}/${appFile}`, 'utf8');
+assert.ok(app.includes('BEGIN AGE ENCRYPTED FILE'), 'Encryption code must be present in the initial app bundle.');
+// Exercise the same crypto source through Vite's browser bundler. This isolates
+// the WebCrypto branch without starting a browser or replacing its DOM APIs.
+await build({ configFile: false, logLevel: 'error', build: { lib: { entry: 'lib/veil/crypto.ts', formats: ['es'], fileName: () => 'crypto-check.mjs' }, outDir: '.sites-runtime/crypto-browser-build', emptyOutDir: true, minify: true } });
 globalThis.window = { crypto: globalThis.crypto };
-globalThis.fetch = async () => Response.json(fixture);
-const imported = await import(pathToFileURL(resolve(directory, filename)).href);
-const tlock = imported.default ?? imported;
-const client = new tlock.HttpChainClient({ baseUrl: 'https://fixture.invalid', info: async () => QUICKNET }, { disableBeaconVerification: false, noCache: false, chainVerificationParams: { chainHash: QUICKNET.hash, publicKey: QUICKNET.public_key } });
-const ciphertext = await tlock.timelockEncrypt(1000, tlock.Buffer.from('VEIL production bundle check'), client);
-const plaintext = await tlock.timelockDecrypt(ciphertext, client);
-assert.equal(plaintext.toString('utf8'), 'VEIL production bundle check');
-console.log('Production crypto bundle: browser WebCrypto path, encryption, signature verification and decryption passed.');
+globalThis.location = { origin: 'https://veil.test' };
+globalThis.fetch = async url => { assert.equal(String(url), 'https://veil.test/api/drand/public/1000'); return Response.json(fixture); };
+const crypt = await import(pathToFileURL(resolve('.sites-runtime/crypto-browser-build/crypto-check.mjs')).href);
+const keys = await crypt.generateAuctionKeys(), auctionId = crypto.randomUUID();
+const sealed = await crypt.sealBid(auctionId, keys.publicKey, 1000, '250000001');
+assert.equal(sealed.ciphertextHash, await sha256(sealed.ciphertext));
+assert.equal(sealed.commitment, await commitmentFor(sealed.opening));
+const opened = await crypt.openBid({ ...sealed, sequence: 1, acceptedAt: 0 }, keys.privateKey, auctionId, 1000);
+assert.equal(opened.amount, '250000001');
+console.log('Initial app includes encryption; no dynamic tlock chunk. Browser bundle seal, signature verification and reveal passed.');
