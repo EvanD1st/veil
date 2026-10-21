@@ -36,8 +36,8 @@ function beaconClient() {
     chainVerificationParams: { chainHash: QUICKNET.hash, publicKey: QUICKNET.public_key },
   });
 }
-export async function sealBid(auctionId: string, publicKey: JsonWebKey, unlockRound: number, amount: string) {
-  const opening: BidOpening = { version: 1, auctionId, bidId: crypto.randomUUID(), amount, salt: randomHex() };
+export async function sealBid(auctionId: string, publicKey: JsonWebKey, unlockRound: number, amount: string, proofContext?: string | null) {
+  const opening: BidOpening = { version: proofContext ? 2 : 1, auctionId, bidId: crypto.randomUUID(), amount, salt: proofContext ? '00' + randomHex(31) : randomHex(), ...(proofContext ? { context: proofContext } : {}) };
   const inner = await encryptForSeller(opening, publicKey);
   const ciphertext = await timelockEncrypt(unlockRound, Buffer.from(inner), beaconClient());
   validateTimelockArmor(ciphertext, unlockRound);

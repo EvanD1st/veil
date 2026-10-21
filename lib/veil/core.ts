@@ -1,3 +1,7 @@
+import { poseidon4 } from 'poseidon-lite';
+export const PROOF_CIRCUIT = 'veil-highest-bid-v2-8';
+export const MAX_PROOF_BIDS = 8;
+export const SNARK_FIELD = 21888242871839275222246405745257275088548364400416034343698204186575808495617n;
 export const QUICKNET = {
   public_key: '83cf0f2896adee7eb8b5f01fcad3912212c437e0073e911fb90022d3e760183c8c4b450b6a0a6c3ac6a5776a2d1064510d1fec758c921cc22b0e17e63aaf4bcb5ed66304de9cf809bd274ca73bab4af5a6e9c76a4bc09e76eae8991ef5ece45a',
   period: 3,
@@ -8,7 +12,8 @@ export const QUICKNET = {
   metadata: { beaconID: 'quicknet' },
 };
 export const MAX_ZATOSHIS = 100000000000000n;
-export type BidOpening = { version: 1; auctionId: string; bidId: string; amount: string; salt: string };
+export type BidOpening = { version: 1 | 2; auctionId: string; bidId: string; amount: string; salt: string; context?: string };
+export type ProofBundle = { circuitId: string; proof: Record<string, unknown>; publicSignals: string[] };
 export type PublicBid = { id: string; commitment: string; ciphertextHash: string; acceptedAt: number; sequence: number };
 export type BidEnvelope = PublicBid & { ciphertext: string };
 export type Auction = {
@@ -17,8 +22,9 @@ export type Auction = {
   publicKey: JsonWebKey; createdAt: number; bidCount: number; isOwner: boolean;
   state: 'open' | 'closed' | 'result'; result: AuctionResult | null;
   paymentAddress: string | null;
+  protocolVersion: 1 | 2; proofContext: string | null;
 };
-export type AuctionResult = { winnerId: string | null; amount: string | null; salt: string | null; snapshotHash: string; declaredAt: number; status: 'seller-declared' };
+export type AuctionResult = { winnerId: string | null; amount: string | null; salt: string | null; snapshotHash: string; declaredAt: number; status: 'seller-declared' | 'zk-verified'; proof?: ProofBundle };
 
 export function parseZec(value: string): bigint {
   if (!/^(0|[1-9]\d{0,6})(\.\d{1,8})?$/.test(value)) throw new Error('Use a ZEC amount with up to 8 decimal places.');
@@ -57,8 +63,16 @@ export async function sha256(value: string): Promise<string> {
   return Array.from(new Uint8Array(bytes), b => b.toString(16).padStart(2, '0')).join('');
 }
 export async function commitmentFor(opening: BidOpening): Promise<string> {
-  if (opening.version !== 1 || !validZatoshis(opening.amount) || !/^[a-f0-9]{64}$/.test(opening.salt)) throw new Error('Invalid bid opening.');
+  if (![1, 2].includes(opening.version) || !validZatoshis(opening.amount) || !/^[a-f0-9]{64}$/.test(opening.salt)) throw new Error('Invalid bid opening.');
+  if (opening.version === 2) {
+    if (!opening.context || !/^(0|[1-9][0-9]{0,76})$/.test(opening.context) || BigInt(opening.context) >= SNARK_FIELD || BigInt('0x' + opening.salt) >= SNARK_FIELD || !/^[a-f0-9]{8}-[a-f0-9]{4}-4[a-f0-9]{3}-[89ab][a-f0-9]{3}-[a-f0-9]{12}$/.test(opening.bidId)) throw new Error('Invalid proof-compatible opening.');
+    return poseidon4([BigInt(opening.context), BigInt('0x' + opening.bidId.replace(/-/g, '')), BigInt(opening.amount), BigInt('0x' + opening.salt)]).toString(16).padStart(64, '0');
+  }
   return sha256(JSON.stringify(['VEIL-BID-v1', opening.auctionId, opening.bidId, opening.amount, opening.salt]));
+}
+export async function auctionProofContext(a: { id: string; reserve: string; closesAt: number; unlockRound: number; publicKey: JsonWebKey; paymentAddress: string | null }): Promise<string> {
+  const digest = await sha256(JSON.stringify(['VEIL-AUCTION-v2', PROOF_CIRCUIT, a.id, a.reserve, a.closesAt, a.unlockRound, a.publicKey.n, a.publicKey.e, a.paymentAddress, 'zcash-testnet']));
+  return (BigInt('0x' + digest) % SNARK_FIELD).toString();
 }
 export async function snapshotHash(auctionId: string, bids: PublicBid[]): Promise<string> {
   const entries = [...bids].sort((a, b) => a.sequence - b.sequence).map(b => [b.sequence, b.id, b.commitment, b.ciphertextHash]);

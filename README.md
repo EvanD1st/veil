@@ -1,60 +1,64 @@
 # VEIL
 
-**Bid privately. Reveal the winning price. Pay with Zcash.**
+**Bid privately. Prove the winner. Pay with Zcash.**
 
-VEIL is an experimental sealed-bid auction house for Zecathon's **Private Markets** track. This first review build combines browser-side bid encryption, a drand time lock, persistent acceptance records, local seller tallying, and Zcash testnet payment requests. The objects shown in the gallery are fictional sample lots.
+An experimental private auction house for Zecathon. Browser encryption and drand keep bids sealed until close. New auctions use a zero-knowledge highest-bid proof. A separate read-only wallet scanner can attest to an exact shielded testnet payment. Gallery objects are fictional sample lots.
 
-## Try the review build
+## Try it
 
-1. Choose **Try a sealed auction**. Enter an amount and seal three example bids. This uses actual encryption; the other two bidders are simulated locally.
-2. Wait about 20 seconds, then choose **Open as seller**. The browser verifies the published drand beacon and decrypts the envelopes. Only the winning amount is displayed.
-3. Choose **Create auction** to create a persisted test listing. Keep the downloaded auction-key backup. It is a private auction key, not a wallet seed.
-4. In **Seller studio**, reopen a listing or import its key backup. After the deadline, open all accepted envelopes and publish a seller-declared result.
-5. An accepted winner can prepare a ZIP 321 payment link and QR if the seller provided a Sapling testnet receiving address. No payment is sent or confirmed by VEIL.
+1. Choose **Try a sealed auction**, enter an offer, and seal three bids. The two other bidders are simulated locally; the encryption and proof are real.
+2. Wait about 20 seconds for the drand unlock time, then **Open as seller**. The browser decrypts all envelopes, generates a PLONK proof, and verifies it. Only the winning amount is displayed. The first proof downloads about 80 MB of integrity-checked assets; a desktop browser is recommended. Local measured proving time was about 27 seconds, not a device-independent guarantee.
+3. Create a test auction and keep its downloaded private auction-key backup. It is not a wallet key. New auctions allow eight bids, one final bid per signed-in participant.
+4. After close, open every envelope in Seller studio. Publishing sends the proof and winning opening. The server derives the expected inputs from its complete accepted log and verifies the proof before storing a result. Anyone in the workspace can verify that result again.
+5. A winner can prepare a ZIP 321 payment link/QR for the seller's Sapling testnet address. Seller and winner can download the invoice and import a signed scanner report. **No live wallet scanner is configured in this deployment; payment remains unverified until one is connected.**
 
-The hosted review workspace is owner-only. Persisted auctions reject self-bids; use the local guided demo to review both roles alone. A multi-person test needs an explicitly authorized audience change. This build does not initiate that change.
+The hosted workspace remains owner-only. Sellers cannot bid on their own persisted listings; use the browser-local demo to review both roles. Sharing with other participants requires a separate audience change.
 
-## What works
+## Proof protocol
 
-- Persistent auctions and one irrevocable bid per signed-in participant per auction; 32-bid cap.
-- Exact integer zatoshi amounts, immutable deadline/key/reserve, and server rejection of late bids.
-- Randomized SHA-256 bid commitments bound to the auction, bid ID, amount, and a 256-bit nonce.
-- AES-256-GCM encryption with auction/bid context, with the AES key wrapped to a seller RSA-OAEP-2048 public key.
-- An outer `tlock-js` envelope locked to the first drand quicknet round strictly after close. The pinned chain, public key and signature are verified; additional AGE recipients and wrong rounds are rejected.
-- Local auction keys, downloadable backup/import, bid receipts, and an exportable acceptance-log fingerprint.
-- Seller-only retrieval of envelopes after unlock; the browser decrypts and validates every opening before tallying. Highest amount above reserve wins; earlier acceptance breaks a tie.
-- A result bound to the full stored snapshot and a matching winning commitment. The public response contains no account identifiers or losing openings.
-- ZIP 321 requests with an exact amount and base64url memo. The address check validates testnet Sapling Bech32 encoding/checksum; it is not a wallet ownership or receiver-validity proof.
+Version 2 uses Circom 2.2.2, circomlib 2.0.5, and snarkjs 0.7.6 PLONK on BN254. The circuit is `circuits/auction.circom` (8 slots, 21 public inputs). It verifies:
 
-## What this version does not prove
+- Every active bid's Poseidon commitment to auction context, bid UUID, amount and random field salt.
+- Integer zatoshi amounts in 1..100,000,000,000,000; the same bound for the reserve.
+- Zero padding for unused slots and the full active count.
+- Highest eligible amount; first accepted bid wins ties. No eligible bid gives winner index and price zero.
 
-**A result is a seller declaration, not a zero-knowledge proof that the highest bid won.** The server verifies the published winning opening and log fingerprint, but it cannot verify that every private bid was lower. A dishonest seller can choose a different eligible bid, claim no winner, refuse to reveal, or disclose losing bids after opening. The count supplied with a result is not cryptographic evidence of opening every envelope.
+Public inputs, in order: context, reserve, count, one-based winner index (or zero), winning amount (or zero), eight UUID integers, eight commitment field elements. The server fixes the list in acceptance order. Amounts and salts are private witnesses. The context hashes the version/circuit identifier, auction ID, reserve, deadline, drand round, seller public key, payment address and testnet domain. The normal result exposes only the winning opening and proof.
 
-**Payment requests are not settlement.** There is no escrow, deposit, wallet connection, chain monitor, payment confirmation, refund, delivery guarantee, or financial enforcement. No real funds should be used in this build. Only testnet Sapling addresses are accepted; Unified Addresses are not supported yet.
+The prover runs in a dedicated browser worker. The shipped WASM, proving key chunks and snarkjs runtime are checked against pinned SHA-256 hashes before use. The server never accepts a caller-supplied verification key. Server and client verification use the snarkjs 0.7.6 PLONK algebra with a pure-JavaScript @noble/curves BN254 adapter, avoiding runtime WASM compilation in Cloudflare Workers. A real proof was cross-checked with the unmodified snarkjs verifier. The adapter and circuit are experimental and unaudited.
 
-**The operator is not anonymous to everyone.** Sites authentication and the database associate a participant's account with their bid. Hosting providers may observe IP addresses, timing and metadata. This is not an anonymity network or a Sybil-resistant market. Public bid IDs are random pseudonyms, not zero-knowledge identity proofs.
+The key uses the public Hermez/Perpetual Powers of Tau power-15 ceremony, not a locally generated trusted setup. The downloaded public mirror is accepted only if its BLAKE2b-512 equals the hash published by snarkjs:
 
-**The accepted log is not externally anchored.** Receipts and snapshot hashes help compare records, but a malicious host can omit, reorder or present different logs. They do not establish that every submitted bid was accepted. The UI labels these limits.
+```
+982372c867d229c236091f767e703253249a9b432c1710b4f326306bfa2428a17b06240359606cfe4d580b10a5a1f63fbed499527069c18ae17060472969ae6e
+```
 
-## Threat assumptions and recovery
+Reproduce with `node scripts/build-circuit.mjs`. The O1 circuit compilation produces 11,757 PLONK constraints (domain 16,384). No additional circuit-specific secret ceremony is used. Soundness still relies on the universal ceremony's assumptions. Proof assets and the fixed verification key are committed so ordinary app builds do not need the compiler or ceremony download.
 
-The time lock assumes drand's threshold network does not release a future round secret early. Even after that round is public, the inner layer needs the seller's private key. The seller can read all amounts after close; the normal UI publishes only the winner. drand availability is required to open bids.
+Legacy version-1 auctions keep SHA-256 commitments and explicitly **seller-declared** results; they are never relabelled as proof verified.
 
-A browser/device/origin compromise can read private keys and unencrypted openings, or modify delivered JavaScript. Auction keys are plaintext in local browser storage and in their exported backups. They never leave the browser in normal use. Clear storage only after backing up; a lost key has no server recovery. This prototype is not independently audited.
+## Payment scanner
 
-The server checks envelope structure but cannot prove that a submitted envelope encrypts a valid opening matching its commitment. A malicious malformed bid can prevent tallying. The app stops on any invalid envelope and does not silently drop it. A consistency proof or explicitly specified exclusion/dispute mechanism is required before adversarial use.
+See [scanner/README.md](scanner/README.md). The local Node bridge uses Zallet `getwalletstatus` / `z_viewtransaction` and Zebra's active-chain RPC. The receiving wallet must have viewing access to the seller's Sapling address and be fully synchronized. The bridge checks the incoming output's exact address, integer amount, 512-byte memo, block inclusion, active block hash and at least three confirmations. It refuses an unsynchronized/locked wallet or a changing tip.
 
-If a submit response is interrupted, the client keeps the opening locally and checks the accepted log before reporting failure. If a create response is interrupted, it checks the new auction ID before reporting failure. A retry must not be interpreted as a new accepted bid.
+A separate Ed25519 key signs a five-minute report. Configure only its **public key** as the Site environment variable `VEIL_SCANNER_PUBLIC_KEY`. Wallet/viewing keys, signing private key and local RPC credentials stay off the Site. Seller/winner upload the signed report; the server checks its trusted signature, invoice binding, confirmations, clock, expiry, monotonic timestamp and output reuse. Payment metadata is visible only to those two roles. A stale report becomes **needs refresh**; a fresh non-confirmation report revokes the prior confirmation. This is a manual rescan flow, not a continuous chain monitor. Each invoice tracks one selected Sapling output; replacing it with a different output is not supported in this prototype.
 
-## Next protocol milestone
+**Scanner-confirmed means a trusted scanner attestation, not a zero-knowledge proof of payment.** A compromised scanner key or dishonest scanner can lie. No real testnet transfer or live wallet RPC integration was available in this environment; tests use representative RPC fixtures and exercise the actual scanner/signature/database code. Real-wallet validation remains required before treating the integration as complete.
 
-A complete highest-bid proof must bind the auction terms, an independently fixed accepted set, every commitment/opening, the reserve and tie-break rule, and the public winner/price. It must address malformed encrypted bids and the seller's ability to abort. Selecting a proving backend is not enough: its zero-knowledge mode and verifier need independent review. This repository does not contain that circuit or verifier.
+## Boundaries and recovery
 
-Zcash completion requires a tested shielded testnet payment with a wallet and transaction observation, plus an explicit non-payment policy. The current QR/link alone is not sufficient evidence of Zcash settlement for a final hackathon submission. Source should be made public under the intended license before submitting; the private hosted source is not yet a public open-source release.
+- The proof establishes highest-bid selection within the **recorded log**. It does not establish that every attempted submission was accepted, stop host censorship/equivocation, or independently anchor acceptance order.
+- The seller can read every amount after close, disclose losing bids, lose their key, or refuse to publish. The proof does not force availability.
+- A malformed encrypted bid can block the tally. Submit-time encryption/commitment consistency is not proved. The app stops rather than dropping an invalid envelope.
+- drand's pinned quicknet threshold network must remain honest and available. An outer tlock envelope unlocks strictly after close; a seller RSA-OAEP key is still needed for the AES-GCM inner envelope.
+- Private auction keys are stored in browser local storage and downloaded backups. Device/origin compromise can reveal them and openings. No server recovery exists. Keep backups private.
+- Hosting authentication associates accounts with bids; connection metadata is not hidden. This is not an anonymity network or Sybil-resistant market.
+- There is no escrow, deposit, automatic transfer, refund, delivery guarantee or payment enforcement. Only testnet Sapling requests are supported, not Unified Addresses. Do not use real funds.
+- An interrupted create/bid request is reconciled against the same record ID before reporting failure.
 
-## Development
+## Development and verification
 
-Requires Node 22.13+ and pnpm. The committed lockfile is authoritative.
+Requires Node 24 (Node SQLite is used in tests) and pnpm. The lockfile is authoritative.
 
 ```sh
 pnpm install --frozen-lockfile
@@ -62,21 +66,18 @@ pnpm typecheck
 pnpm test
 pnpm build
 node scripts/test-bundle.mjs
+node scripts/test-prover-worker.mjs
 ```
 
-The app uses React, TypeScript, Vinext/Vite and a Cloudflare Worker with D1. `.openai/hosting.json` declares the database binding. The schema is in `db/schema.ts`; `pnpm db:generate` creates schema-only migrations under `drizzle/`. The hosting pipeline applies them when publishing. Never seed production with demonstration bids or private test keys.
+Tests run production crypto and service code against SQLite: encryption and drand, permissions, atomic bid acceptance, legacy results, real proof generation, wrong winner/tie/amount/context/omission rejection, empty and no-eligible auctions, signature/report validation, payment expiry/revocation and RPC note/reorg checks. Expected circuit-constraint errors are printed during negative proof tests. `test-prover-worker.mjs` exercises the shipped browser runtime in a JS web-API harness; it is not browser click-through QA. The browser automation environment was unavailable for this update.
 
-The tests execute production crypto and service functions against an in-memory SQLite adapter. They cover exact amounts, deadline boundaries, context binding, tampering, a verified drand fixture, permission boundaries, persistent acceptance, duplicate/late bids, result validation, request limits and payment encoding. The fixture is the real quicknet round 1000 retrieved from:
+React/TypeScript/Vinext runs on a Cloudflare Worker with D1. `.openai/hosting.json` preserves the Site ID/database binding. `db/schema.ts` and schema-only migrations under `drizzle/` add proof metadata and payment reports without modifying old auctions. Never seed production with test bids or private test keys.
 
-`https://api.drand.sh/52db9ba70e0cc0f6eaf7803dd07447a1f5477735fd3f661792ba94600c84e971/public/1000`
+## Sources and licenses
 
-These are programmatic checks, not a browser interaction audit or a security audit.
+- [snarkjs 0.7.6](https://github.com/iden3/snarkjs/tree/v0.7.6), [Circom](https://docs.circom.io/), [circomlib](https://github.com/iden3/circomlib).
+- [Zallet RPC source](https://github.com/zcash/zallet/tree/main/zallet-core/src/components/json_rpc/methods), [Zebra](https://zebra.zfnd.org/), [ZIP 321](https://zips.z.cash/zip-0321).
+- [tlock-js](https://github.com/drand/tlock-js), [drand](https://docs.drand.love/). The committed beacon fixture is quicknet round 1000.
+- The sneaker concept is AI-generated; the VEIL mark and other gallery artwork are original SVGs. No real product or seller is represented.
 
-## Sources and assets
-
-- [tlock-js](https://github.com/drand/tlock-js) and [drand](https://docs.drand.love/).
-- [Zcash ZIP 321 payment URIs](https://zips.z.cash/zip-0321).
-- [Zcash address encoding](https://zips.z.cash/protocol/protocol.pdf).
-- The unbranded sneaker image was AI-generated for this project: an ivory/sage sculptural high-top shoe on a warm minimal stone plinth. It represents no real product or seller. The orbital print, sculptural form, and VEIL mark are original code-native SVG artwork. No remote image service, analytics script or external font is loaded.
-
-Project code is offered under the MIT license; dependencies retain their own licenses. This prototype is provided without warranty.
+Original VEIL source retains its MIT notice in `LICENSE`. The combined application now incorporates GPL-3.0-or-later snarkjs code and runtime; its distribution must comply with GPL-3.0-or-later (`LICENSE-GPL-3.0`). Vendored files retain attribution, and modifications are described in `lib/veil/zk/vendor/README.md`. Dependency licenses remain applicable. Make the corresponding source available when distributing this build. This private review workspace is not yet a public hackathon source release.

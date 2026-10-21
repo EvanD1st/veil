@@ -101,6 +101,9 @@ test('persisted auction accepts a sealed bid, preserves its bytes and hides iden
   Date.now = () => core.roundTimeMs(1000) - 120000;
   const auction = await server.createAuction({ id: auctionId, title: 'Test auction', description: 'A fictional test auction object.', sellerName: 'Studio', category: 'Art', artwork: 'orbit', reserve: '100000000', closesAt: core.roundTimeMs(1000) - 1, publicKey: keys.publicKey }, 'seller');
   assert.equal(auction.unlockRound, 1000);
+  assert.equal(auction.protocolVersion,2);
+  // Preserve regression coverage for already deployed v1 auctions.
+  db.prepare('UPDATE auctions SET protocol_version=1,proof_context=NULL WHERE id=?').run(auctionId);
   await assert.rejects(server.acceptBid(auctionId, sealed, 'seller'), { status: 403 });
   accepted = await server.acceptBid(auctionId, sealed, 'bidder');
   assert.equal(accepted.ciphertextHash, sealed.ciphertextHash);
@@ -157,4 +160,98 @@ test('ZIP321 request preserves amount and memo; Sapling checksum and padding val
   const uri = core.paymentUri(address, '250000001', auctionId, opening.bidId), query = new URLSearchParams(uri.split('?')[1]);
   assert.equal(query.get('amount'), '2.50000001');
   assert.equal(Buffer.from(query.get('memo'), 'base64url').toString(), `VEIL:${auctionId}:${opening.bidId}`);
+});
+
+test('v2 proof binds complete accepted log, winner, reserve and context; malformed proofs cannot publish',async()=>{
+  const {proofWitness,proofPublicSignals}=require('../.sites-runtime/test-build/lib/veil/zk/protocol.js');
+  const {verifyHighestBid}=require('../.sites-runtime/test-build/lib/veil/zk/verify.js');
+  const {plonk,wtns}=await import('snarkjs');
+  Date.now=()=>core.roundTimeMs(1000)-120000;
+  const id=crypto.randomUUID();
+  const auction=await server.createAuction({id,title:'Proof auction',description:'A proof-enabled fictional auction.',sellerName:'Studio',category:'Art',artwork:'orbit',reserve:'100',closesAt:core.roundTimeMs(1000)-1,publicKey:keys.publicKey},'seller');
+  const openings=[],bids=[];
+  for(const [i,amount] of ['180','250','250'].entries()){
+    const envelope=await crypt.sealBid(id,keys.publicKey,1000,amount,auction.proofContext);
+    openings.push(envelope.opening);bids.push(await server.acceptBid(id,envelope,'proof-bidder-'+i));
+  }
+  const winner=core.chooseWinner(openings.map((o,i)=>({...o,sequence:bids[i].sequence})),auction.reserve);
+  assert.equal(winner.bidId,openings[1].bidId);
+  const witness=await proofWitness(auction,bids,openings,winner.bidId,winner.amount);
+  const proof=await plonk.fullProve(witness,'.sites-runtime/zk-build/auction_js/auction.wasm','.sites-runtime/zk-build/auction.zkey',undefined,undefined,{singleThread:true});
+  const bundle={circuitId:core.PROOF_CIRCUIT,...proof};
+  const expected=proofPublicSignals(auction,bids,winner.bidId,winner.amount);
+  assert.deepEqual(await verifyHighestBid(bundle,expected),bundle);
+  for(const changes of [{winnerIndex:'3'},{winningAmount:'249'},{reserve:'251'},{amounts:['180','251','250','0','0','0','0','0']},{count:'2'},{context:'999'}]){
+    const bad={...witness,...changes};
+    await assert.rejects(plonk.fullProve(bad,'.sites-runtime/zk-build/auction_js/auction.wasm','.sites-runtime/zk-build/auction.zkey',undefined,undefined,{singleThread:true}));
+  }
+  await assert.rejects(verifyHighestBid(bundle,proofPublicSignals(auction,bids.slice(1),winner.bidId,winner.amount)),/inputs/);
+  const mutated=structuredClone(bundle);mutated.proof.eval_a=String((BigInt(mutated.proof.eval_a)+1n)%core.SNARK_FIELD);
+  await assert.rejects(verifyHighestBid(mutated,expected),/invalid/);
+  const point=structuredClone(bundle);point.proof.A=['0','0','1'];await assert.rejects(verifyHighestBid(point,expected),/invalid/);
+  Date.now=()=>core.roundTimeMs(1000)+100;
+  const detail=await server.details(id,'seller'),declaration={winnerId:winner.bidId,amount:winner.amount,salt:winner.salt,openedCount:3,snapshotHash:detail.snapshotHash,proof:bundle};
+  await assert.rejects(server.declareResult(id,{...declaration,proof:undefined},'seller'),/required/);
+  await assert.rejects(server.declareResult(id,{...declaration,proof:mutated},'seller'),/invalid/);
+  const result=await server.declareResult(id,declaration,'seller');assert.equal(result.status,'zk-verified');
+  assert.equal(JSON.stringify(result).includes(openings[0].salt),false);
+  assert.equal(JSON.stringify(result).includes(openings[2].salt),false);
+  const empty=await proofWitness(auction,[],[],null,null);
+  const emptyProof=await plonk.fullProve(empty,'.sites-runtime/zk-build/auction_js/auction.wasm','.sites-runtime/zk-build/auction.zkey',undefined,undefined,{singleThread:true});
+  await verifyHighestBid({circuitId:core.PROOF_CIRCUIT,...emptyProof},proofPublicSignals(auction,[],null,null));
+  await wtns.calculate({...witness,reserve:'251',winnerIndex:'0',winningAmount:'0'},'.sites-runtime/zk-build/auction_js/auction.wasm',{type:'mem'});
+  Date.now=realNow;
+});
+
+test('payment reports require trusted signatures, exact invoice, sufficient confirmations and freshness',async()=>{
+ const {validatePaymentReport,reportMessage}=require('../.sites-runtime/test-build/lib/veil/payment.js');
+ const {generateKeyPairSync,sign}=require('node:crypto');
+ const {publicKey,privateKey}=generateKeyPairSync('ed25519');
+ const pk=publicKey.export({format:'der',type:'spki'}).subarray(-32).toString('hex'),now=realNow();
+ const invoice={version:1,network:'testnet',invoiceId:'aa'.repeat(32),auctionId, bidId:opening.bidId,address:'test-address',amount:'250',memo:'invoice memo'};
+ const report={version:1,invoiceId:invoice.invoiceId,network:'testnet',txid:'bb'.repeat(32),output:0,pool:'sapling',address:invoice.address,amount:invoice.amount,memo:invoice.memo,status:'confirmed',blockHash:'cc'.repeat(32),blockHeight:98,tipHeight:100,confirmations:3,observedAt:now,expiresAt:now+300000};
+ const signed=r=>({report:r,signature:sign(null,reportMessage(r),privateKey).toString('hex')});
+ await validatePaymentReport(signed(report),invoice,pk,now);
+ for(const changes of [{invoiceId:'dd'.repeat(32)},{network:'mainnet'},{address:'other'},{amount:'251'},{memo:'other'},{confirmations:2},{blockHeight:99},{observedAt:now-300001},{observedAt:now+30001},{expiresAt:now},{expiresAt:now+300001}])await assert.rejects(validatePaymentReport(signed({...report,...changes}),invoice,pk,now));
+ await assert.rejects(validatePaymentReport({...signed(report),signature:'00'.repeat(64)},invoice,pk,now));
+ await assert.rejects(validatePaymentReport(signed(report),invoice,'',now));
+ await validatePaymentReport(signed({...report,status:'not-confirmed',blockHash:null,blockHeight:null,confirmations:0}),invoice,pk,now);
+});
+
+test('read-only scanner checks wallet sync and incoming note, and downgrades reorged output',async()=>{
+ const {scanInvoice}=await import('../scanner/scan.mjs');
+ const invoice={version:1,network:'testnet',invoiceId:'aa'.repeat(32),auctionId,bidId:opening.bidId,address:'ztestsapling1fixture',amount:'250',memo:`VEIL:${auctionId}:${opening.bidId}`};
+ const txid='bb'.repeat(32),block='cc'.repeat(32),tip='dd'.repeat(32);
+ const state={locked:false,node_tip:{height:100,blockhash:tip},wallet_tip:{height:100,blockhash:tip},fully_synced_height:100};
+ const output={pool:'sapling',output:0,address:invoice.address,valueZat:250,memo:Buffer.from(invoice.memo).toString('hex').padEnd(1024,'0'),outgoing:false,walletInternal:false};
+ let note={...output},wallet={...state},active=block,conf=3;
+ const walletRpc=async method=>method==='getwalletstatus'?wallet:{txid,status:'mined',confirmations:conf,blockhash:block,outputs:[note]};
+ const chainRpc=async method=>method==='getblockchaininfo'?{chain:'test',blocks:100,bestblockhash:tip}:method==='getblock'?{height:98,tx:[txid]}:active;
+ assert.equal((await scanInvoice(invoice,txid,0,walletRpc,chainRpc)).status,'confirmed');
+ for(const change of [{address:'other'},{valueZat:249},{memo:'00'.repeat(512)},{outgoing:true},{walletInternal:true},{pool:'transparent'}]){note={...output,...change};await assert.rejects(scanInvoice(invoice,txid,0,walletRpc,chainRpc),/Output/);}note={...output};
+ wallet={...state,locked:true};await assert.rejects(scanInvoice(invoice,txid,0,walletRpc,chainRpc),/synchronized/);wallet={...state,fully_synced_height:99};await assert.rejects(scanInvoice(invoice,txid,0,walletRpc,chainRpc),/synchronized/);wallet=state;
+ active='ee'.repeat(32);assert.equal((await scanInvoice(invoice,txid,0,walletRpc,chainRpc)).status,'not-confirmed');active=block;conf=2;assert.equal((await scanInvoice(invoice,txid,0,walletRpc,chainRpc)).status,'not-confirmed');
+});
+
+test('persisted payment status is private, rejects replay/reused outputs and expires or revokes confirmations',async()=>{
+ const {paymentInvoice,reportMessage}=require('../.sites-runtime/test-build/lib/veil/payment.js');
+ const {generateKeyPairSync,sign}=require('node:crypto');
+ const pair=generateKeyPairSync('ed25519');env.VEIL_SCANNER_PUBLIC_KEY=pair.publicKey.export({format:'der',type:'spki'}).subarray(-32).toString('hex');
+ db.prepare('UPDATE auctions SET payment_address=? WHERE id=?').run(bech32Fixture(),auctionId);
+ const a=(await server.details(auctionId,'seller')).auction,invoice=await paymentInvoice(a),now=realNow();Date.now=()=>now;
+ await assert.rejects(server.paymentStatus(auctionId,'outsider'),{status:403});
+ const report={version:1,invoiceId:invoice.invoiceId,network:'testnet',txid:'bb'.repeat(32),output:0,pool:'sapling',address:invoice.address,amount:invoice.amount,memo:invoice.memo,status:'confirmed',blockHash:'cc'.repeat(32),blockHeight:98,tipHeight:100,confirmations:3,observedAt:now,expiresAt:now+300000};
+ const signed=r=>({report:r,signature:sign(null,reportMessage(r),pair.privateKey).toString('hex')});
+ assert.equal((await server.submitPaymentReport(auctionId,signed(report),'seller')).status,'scanner-confirmed');
+ assert.equal((await server.paymentStatus(auctionId,'bidder')).status,'scanner-confirmed');
+ await assert.rejects(server.submitPaymentReport(auctionId,signed(report),'seller'),{status:409});
+ Date.now=()=>now+300001;assert.equal((await server.paymentStatus(auctionId,'bidder')).status,'needs-refresh');
+ const revoked={...report,observedAt:now+300001,expiresAt:now+600001,status:'not-confirmed',blockHash:null,blockHeight:null,confirmations:0};
+ assert.equal((await server.submitPaymentReport(auctionId,signed(revoked),'seller')).status,'not-confirmed');
+ // A second invoice cannot claim the same note even if the scanner signs it.
+ const otherId=crypto.randomUUID();
+ db.prepare('INSERT INTO auctions SELECT ?,owner_id,title,description,category,artwork,seller_name,reserve,closes_at,unlock_round,public_key,created_at,payment_address,result,protocol_version,proof_context FROM auctions WHERE id=?').run(otherId,auctionId);
+ const otherInvoice=await paymentInvoice((await server.details(otherId,'seller')).auction);
+ await assert.rejects(server.submitPaymentReport(otherId,signed({...revoked,invoiceId:otherInvoice.invoiceId,memo:otherInvoice.memo}),'seller'),{status:409});
+ delete env.VEIL_SCANNER_PUBLIC_KEY;assert.equal((await server.paymentStatus(auctionId,'seller')).configured,false);Date.now=realNow;
 });
