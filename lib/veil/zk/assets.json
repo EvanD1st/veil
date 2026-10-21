@@ -1,0 +1,38 @@
+{
+  "wasm": [
+    {
+      "url": "/zk/veil-highest-bid-v2-8/wasm-0.bin",
+      "sha256": "ff2a9eb1b4abc8ea87ac1b683a716f48c51059e1cad05339422d9dd1ce4ea339",
+      "size": 2051655
+    }
+  ],
+  "zkey": [
+    {
+      "url": "/zk/veil-highest-bid-v2-8/zkey-0.bin",
+      "sha256": "da5fadb0c08169f75540f25346791a25fa354eedafc32fd60642ca8a6f14fda8",
+      "size": 20971520
+    },
+    {
+      "url": "/zk/veil-highest-bid-v2-8/zkey-1.bin",
+      "sha256": "c0005f58164bf710030681ce3d6760ad9c0c4ab94c399edf03def6c6bb83f589",
+      "size": 20971520
+    },
+    {
+      "url": "/zk/veil-highest-bid-v2-8/zkey-2.bin",
+      "sha256": "de9f1ea9cccef1251f01769aa13378467eb96a7d976775c221f97e6c3939eec9",
+      "size": 20971520
+    },
+    {
+      "url": "/zk/veil-highest-bid-v2-8/zkey-3.bin",
+      "sha256": "e7df2f311e7da223557dc3b0a1ea4ec5d9d50dbf4ce30367b87f5e928e6a41e9",
+      "size": 14581688
+    }
+  ],
+  "runtime": [
+    {
+      "url": "/zk/veil-highest-bid-v2-8/runtime-0.js",
+      "sha256": "3f61bbd9ac0a10173902eaef65b510fa4e9a2c057f759c7f18a6d0446b20fd06",
+      "size": 688758
+    }
+  ]
+}
