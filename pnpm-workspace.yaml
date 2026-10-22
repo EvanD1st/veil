@@ -19,3 +19,8 @@ verifyDepsBeforeRun: false
 optimisticRepeatInstall: false
 overrides:
   miniflare>sharp: 0.35.4
+# drand-client imports this v1 API but omits it from its published dependencies.
+packageExtensions:
+  drand-client@1.2.5:
+    dependencies:
+      '@noble/hashes': 1.8.0

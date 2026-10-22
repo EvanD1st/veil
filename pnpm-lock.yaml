@@ -7,6 +7,8 @@ settings:
 overrides:
   miniflare>sharp: 0.35.4
 
+packageExtensionsChecksum: sha256-0XEYFhl08ZAO30bRxiioP1VlYCko11iqgBABN3EyCuA=
+
 importers:
 
   .:
@@ -7624,6 +7626,7 @@ snapshots:
     dependencies:
       '@babel/traverse': 7.29.0(supports-color@10.2.2)
       '@noble/curves': 1.9.7
+      '@noble/hashes': 1.8.0
       buffer: 6.0.3
     transitivePeerDependencies:
       - supports-color

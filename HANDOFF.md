@@ -1,4 +1,4 @@
-# VEIL — Codex handoff
+# VEIL — Project handoff
 
 Prepared 21 October 2026. Target repository: https://github.com/EvanD1st/veil.git
 
@@ -138,6 +138,24 @@ Proving-key chunks, the verification key and circuit WASM are public artifacts, 
 
 Do not commit `.env` files, signing/private auction keys, wallet/viewing keys, RPC cookies, credentials, local database state or real payment reports. The repository excludes checkout-local runtime and output directories. Production auction keys belong to the user's browser/backups and are not in the source repository.
 
-## Suggested first instruction to Codex
+## Suggested next steps
 
 Continue VEIL from this repository. Read HANDOFF.md, README.md and scanner/README.md. Reproduce the current checks, then complete real browser QA and a shielded testnet payment using the existing scanner. Preserve the UI, v1/v2 compatibility, full-log proof checks and honest status labels. Report actual verification evidence and any external setup still needed. Do not introduce fake payment success or silently drop malformed bids.
+
+## Continuation — 22 October 2026
+
+Changes prepared for GitHub:
+- Added `.github/workflows/ci.yml`: Node 24, pinned pnpm from package.json, frozen lockfile, typecheck, tests, production build, bundle check and shipped prover harness. No deployment or artifact publication.
+- Added payment-state recovery guidance in `app/payment-status.tsx`: wait for confirmations, rescan the same output, refresh expired evidence, and coordinate unmatched/non-payment directly. No new payment timeout policy or settlement behavior is introduced.
+
+Validation update: installation completed after sequential retries with longer network timeouts. Node 24.15.0 / pnpm 11.25.0. Typecheck, all 16 tests, production build, bundle encryption check and shipped prover-worker harness passed. All pinned public and built proof assets match their sizes and SHA-256 hashes. Browser click-through/device QA remains outstanding. CI itself has not run on GitHub.
+
+Real shielded testnet payment validation still requires the operator's synchronized Zallet/Zebra wallet/node and receiving address, as described above. No live payment or deployment was performed.
+
+Clean-checkout fixes found during verification:
+- Added a pnpm package extension for drand-client 1.2.5, whose published dependencies omit its direct @noble/hashes v1 import. The lockfile adds @noble/hashes 1.8.0 for that package without changing existing versions. Frozen offline installation passed after this change.
+- Added .gitattributes rules preserving pinned binary assets and runtime JS bytes. Windows core.autocrlf had changed the runtime and correctly caused the worker integrity check to reject it. Restoring committed bytes matched the existing pinned hash; no integrity checks or hashes were weakened.
+
+## Repository update — 23 October 2026
+
+Removed tool-specific naming from project text and configuration. macOS previews use polling for file watching. GitHub publishing includes the original application source, CI, payment recovery guidance and clean-checkout fixes. Browser device QA and a real shielded testnet payment remain outstanding.
