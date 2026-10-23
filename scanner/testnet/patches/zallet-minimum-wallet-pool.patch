@@ -1,0 +1,82 @@
+diff --git a/zallet-core/src/components/database.rs b/zallet-core/src/components/database.rs
+index b53b7f5..cdac1a6 100644
+--- a/zallet-core/src/components/database.rs
++++ b/zallet-core/src/components/database.rs
+@@ -19,6 +19,7 @@ use crate::{
+ use super::keystore;
+ 
+ mod connection;
++mod pool_config;
+ pub(crate) use connection::{DbConnection, WalletRng};
+ 
+ mod ext;
+diff --git a/zallet-core/src/components/database/connection.rs b/zallet-core/src/components/database/connection.rs
+index 1db7519..c3160a9 100644
+--- a/zallet-core/src/components/database/connection.rs
++++ b/zallet-core/src/components/database/connection.rs
+@@ -45,7 +45,7 @@ pub(super) fn pool(path: impl AsRef<Path>, params: Network) -> Result<WalletPool
+     let config = deadpool_sqlite::Config::new(path.as_ref());
+     let manager = WalletManager::from_config(&config, params);
+     WalletPool::builder(manager)
+-        .config(deadpool::managed::PoolConfig::default())
++        .config(super::pool_config::wallet_pool_config())
+         .build()
+         .map_err(|e| ErrorKind::Generic.context(e).into())
+ }
+diff --git a/zallet-core/src/components/database/pool_config.rs b/zallet-core/src/components/database/pool_config.rs
+new file mode 100644
+index 0000000..fce83c5
+--- /dev/null
++++ b/zallet-core/src/components/database/pool_config.rs
+@@ -0,0 +1,51 @@
++//! Reserve database connections for RPC in addition to the four long-lived sync tasks.
++
++pub(super) fn wallet_pool_config() -> deadpool::managed::PoolConfig {
++    let mut config = deadpool::managed::PoolConfig::default();
++    // The CPU-derived default can be only two or four on small or CPU-limited hosts.
++    // Sync owns four connections for its lifetime; leave room for RPC and keystore work.
++    config.max_size = config.max_size.max(8);
++    config
++}
++
++#[cfg(test)]
++mod tests {
++    use deadpool::managed::{Manager, Metrics, Pool, RecycleResult};
++    use std::{convert::Infallible, time::Duration};
++
++    struct DummyManager;
++    impl Manager for DummyManager {
++        type Type = ();
++        type Error = Infallible;
++        async fn create(&self) -> Result<(), Infallible> {
++            Ok(())
++        }
++        async fn recycle(&self, _: &mut (), _: &Metrics) -> RecycleResult<Infallible> {
++            Ok(())
++        }
++    }
++
++    #[test]
++    fn four_sync_connections_leave_a_connection_for_rpc() {
++        tokio::runtime::Builder::new_current_thread()
++            .enable_all()
++            .build()
++            .unwrap()
++            .block_on(async {
++                let pool: Pool<DummyManager> = Pool::builder(DummyManager)
++                    .config(super::wallet_pool_config())
++                    .build()
++                    .unwrap();
++                let mut held = Vec::new();
++                // Hold all four sync connections while acquiring the separate RPC connection.
++                for _ in 0..5 {
++                    held.push(
++                        tokio::time::timeout(Duration::from_secs(1), pool.get())
++                            .await
++                            .expect("database pool exhausted by background sync tasks")
++                            .unwrap(),
++                    );
++                }
++            });
++    }
++}

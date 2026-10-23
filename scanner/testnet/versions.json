@@ -31,6 +31,6 @@
   },
   "network": "testnet",
   "testnetNu7ActivationHeight": 4465026,
-  "liveEvidence": "Authorized native AWS build completed for all three binaries with recorded hashes; Zebra early testnet sync and controlled service restart observed. Wallet backup, synchronized RPC/output checks and payment remain pending. See docs/TESTNET_SERVICE.md.",
+  "liveEvidence": "Authorized native AWS build completed for all three binaries with recorded hashes; node and backed-up wallet returned after host reboot. Node sync continues; database-backed wallet RPC times out because the CPU-sized pool cannot accommodate four retained sync handles. Separate minimum-pool patch proposed but not installed or covered by prior exact-source approval. No receiver/payment evidence. See docs/TESTNET_SERVICE.md and scanner/testnet/patches/README.md.",
   "operatorAuthorization": "Exact experimental commit authorized on 2026-10-23 for an isolated AWS TESTNET lab only. Audit gate remains failed. Installation and live results must be recorded separately."
 }
