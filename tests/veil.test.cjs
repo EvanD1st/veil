@@ -193,7 +193,14 @@ test('v2 proof binds complete accepted log, winner, reserve and context; malform
   const detail=await server.details(id,'seller'),declaration={winnerId:winner.bidId,amount:winner.amount,salt:winner.salt,openedCount:3,snapshotHash:detail.snapshotHash,proof:bundle};
   await assert.rejects(server.declareResult(id,{...declaration,proof:undefined},'seller'),/required/);
   await assert.rejects(server.declareResult(id,{...declaration,proof:mutated},'seller'),/invalid/);
-  const result=await server.declareResult(id,declaration,'seller');assert.equal(result.status,'zk-verified');
+  const {publishOnce,reconcilePublication}=require('../.sites-runtime/test-build/lib/veil/publication.js');
+  const attempt={auction:detail.auction,bids:detail.bids,payload:declaration};let writes=0,result;
+  const recovered=await publishOnce(attempt,async()=>{writes++;result=await server.declareResult(id,declaration,'seller');throw Error('Server committed, response lost');},()=>server.details(id,'seller'));
+  assert.equal(writes,1);assert.equal(recovered.status,'matched');assert.equal(result.status,'zk-verified');
+  assert.equal((await reconcilePublication(attempt,async()=>({...await server.details(id,'seller'),snapshotHash:'00'.repeat(32)}))).status,'conflict');
+  assert.equal((await reconcilePublication(attempt,async()=>{throw Error('Network unavailable');})).status,'unknown');
+  const unpublished={...await server.details(id,'seller')};unpublished.auction={...unpublished.auction,result:null};
+  assert.equal((await reconcilePublication(attempt,async()=>unpublished)).status,'unknown');
   assert.equal(JSON.stringify(result).includes(openings[0].salt),false);
   assert.equal(JSON.stringify(result).includes(openings[2].salt),false);
   const empty=await proofWitness(auction,[],[],null,null);
@@ -244,14 +251,52 @@ test('persisted payment status is private, rejects replay/reused outputs and exp
  const signed=r=>({report:r,signature:sign(null,reportMessage(r),pair.privateKey).toString('hex')});
  assert.equal((await server.submitPaymentReport(auctionId,signed(report),'seller')).status,'scanner-confirmed');
  assert.equal((await server.paymentStatus(auctionId,'bidder')).status,'scanner-confirmed');
+ const trusted=env.VEIL_SCANNER_PUBLIC_KEY;
+ const rotation=generateKeyPairSync('ed25519');env.VEIL_SCANNER_PUBLIC_KEY=rotation.publicKey.export({format:'der',type:'spki'}).subarray(-32).toString('hex');
+ assert.equal((await server.paymentStatus(auctionId,'seller')).status,'needs-refresh');
+ await assert.rejects(server.submitPaymentReport(auctionId,signed({...report,observedAt:now+1}),'seller'),/signed/);
+ const rotatedReport={...report,observedAt:now+1};
+ assert.equal((await server.submitPaymentReport(auctionId,{report:rotatedReport,signature:sign(null,reportMessage(rotatedReport),rotation.privateKey).toString('hex')},'bidder')).status,'scanner-confirmed');
+ delete env.VEIL_SCANNER_PUBLIC_KEY;assert.equal((await server.paymentStatus(auctionId,'seller')).status,'needs-refresh');
+ env.VEIL_SCANNER_PUBLIC_KEY=trusted;
  await assert.rejects(server.submitPaymentReport(auctionId,signed(report),'seller'),{status:409});
  Date.now=()=>now+300001;assert.equal((await server.paymentStatus(auctionId,'bidder')).status,'needs-refresh');
  const revoked={...report,observedAt:now+300001,expiresAt:now+600001,status:'not-confirmed',blockHash:null,blockHeight:null,confirmations:0};
  assert.equal((await server.submitPaymentReport(auctionId,signed(revoked),'seller')).status,'not-confirmed');
  // A second invoice cannot claim the same note even if the scanner signs it.
  const otherId=crypto.randomUUID();
- db.prepare('INSERT INTO auctions SELECT ?,owner_id,title,description,category,artwork,seller_name,reserve,closes_at,unlock_round,public_key,created_at,payment_address,result,protocol_version,proof_context FROM auctions WHERE id=?').run(otherId,auctionId);
+ db.prepare('INSERT INTO auctions SELECT ?,owner_id,title,description,category,artwork,seller_name,reserve,closes_at,unlock_round,public_key,created_at,payment_address,result,protocol_version,proof_context,payment_window_hours FROM auctions WHERE id=?').run(otherId,auctionId);
  const otherInvoice=await paymentInvoice((await server.details(otherId,'seller')).auction);
  await assert.rejects(server.submitPaymentReport(otherId,signed({...revoked,invoiceId:otherInvoice.invoiceId,memo:otherInvoice.memo}),'seller'),{status:409});
  delete env.VEIL_SCANNER_PUBLIC_KEY;assert.equal((await server.paymentStatus(auctionId,'seller')).configured,false);Date.now=realNow;
+});
+
+
+test('payment follow-up preserves the winner and distinguishes overdue policy from scanner evidence',async()=>{
+ db.prepare('UPDATE auctions SET payment_window_hours=NULL WHERE id=?').run(auctionId);
+ const initial=await server.details(auctionId,'seller'),before=JSON.stringify(initial.auction.result);
+ assert.equal((await server.paymentStatus(auctionId,'seller')).workflow.dueAt,null);
+ db.prepare('UPDATE auctions SET payment_window_hours=24 WHERE id=?').run(auctionId);
+ const declared=initial.auction.result.declaredAt;Date.now=()=>declared+1000;
+ const pending=await server.paymentStatus(auctionId,'seller');assert.equal(pending.workflow.dueAt,declared+86400000);assert.equal(pending.workflow.overdue,false);
+ await assert.rejects(server.submitPaymentFollowup(auctionId,{action:'reported-sent'},'seller'),{status:403});
+ await assert.rejects(server.submitPaymentFollowup(auctionId,{action:'reported-sent'},'outsider'),{status:403});
+ await assert.rejects(server.submitPaymentFollowup(auctionId,{action:'requested-discussion'},'bidder'),{status:409});
+ const reported=await server.submitPaymentFollowup(auctionId,{action:'reported-sent'},'bidder');
+ assert.notEqual(reported.status,'scanner-confirmed');assert.equal(reported.workflow.actions[0].action,'reported-sent');
+ Date.now=()=>declared+86400000;
+ const overdue=await server.submitPaymentFollowup(auctionId,{action:'requested-discussion'},'seller');assert.equal(overdue.workflow.overdue,true);
+ assert.equal(overdue.workflow.actions.length,2);assert.equal(JSON.stringify((await server.details(auctionId,'seller')).auction.result),before);
+ await assert.rejects(server.submitPaymentFollowup(auctionId,{action:'reassign-winner'},'seller'),{status:400});
+ Date.now=realNow;
+});
+
+
+test('legacy result reconciliation never relabels an unproved declaration',async()=>{
+ const {reconcilePublication}=require('../.sites-runtime/test-build/lib/veil/publication.js');
+ const detail=await server.details(auctionId,'seller'),r=detail.auction.result;
+ const attempt={auction:detail.auction,bids:detail.bids,payload:{winnerId:r.winnerId,amount:r.amount,salt:r.salt,snapshotHash:r.snapshotHash,openedCount:detail.bids.length}};
+ assert.equal((await reconcilePublication(attempt,async()=>detail)).status,'matched');
+ const relabelled={...detail,auction:{...detail.auction,result:{...r,status:'zk-verified'}}};
+ assert.equal((await reconcilePublication(attempt,async()=>relabelled)).status,'conflict');
 });

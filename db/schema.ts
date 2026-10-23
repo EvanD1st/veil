@@ -1,4 +1,5 @@
-import { sqliteTable, text, integer, uniqueIndex } from 'drizzle-orm/sqlite-core';
+import {sql} from 'drizzle-orm';
+import { sqliteTable, text, integer, uniqueIndex, primaryKey, check } from 'drizzle-orm/sqlite-core';
 
 export const auctions = sqliteTable('auctions', {
   id: text('id').primaryKey(), ownerId: text('owner_id').notNull(),
@@ -6,6 +7,7 @@ export const auctions = sqliteTable('auctions', {
   category: text('category').notNull(), artwork: text('artwork').notNull(), sellerName: text('seller_name').notNull(),
   reserve: text('reserve').notNull(), closesAt: integer('closes_at').notNull(), unlockRound: integer('unlock_round').notNull(),
   publicKey: text('public_key').notNull(), createdAt: integer('created_at').notNull(),
+  paymentWindowHours: integer('payment_window_hours'),
   paymentAddress: text('payment_address'), result: text('result'),
   protocolVersion: integer('protocol_version').notNull().default(1), proofContext: text('proof_context'),
 });
@@ -20,3 +22,7 @@ export const paymentReports = sqliteTable('payment_reports', {
   outputKey: text('output_key').notNull(), signedReport: text('signed_report').notNull(),
   observedAt: integer('observed_at').notNull(),
 },table=>[uniqueIndex('payment_output_once').on(table.outputKey)]);
+
+export const paymentFollowups=sqliteTable('payment_followups',{
+ auctionId:text('auction_id').notNull().references(()=>auctions.id),actorId:text('actor_id').notNull(),action:text('action').notNull(),recordedAt:integer('recorded_at').notNull(),
+},table=>[primaryKey({columns:[table.auctionId,table.actorId]}),check('payment_followup_action',sql`${table.action} IN ('reported-sent','requested-discussion')`)]);
