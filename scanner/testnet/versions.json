@@ -14,7 +14,7 @@
     ],
     "backendLockSha256": "4a6ad6b14b8c8f9ea01b8099f1ddfded73146c37cd57ac8b1feefb6ae0f437c8",
     "zebraStateCrate": "16.0.0",
-    "upstreamAuditStatus": "PR #898 remains open at the pinned head. Inspected required job 119994964058: cargo vet fmt passed; cargo vet --locked exited 255 because 30 versions lack safe-to-deploy coverage. Acceptance gate remains unsatisfied; this does not establish a compiler failure or a proven vulnerability.",
+    "upstreamAuditStatus": "Approved pinned base retains failed vet job 119994964058 (30 uncovered versions). PR #898 now remains open at 8c5a93ba9d68ad78d199c3624413c0139781b837; inspected backend job 120570232419 also fails cargo vet --locked with seven uncovered safe-to-deploy versions. No audit bypass or pin substitution.",
     "lockSha256": "90a1c92656d4d591cb184d341e70c4c16d503ab8c4083a0bbeef5add5b23b666"
   },
   "zebra": {
@@ -31,6 +31,6 @@
   },
   "network": "testnet",
   "testnetNu7ActivationHeight": 4465026,
-  "liveEvidence": "Authorized native AWS build completed for all three binaries with recorded hashes; node and backed-up wallet returned after host reboot. Node sync continues; database-backed wallet RPC times out because the CPU-sized pool cannot accommodate four retained sync handles. Separate minimum-pool patch proposed but not installed or covered by prior exact-source approval. No receiver/payment evidence. See docs/TESTNET_SERVICE.md and scanner/testnet/patches/README.md.",
-  "operatorAuthorization": "Exact experimental commit authorized on 2026-10-23 for an isolated AWS TESTNET lab only. Audit gate remains failed. Installation and live results must be recorded separately."
+  "liveEvidence": "Approved base plus separately approved minimum-pool patch SHA256 2ee7547ced58a97498b93588b8f2c589e0db11c339f3379884c1052b6b0d1206 built and installed. Backend SHA256 27062b951bf0826c7067c57eebcdaab5509bc44dda39ed236d0c12e6408c35ab. Actual account/status RPC and Sapling receiver validation passed; repeat host reboot preserved wallet/state with zero failure retries and clean shutdown. Full sync/preflight, output/payment and website connection remain pending. See docs/TESTNET_SERVICE.md.",
+  "operatorAuthorization": "Exact experimental base and separately reviewed patch hash authorized on 2026-10-23 for isolated AWS TESTNET only. Audit gate remains failed. No website release, payment or extra resources authorized."
 }
