@@ -1,0 +1,30 @@
+[Unit]
+Description=VEIL outbound signed TESTNET payment verification
+After=network-online.target veil-zallet@receiver.service
+Wants=network-online.target
+StartLimitIntervalSec=1800
+StartLimitBurst=3
+
+[Service]
+User=veil-testnet
+Group=veil-testnet
+EnvironmentFile=/etc/veil-testnet/paths.env
+EnvironmentFile=/var/lib/veil-testnet/service.env
+ExecStart=/opt/veil-testnet/node/bin/node --max-old-space-size=128 /opt/veil-testnet/app/scanner/service.mjs
+Restart=on-failure
+RestartSec=30
+TimeoutStopSec=40
+MemoryMax=256M
+CPUQuota=25%
+TasksMax=32
+UMask=0077
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/var/lib/veil-testnet
+LogRateLimitIntervalSec=60
+LogRateLimitBurst=10
+
+[Install]
+WantedBy=multi-user.target
