@@ -1,0 +1,33 @@
+[Unit]
+Description=VEIL isolated experimental Zebra TESTNET
+After=network-online.target
+Wants=network-online.target
+StartLimitIntervalSec=1800
+StartLimitBurst=3
+
+[Service]
+LogNamespace=veil-testnet
+User=veil-testnet
+Group=veil-testnet
+EnvironmentFile=/etc/veil-testnet/paths.env
+ExecStart=/opt/veil-testnet/current/bin/zebrad -c ${VEIL_LAB_ROOT}/zebrad.toml start
+Restart=on-failure
+RestartSec=30
+TimeoutStopSec=300
+KillSignal=SIGINT
+MemoryHigh=4G
+MemoryMax=5G
+MemorySwapMax=2G
+CPUQuota=180%
+TasksMax=256
+UMask=0077
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/var/lib/veil-testnet
+LogRateLimitIntervalSec=60
+LogRateLimitBurst=100
+
+[Install]
+WantedBy=multi-user.target

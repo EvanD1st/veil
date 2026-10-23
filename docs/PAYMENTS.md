@@ -1,5 +1,7 @@
 # Payment follow-up and operator procedure
 
+Current Ubuntu follow-up: the automatic queue/worker implementation is deployed, but live delivery stays disabled pending strict synchronized readiness and configuration activation. Public scanner settings are staged separately; no transfer has occurred. See [current hosted validation](HOSTED_VALIDATION.md). Manual import remains available; polling alone does not scan the chain.
+
 ## Deadline policy
 
 New auctions choose a 24-, 48- or 72-hour follow-up window, or no deadline. The policy is fixed when the auction is created and displayed before bidding. Its clock starts at final result publication, only when a winner and receiving address make an invoice possible. Existing rows receive a nullable column and retain no deadline; migrations never impose one retrospectively.

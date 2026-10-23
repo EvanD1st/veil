@@ -1,0 +1,18 @@
+[Unit]
+Description=VEIL read-only testnet synchronization and disk observation
+
+[Service]
+LogNamespace=veil-testnet
+Type=oneshot
+User=veil-testnet
+Group=veil-testnet
+EnvironmentFile=/etc/veil-testnet/paths.env
+EnvironmentFile=/var/lib/veil-testnet/service.env
+ExecStart=/opt/veil-testnet/node/bin/node /opt/veil-testnet/app/scanner/testnet/health.mjs --write
+TimeoutStartSec=120
+UMask=0077
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/var/lib/veil-testnet

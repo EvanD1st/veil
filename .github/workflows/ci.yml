@@ -21,6 +21,8 @@ jobs:
       - run: pnpm install --frozen-lockfile
       - run: pnpm typecheck
       - run: pnpm test
+      - run: node --check scripts/test-hosted-browser.mjs && node --check scripts/check-hosted-release.mjs && node --check scripts/test-hosted-cancellation.mjs
+      - run: python3 -m unittest discover -s tests -p testnet_monitor_test.py
       - run: pnpm build
       - run: node scripts/test-bundle.mjs
       - run: node scripts/test-prover-worker.mjs
@@ -45,6 +47,8 @@ jobs:
       - run: pnpm build:ubuntu
       - run: node scripts/package-ubuntu.mjs
       - run: node scripts/test-ubuntu.mjs
+      - run: pnpm exec playwright install --with-deps chromium
+      - run: node scripts/test-native-browser.mjs
       - run: tar -czf veil-ubuntu.tar.gz -C dist/standalone .
       - run: sha256sum veil-ubuntu.tar.gz > veil-ubuntu.tar.gz.sha256
       - uses: actions/upload-artifact@v7

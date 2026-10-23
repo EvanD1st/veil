@@ -6,6 +6,15 @@ import {downloadJson} from '@/lib/veil/crypto';
 export default function PaymentStatus({auctionId,now}:{auctionId:string;now:number}){
  const [state,setState]=useState<PaymentState|null>(null),[busy,setBusy]=useState(false),[error,setError]=useState('');
  const sequence=useRef(0);
+ const [transaction,setTransaction]=useState(''),[output,setOutput]=useState('0');
+ async function track(){
+  const requestId=++sequence.current;setBusy(true);setError('');
+  try{
+   if(!/^[a-f0-9]{64}$/.test(transaction)||! /^(0|[1-9][0-9]{0,4})$/.test(output)||Number(output)>65535)throw Error('Enter the exact transaction ID and Sapling output index.');
+   const response=await fetch(`/api/auctions/${auctionId}/payment/scan`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({txid:transaction,output:Number(output)}),signal:AbortSignal.timeout(20000)});
+   const data=await response.json() as PaymentState&{error?:string};if(!response.ok)throw Error(data.error||'Could not queue verification.');if(requestId===sequence.current)setState(data);
+  }catch(e){if(requestId===sequence.current)setError((e as Error).message);}finally{if(requestId===sequence.current)setBusy(false);}
+ }
  async function load(file?:File,action?:string){
   const requestId=++sequence.current;
   setBusy(true);setError('');
@@ -27,6 +36,13 @@ export default function PaymentStatus({auctionId,now}:{auctionId:string;now:numb
  {state&&<button className="text-button" onClick={()=>downloadJson(`veil-invoice-${auctionId}.json`,state.invoice)}><Download size={14}/> Download invoice</button>}
  {state?.configured&&<label className="text-button"><Upload size={14}/> Import scanner report<input className="sr-only" type="file" accept=".json" disabled={busy} onChange={e=>{load(e.target.files?.[0]);e.target.value='';}}/></label>}</div>
  {state&&!state.configured&&<p>Scanner not connected. Payment stays unverified until the site operator configures the trusted scanner public key.</p>}
+ {state?.automation?.enabled&&<div className="key-card"><h3>Automatic payment verification</h3>
+ {state.automation.txid?<><p>The selected transaction and Sapling output are registered. The scanner retries checks automatically; only a fresh, trusted signed report can confirm payment.</p><p>{state.automation.state==='unavailable'?'Scanner unavailable or waiting for synchronized services. Current evidence still expires normally.':state.automation.state==='stopped'?'Automatic checks ended after 30 days. Ask the operator before relying on older evidence.':'Verification is queued or being refreshed.'}</p></>:<>
+ <p>After payment, register its exact transaction and output. This sends no funds. One output is bound to this invoice; ask the operator to review a mistaken selector.</p>
+ <label>Transaction ID<input value={transaction} maxLength={64} autoComplete="off" spellCheck={false} onChange={e=>setTransaction(e.target.value.trim().toLowerCase())}/></label>
+ <label>Sapling output index<input value={output} inputMode="numeric" maxLength={5} onChange={e=>setOutput(e.target.value)}/></label>
+ <button className="button button-outline" disabled={busy} onClick={()=>void track()}>Register output for verification</button></>}
+ </div>}
  {state?.workflow&&<div className="key-card"><h3>{overdue&&status!=='scanner-confirmed'?'Payment follow-up overdue':'Payment follow-up'}</h3>
  <p>{due?`Follow-up deadline: ${new Date(due).toLocaleString()}.`:'This auction has no payment follow-up deadline.'} {overdue&&status!=='scanner-confirmed'?'There is no current confirmation. This does not prove non-payment; contact the other participant before sending funds again.':''}</p>
  <p>Expired scanner evidence and an overdue follow-up are separate. The winner and published result remain final. No automatic reassignment, cancellation, refund or escrow occurs.</p>
