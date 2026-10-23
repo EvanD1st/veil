@@ -10,10 +10,13 @@ LogNamespace=veil-testnet
 User=veil-testnet
 Group=veil-testnet
 EnvironmentFile=/etc/veil-testnet/paths.env
+EnvironmentFile=/var/lib/veil-testnet/service.env
 Environment=PATH=/opt/veil-testnet/current/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+ExecStartPre=/opt/veil-testnet/node/bin/node /opt/veil-testnet/app/scanner/testnet/wait-node.mjs
 ExecStart=/opt/veil-testnet/current/bin/zallet -d ${VEIL_LAB_ROOT}/%i start
 Restart=on-failure
 RestartSec=30
+TimeoutStartSec=240
 TimeoutStopSec=180
 KillSignal=SIGINT
 MemoryHigh=1536M
