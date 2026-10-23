@@ -4,7 +4,7 @@ const origin=process.env.VEIL_PUBLIC_ORIGIN;
 if(!origin)throw Error('VEIL_PUBLIC_ORIGIN is required.');
 if(process.env.VEIL_LOCAL_TEST)throw Error('Test identities are forbidden on the standalone server.');
 const db=nodeDatabase();
-const auth=authenticationHandler(db,origin);
+const auth=authenticationHandler(db,origin,{allowLoopbackHttp:process.env.VEIL_ALLOW_LOOPBACK_HTTP==='1'});
 process.env.VINEXT_TRUSTED_HOSTS=new URL(origin).host;
 const {startProdServer}=await import('vinext/server/prod-server');
 const port=Number(process.env.PORT??8092);

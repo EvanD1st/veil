@@ -12,7 +12,7 @@ export default function PaymentStatus({auctionId,now}:{auctionId:string;now:numb
   try{
    if(!/^[a-f0-9]{64}$/.test(transaction)||! /^(0|[1-9][0-9]{0,4})$/.test(output)||Number(output)>65535)throw Error('Enter the exact transaction ID and Sapling output index.');
    const response=await fetch(`/api/auctions/${auctionId}/payment/scan`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({txid:transaction,output:Number(output)}),signal:AbortSignal.timeout(20000)});
-   const data=await response.json();if(!response.ok)throw Error(data.error||'Could not queue verification.');if(requestId===sequence.current)setState(data);
+   const data=await response.json() as PaymentState&{error?:string};if(!response.ok)throw Error(data.error||'Could not queue verification.');if(requestId===sequence.current)setState(data);
   }catch(e){if(requestId===sequence.current)setError((e as Error).message);}finally{if(requestId===sequence.current)setBusy(false);}
  }
  async function load(file?:File,action?:string){
