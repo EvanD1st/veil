@@ -7,11 +7,15 @@ import {join,resolve} from 'node:path';
 import {spawn} from 'node:child_process';
 import {initializeDatabase,openDatabase} from '../runtime/database.mjs';
 import {createAccount} from '../runtime/accounts.mjs';
+import {generateKeyPairSync,randomBytes,createHash} from 'node:crypto';
+import {openOutbox,ScannerWorker,transport} from '../scanner/service.mjs';
 const root=resolve('dist/standalone'),directory=await mkdtemp(join(tmpdir(),'veil-live-browser-')),path=join(directory,'private.sqlite');
 initializeDatabase(path,join(root,'drizzle'));const db=openDatabase(path);
 for(const username of ['seller','bidder','observer'])await createAccount(db,username,'ci-only-live-browser-password-'+username);
 db.close();const port=5187,origin='http://127.0.0.1:'+port;
-const child=spawn(process.execPath,[join(root,'runtime/server.mjs')],{cwd:root,env:{...process.env,VEIL_PUBLIC_ORIGIN:origin,VEIL_ALLOW_LOOPBACK_HTTP:'1',VEIL_SQLITE_PATH:path,PORT:String(port)},stdio:['ignore','pipe','pipe']});
+const signer=generateKeyPairSync('ed25519'),serviceToken=randomBytes(32).toString('hex');
+const receiver=JSON.parse(await readFile('tests/fixtures/synthetic-receiver.json','utf8')).address;
+const child=spawn(process.execPath,[join(root,'runtime/server.mjs')],{cwd:root,env:{...process.env,VEIL_PUBLIC_ORIGIN:origin,VEIL_ALLOW_LOOPBACK_HTTP:'1',VEIL_SQLITE_PATH:path,PORT:String(port),VEIL_SCANNER_PUBLIC_KEY:signer.publicKey.export({format:'der',type:'spki'}).subarray(-32).toString('hex'),VEIL_SCANNER_SERVICE_TOKEN_SHA256:createHash('sha256').update(serviceToken).digest('hex')},stdio:['ignore','pipe','pipe']});
 let output='';child.stdout.on('data',b=>{output+=b;});child.stderr.on('data',b=>{output+=b;});
 let browser;
 try{
@@ -21,7 +25,7 @@ try{
  const seller=await login('seller'),bidder=await login('bidder'),observer=await login('observer');
  expect((await browser.newContext().then(async c=>{const r=await c.request.get(origin+'/api/auctions',{headers:{'oai-authenticated-user-id':'forged','oai-authenticated-user-email':'forged@invalid.example'}});await c.close();return r.status();}))).toBe(401);
  const page=seller.page,title='Ordinary-clock CI auction';
- await page.getByRole('button',{name:'Create auction',exact:true}).click();await page.getByLabel('Lot title').fill(title);await page.getByLabel('Public seller name').fill('CI test studio');await page.getByLabel('The story').fill('Disposable separate-account integration check; no item or funds are exchanged.');await page.getByLabel('Reserve · test ZEC').fill('1.20');await page.getByLabel('Closes in').selectOption('2');await page.getByRole('checkbox').check();
+ await page.getByRole('button',{name:'Create auction',exact:true}).click();await page.getByLabel('Lot title').fill(title);await page.getByLabel('Public seller name').fill('CI test studio');await page.getByLabel('The story').fill('Disposable separate-account integration check; no item or funds are exchanged.');await page.getByLabel('Reserve · test ZEC').fill('1.20');await page.getByLabel('Closes in').selectOption('2');await page.getByLabel(/Sapling testnet address/).fill(receiver);await page.getByRole('checkbox').check();
  const downloadPromise=page.waitForEvent('download'),createdPromise=page.waitForResponse(r=>r.url().endsWith('/api/auctions')&&r.request().method()==='POST');await page.getByRole('button',{name:'Open the auction'}).click();
  const created=await createdPromise;expect(created.status()).toBe(201);const {auction}=await created.json();const backup=await readFile(await (await downloadPromise).path(),'utf8');expect(JSON.parse(backup).auctionId).toBe(auction.id);
  await expect(page.getByRole('button',{name:'Bids are still sealed'})).toBeDisabled();
@@ -37,5 +41,18 @@ try{
  await page.getByRole('button',{name:'Publish this result'}).click();await expect(page.getByText('ZK-VERIFIED RESULT')).toBeVisible({timeout:30000});
  await observer.page.reload();await observer.page.getByRole('button',{name:new RegExp(title)}).click();await observer.page.getByRole('button',{name:'Result',exact:true}).click();await observer.page.getByRole('button',{name:'Verify highest-bid proof'}).click();await expect(observer.page.getByRole('status')).toContainText('Highest bid, reserve, and tie-break verified',{timeout:30000});
  const detail=await (await observer.page.request.get(`/api/auctions/${auction.id}`)).json();expect(detail.auction.result.status).toBe('zk-verified');expect(detail.bids.length).toBe(1);
+ // Synthetic payment selector and observation: actual signed worker/HTTP delivery, NOT wallet/payment evidence.
+ const paymentPath=`/api/auctions/${auction.id}/payment`,selector={txid:'bc'.repeat(32),output:4};
+ expect((await observer.page.request.get(paymentPath)).status()).toBe(403);
+ expect((await observer.page.request.post(paymentPath+'/scan',{data:selector})).status()).toBe(403);
+ expect((await bidder.page.request.post(paymentPath+'/scan',{data:selector})).status()).toBe(200);
+ expect((await page.request.post('/api/scanner/jobs',{data:{action:'claim'}})).status()).toBe(401);
+ const outbox=openOutbox(join(directory,'scanner-outbox.sqlite')),exchange=transport(origin,serviceToken,fetch,{allowLoopbackTest:true});
+ try{
+  const worker=new ScannerWorker({db:outbox,key:signer.privateKey,receiver,exchange,scan:async(invoice,txid,output)=>{const observedAt=Date.now();return {version:1,invoiceId:invoice.invoiceId,network:'testnet',txid,output,pool:'sapling',address:invoice.address,amount:invoice.amount,memo:invoice.memo,status:'not-confirmed',blockHash:null,blockHeight:null,tipHeight:100,confirmations:0,observedAt,expiresAt:observedAt+300000};}});
+  expect(await worker.tick()).toBe('queued-delivery');const delivery=JSON.parse(outbox.prepare('SELECT payload FROM outbox').get().payload);expect(await worker.tick()).toBe('delivered');expect((await exchange(delivery)).accepted).toBe(true);
+  const payment=await (await bidder.page.request.get(paymentPath)).json();expect(payment.status).toBe('not-confirmed');expect(payment.report.output).toBe(4);
+  console.log('PASS synthetic-payment transport: authenticated participant queue, scoped worker delivery, trusted signature, duplicate ACK, outsider rejection. No actual RPC or payment claim.');
+ }finally{outbox.close();}
  console.log('PASS production artifact: distinct real accounts, isolated contexts, persisted bid, key backup/restore, future live drand, cold/cached proof, publication and independent observer verification. No payment/device claim.');
 }finally{await browser?.close();if(child.exitCode===null){child.kill('SIGTERM');await new Promise(r=>child.once('exit',r));}}
