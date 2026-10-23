@@ -1,5 +1,7 @@
 # Deployment targets
 
+Current Ubuntu release: operator-approved `59c35c5e2bd8ed6c2cb68caa9ace2be23b937200` with queue migration 0004 is deployed. See [fresh backup, rollback and hosted checks](HOSTED_VALIDATION.md). Existing Sites and unrelated services remain unchanged; older identifiers below record historical deployments.
+
 VEIL remains associated with Site project `appgprj_6ad60ddb6cc08191adf85da59c23c6aa` in `.openai/hosting.json`. The source repository is public; the hosted review audience is a separate setting and remains owner-only unless the operator explicitly changes it.
 
 ## Source synchronization
@@ -26,7 +28,7 @@ Follow the [exact-commit release and live-demo checklist](LIVE_TESTNET.md). It r
 
 Run the documented verification sequence and production-boundary check. Confirm the configured Site identity/audience, trusted scanner public key and migration status. Check that every pinned proof asset is available and byte-identical after deployment. Perform live drand/browser and real shielded testnet payment validation before claiming the corresponding integrations complete.
 
-## Ubuntu website — 23 October 2026
+## Ubuntu website - 23 October 2026
 
 The owner authorized moving the website to **https://ve-il.duckdns.org**. The deployed source is `09ca59eaebfda7467ba569369ffa7554245bb169`, built and tested in [CI run 39936389121](https://github.com/EvanD1st/veil/actions/runs/39936389121). Both the existing verification job and the new Ubuntu artifact job passed. No build ran on the workstation or shared Ubuntu server.
 

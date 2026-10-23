@@ -1,6 +1,6 @@
 # Pinned testnet lab
 
-Prepared 23 October 2026. **No live wallet/node build, sync or transfer has been completed here.** This is an experimental, source-compatible setup candidate, not a release-certified integration. Use the [live runbook](../../docs/LIVE_TESTNET.md) to track the remaining gates.
+Prepared 23 October 2026. All three explicitly authorized experimental binaries built successfully on the isolated AWS host. The separately approved [minimum-pool patch](patches/README.md) is installed: actual wallet status/account RPC responds and a backed-up testnet account/Sapling receiver has been derived. Both services passed a repeat whole-host reboot with zero failure restarts and clean patched-wallet shutdown. Zebra and wallet synchronization remain pending. See [actual execution evidence](../../docs/TESTNET_SERVICE.md). This is an experimental setup candidate, not a release-certified integration. Use the [live runbook](../../docs/LIVE_TESTNET.md) to track the remaining gates.
 
 ## Version decision and blocker
 
@@ -139,4 +139,4 @@ Back up a wallet with `zallet -d "$VEIL_LAB_ROOT/receiver" backup NEW_PRIVATE_BA
 | Proving/send operation slow | Inspect its existing operation ID; never resubmit merely because the response is slow. |
 | Disk full / RocksDB error | Cleanly stop services and expand native Linux storage; preserve wallet identity/backups and state. |
 
-No actual wallet/node response recordings have been captured. If the candidate fails to build/sync or emits a different schema, record that privately and keep the live-demo gate open. Never relabel the source-derived synthetic test cases as sanitized actual RPC evidence.
+Actual authenticated discovery, startup wallet status, account/address derivation and node status were captured privately on AWS. These establish partial RPC compatibility, not synchronized readiness or shielded-output/payment evidence. Source-derived synthetic test cases remain labeled as such; no sensitive actual captures are published.

@@ -29,15 +29,21 @@ export async function readSigningKey(env=process.env){
  let key;try{key=createPrivateKey(bytes);}catch{fail('Scanner signing key is invalid or unsupported.');}
  if(key.asymmetricKeyType!=='ed25519')fail('Scanner key must be Ed25519.');return key;
 }
-export async function configuredClients(env=process.env){
- const clients=[];
- for(const name of ['ZALLET','ZEBRA']){
+export async function configuredClient(name,env=process.env){
+  if(!['ZALLET','ZEBRA'].includes(name))fail('Unknown local RPC service.');
   if(!env[`${name}_RPC_URL`])fail(`Missing ${name}_RPC_URL.`);
   const cookie=env[`${name}_COOKIE_FILE`],auth=env[`${name}_RPC_AUTH`];
   if(Boolean(cookie)===Boolean(auth))fail(`Configure exactly one ${name}_COOKIE_FILE or ${name}_RPC_AUTH.`);
   const authorization=async()=>{const value=cookie?(await privateFile(cookie,`${name} RPC cookie`)).trim():auth;if(!/^[^:\r\n]+:[^\r\n]+$/.test(value))fail(`${name} RPC authentication has an unsupported format.`);return value;};
   await authorization(); // Diagnose missing credentials even before contacting either service.
-  clients.push(rpc(env[`${name}_RPC_URL`],authorization,name));
- }
- return {walletRpc:clients[0],chainRpc:clients[1]};
+  return rpc(env[`${name}_RPC_URL`],authorization,name);
+}
+export async function configuredClients(env=process.env){
+ return {walletRpc:await configuredClient('ZALLET',env),chainRpc:await configuredClient('ZEBRA',env)};
+}
+export async function readServiceToken(env=process.env){
+ if(!env.VEIL_SCANNER_SERVICE_TOKEN_FILE)fail('Missing private scanner service token file.');
+ const token=(await privateFile(env.VEIL_SCANNER_SERVICE_TOKEN_FILE,'Scanner service token')).trim();
+ if(!/^[a-f0-9]{64}$/.test(token))fail('Scanner service token must be 32 random bytes in hexadecimal.');
+ return token;
 }

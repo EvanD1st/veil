@@ -1,5 +1,5 @@
 import {sql} from 'drizzle-orm';
-import { sqliteTable, text, integer, uniqueIndex, primaryKey, check } from 'drizzle-orm/sqlite-core';
+import { sqliteTable, text, integer, uniqueIndex, primaryKey, check, index } from 'drizzle-orm/sqlite-core';
 
 export const auctions = sqliteTable('auctions', {
   id: text('id').primaryKey(), ownerId: text('owner_id').notNull(),
@@ -26,3 +26,11 @@ export const paymentReports = sqliteTable('payment_reports', {
 export const paymentFollowups=sqliteTable('payment_followups',{
  auctionId:text('auction_id').notNull().references(()=>auctions.id),actorId:text('actor_id').notNull(),action:text('action').notNull(),recordedAt:integer('recorded_at').notNull(),
 },table=>[primaryKey({columns:[table.auctionId,table.actorId]}),check('payment_followup_action',sql`${table.action} IN ('reported-sent','requested-discussion')`)]);
+
+export const paymentScanJobs=sqliteTable('payment_scan_jobs',{
+ id:text('id').primaryKey(),auctionId:text('auction_id').notNull().unique().references(()=>auctions.id),requestedBy:text('requested_by').notNull(),invoiceId:text('invoice_id').notNull(),
+ txid:text('txid').notNull(),output:integer('output').notNull(),state:text('state').notNull().default('queued'),createdAt:integer('created_at').notNull(),nextAttemptAt:integer('next_attempt_at').notNull(),checkedAt:integer('checked_at'),failures:integer('failures').notNull().default(0),leaseId:text('lease_id'),leaseUntil:integer('lease_until').notNull().default(0),lastLeaseId:text('last_lease_id'),lastReportHash:text('last_report_hash'),expiresAt:integer('expires_at').notNull(),
+},table=>[index('payment_scan_due').on(table.nextAttemptAt,table.leaseUntil),check('payment_scan_output',sql`${table.output} BETWEEN 0 AND 65535`),check('payment_scan_state',sql`${table.state} IN ('queued','scanning','pending','unavailable','stopped')`)]);
+export const scannerServiceHealth=sqliteTable('scanner_service_health',{
+ id:integer('id').primaryKey(),lastSeen:integer('last_seen').notNull(),
+},table=>[check('one_scanner_health',sql`${table.id}=1`)]);

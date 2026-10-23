@@ -1,10 +1,12 @@
 import { nodeDatabase } from './database.mjs';
 import { authenticationHandler } from './http-auth.mjs';
+import {reviewMigrations} from './migrations.mjs';
 const origin=process.env.VEIL_PUBLIC_ORIGIN;
 if(!origin)throw Error('VEIL_PUBLIC_ORIGIN is required.');
 if(process.env.VEIL_LOCAL_TEST)throw Error('Test identities are forbidden on the standalone server.');
 const db=nodeDatabase();
-const auth=authenticationHandler(db,origin);
+if(reviewMigrations(db,new URL('../drizzle/',import.meta.url).pathname).length)throw Error('Unapplied migration. Stop the service, back up and migrate explicitly.');
+const auth=authenticationHandler(db,origin,{allowLoopbackHttp:process.env.VEIL_ALLOW_LOOPBACK_HTTP==='1'});
 process.env.VINEXT_TRUSTED_HOSTS=new URL(origin).host;
 const {startProdServer}=await import('vinext/server/prod-server');
 const port=Number(process.env.PORT??8092);
