@@ -18,6 +18,8 @@ Rotate `VEIL_SCANNER_PUBLIC_KEY` to invalidate signatures from the old key immed
 
 ## Real shielded testnet validation — external setup required
 
+Use the [live testnet runbook](LIVE_TESTNET.md) and [version-pinned Linux setup](../scanner/testnet/README.md). The selected source pair is experimental: current released Zallet/Zebra versions have a v28/v29 state mismatch, and the NU7 Zallet update has not cleared upstream audits. Do not substitute guessed versions or describe preparation as completed live validation. Three confirmations are VEIL’s testnet observation policy, not universal Zcash finality.
+
 This workstation has no Zallet/Zebra executables detected on PATH, RPC endpoints, scanner key file or configured trusted scanner public key. No live transfer has been performed. RPC fixtures and browser proof tests are not evidence of a payment.
 
 The operator must provide:
