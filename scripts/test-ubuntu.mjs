@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import{loopbackFetch as fetch}from'../tests/loopback-http.mjs';
 import {mkdtemp,readFile} from 'node:fs/promises';import{tmpdir}from'node:os';import{resolve,join}from'node:path';import{spawn}from'node:child_process';import{createServer}from'node:net';
 import{initializeDatabase,openDatabase}from'../runtime/database.mjs';import{createAccount}from'../runtime/accounts.mjs';import{checkDeployedAssets}from'./check-deployed-assets.mjs';
 const root=resolve('dist/standalone'),temp=await mkdtemp(join(tmpdir(),'veil-ubuntu-smoke-')),database=join(temp,'veil.sqlite');

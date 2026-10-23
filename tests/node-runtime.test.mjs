@@ -3,6 +3,7 @@ import {mkdtemp,readFile,stat} from 'node:fs/promises';import{tmpdir}from'node:o
 import{initializeDatabase,openDatabase,d1Adapter}from'../runtime/database.mjs';
 import{createAccount,authenticate,sessionUser,sessionCookie,revokeSession,COOKIE,safeReturn}from'../runtime/accounts.mjs';
 import{authenticationHandler}from'../runtime/http-auth.mjs';
+import{loopbackFetch as fetch}from'./loopback-http.mjs';
 async function database(){const dir=await mkdtemp(join(tmpdir(),'veil-native-')),path=join(dir,'veil.sqlite');initializeDatabase(path,resolve('drizzle'));return {db:openDatabase(path),path};}
 test('standalone migrations preserve D1 integer/atomic/constraint behavior and refuse overwrite',async()=>{
  const {db,path}=await database();try{assert.equal(db.prepare('SELECT COUNT(*) n FROM veil_migrations').get().n,4);assert.throws(()=>initializeDatabase(path,resolve('drizzle')));const d1=d1Adapter(db);
