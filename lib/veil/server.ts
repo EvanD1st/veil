@@ -4,7 +4,7 @@ import { env } from 'cloudflare:workers';
 import { getChatGPTUser } from '@/app/chatgpt-auth';
 import { Auction, AuctionResult, PublicBid, QUICKNET, MAX_PROOF_BIDS, SNARK_FIELD, auctionProofContext, commitmentFor, isSaplingTestnet, roundTimeMs, sha256, snapshotHash, unlockRoundFor, validZatoshis, validateTimelockArmor } from './core';
 
-type AuctionRow = { protocol_version: 1 | 2; proof_context: string | null; id: string; owner_id: string; title: string; description: string; category: string; artwork: string; seller_name: string; reserve: string; closes_at: number; unlock_round: number; public_key: string; created_at: number; payment_address: string | null; result: string | null; bid_count?: number };
+type AuctionRow = { payment_window_hours:number|null; protocol_version: 1 | 2; proof_context: string | null; id: string; owner_id: string; title: string; description: string; category: string; artwork: string; seller_name: string; reserve: string; closes_at: number; unlock_round: number; public_key: string; created_at: number; payment_address: string | null; result: string | null; bid_count?: number };
 type BidRow = { sequence: number; id: string; auction_id: string; bidder_id: string; commitment: string; ciphertext: string; ciphertext_hash: string; accepted_at: number };
 export class ApiError extends Error { constructor(message: string, public status = 400) { super(message); } }
 function database() { if (!env.DB) throw new ApiError('The auction database is unavailable. Please try again shortly.', 503); return env.DB as D1Database; }
@@ -41,7 +41,7 @@ function hex(value: unknown): string { if (typeof value !== 'string' || !/^[a-f0
 function publicBid(row: BidRow): PublicBid { return { id: row.id, sequence: row.sequence, commitment: row.commitment, ciphertextHash: row.ciphertext_hash, acceptedAt: row.accepted_at }; }
 export async function auctionRow(id: string) { const row = await database().prepare('SELECT a.*, (SELECT COUNT(*) FROM bids b WHERE b.auction_id=a.id) AS bid_count FROM auctions a WHERE a.id=?').bind(uuid(id)).first<AuctionRow>(); if (!row) throw new ApiError('Auction not found.', 404); return row; }
 function publicAuction(row: AuctionRow, userId: string): Auction {
-  return { protocolVersion: row.protocol_version, proofContext: row.proof_context, id: row.id, title: row.title, description: row.description, category: row.category, artwork: row.artwork, sellerName: row.seller_name, reserve: row.reserve, closesAt: row.closes_at, unlockRound: row.unlock_round, publicKey: JSON.parse(row.public_key), createdAt: row.created_at, paymentAddress: row.payment_address, bidCount: row.bid_count ?? 0, isOwner: row.owner_id === userId, state: row.result ? 'result' : Date.now() >= row.closes_at ? 'closed' : 'open', result: row.result ? JSON.parse(row.result) : null };
+  return { protocolVersion: row.protocol_version, proofContext: row.proof_context, id: row.id, title: row.title, description: row.description, category: row.category, artwork: row.artwork, sellerName: row.seller_name, reserve: row.reserve, closesAt: row.closes_at, unlockRound: row.unlock_round, publicKey: JSON.parse(row.public_key), createdAt: row.created_at, paymentAddress: row.payment_address, paymentWindowHours:row.payment_window_hours, bidCount: row.bid_count ?? 0, isOwner: row.owner_id === userId, state: row.result ? 'result' : Date.now() >= row.closes_at ? 'closed' : 'open', result: row.result ? JSON.parse(row.result) : null };
 }
 export async function listAuctions(userId: string) {
   const rows = await database().prepare('SELECT a.*, (SELECT COUNT(*) FROM bids b WHERE b.auction_id=a.id) AS bid_count FROM auctions a ORDER BY a.created_at DESC LIMIT 100').all<AuctionRow>();
@@ -71,9 +71,11 @@ export async function createAuction(input: Record<string, unknown>, userId: stri
   if (address && !isSaplingTestnet(address)) throw new ApiError('Use a checksum-valid Sapling testnet address beginning ztestsapling1.');
   const count = await database().prepare('SELECT COUNT(*) AS total FROM auctions WHERE owner_id=?').bind(userId).first<{ total: number }>();
   if ((count?.total ?? 0) >= 100) throw new ApiError('This review workspace has reached its 100-auction limit.');
+  const paymentWindow=input.paymentWindowHours===undefined?24:input.paymentWindowHours;
+  if(paymentWindow!==null&&![24,48,72].includes(paymentWindow as number))throw new ApiError('Choose a payment follow-up window of 24, 48 or 72 hours, or none.');
   const round = unlockRoundFor(closesAt);
   const proofContext = await auctionProofContext({id,reserve:input.reserve,closesAt,unlockRound:round,publicKey,paymentAddress:address});
-  await database().prepare('INSERT INTO auctions (id,owner_id,title,description,category,artwork,seller_name,reserve,closes_at,unlock_round,public_key,created_at,payment_address,protocol_version,proof_context) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)').bind(id, userId, title, description, category, artwork, sellerName, input.reserve, closesAt, round, JSON.stringify(publicKey), now, address, 2, proofContext).run();
+  await database().prepare('INSERT INTO auctions (id,owner_id,title,description,category,artwork,seller_name,reserve,closes_at,unlock_round,public_key,created_at,payment_address,protocol_version,proof_context,payment_window_hours) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)').bind(id, userId, title, description, category, artwork, sellerName, input.reserve, closesAt, round, JSON.stringify(publicKey), now, address, 2, proofContext,paymentWindow).run();
   return publicAuction(await auctionRow(id), userId);
 }
 export async function acceptBid(id: string, input: Record<string, unknown>, userId: string) {
@@ -139,11 +141,12 @@ export async function paymentStatus(id:string,userId:string){
  const auction=await paymentAccess(id,userId),invoice=await paymentInvoice(auction),key=scannerKey();
  const configured=typeof key==='string'&&/^[a-f0-9]{64}$/.test(key);
  const row=await database().prepare('SELECT signed_report FROM payment_reports WHERE auction_id=?').bind(id).first<{signed_report:string}>();
- if(!row)return {configured,invoice,status:'unverified',report:null};
+ const workflow=await paymentWorkflow(auction,userId);
+ if(!row)return {configured,invoice,status:'unverified',report:null,workflow};
  const signed=JSON.parse(row.signed_report);
  let status='needs-refresh';
  try{await validatePaymentReport(signed,invoice,key??'');status=signed.report.status==='confirmed'?'scanner-confirmed':'not-confirmed';}catch{/* Expiry, key rotation, or unavailable scanner never stays confirmed. */}
- return {configured,invoice,status,report:signed.report};
+ return {configured,invoice,status,report:signed.report,workflow};
 }
 export async function submitPaymentReport(id:string,input:Record<string,unknown>,userId:string){
  const {paymentInvoice,validatePaymentReport}=await import('./payment');
@@ -154,5 +157,21 @@ export async function submitPaymentReport(id:string,input:Record<string,unknown>
   const update=await database().prepare('INSERT INTO payment_reports (auction_id,output_key,signed_report,observed_at) VALUES (?,?,?,?) ON CONFLICT(auction_id) DO UPDATE SET signed_report=excluded.signed_report,observed_at=excluded.observed_at WHERE payment_reports.output_key=excluded.output_key AND payment_reports.observed_at<excluded.observed_at').bind(id,outputKey,JSON.stringify(signed),r.observedAt).run();
   if(!update.meta.changes)throw new ApiError('A newer report is required for the same payment output.',409);
  }catch(error){if(error instanceof ApiError)throw error;if(String(error).includes('UNIQUE'))throw new ApiError('That payment output already belongs to another invoice.',409);throw error;}
+ return paymentStatus(id,userId);
+}
+
+async function paymentWorkflow(auction:Auction,userId:string){
+ const dueAt=auction.paymentWindowHours&&auction.result?auction.result.declaredAt+auction.paymentWindowHours*3600000:null;
+ const records=await database().prepare('SELECT action,recorded_at,actor_id FROM payment_followups WHERE auction_id=? ORDER BY recorded_at').bind(auction.id).all<{action:string;recorded_at:number;actor_id:string}>();
+ return {dueAt,overdue:dueAt!==null&&Date.now()>=dueAt,isOwner:auction.isOwner,actions:records.results.map(r=>({action:r.action,recordedAt:r.recorded_at,byYou:r.actor_id===userId}))};
+}
+export async function submitPaymentFollowup(id:string,input:Record<string,unknown>,userId:string){
+ const auction=await paymentAccess(id,userId),workflow=await paymentWorkflow(auction,userId);
+ if(input.action==='reported-sent'){
+  if(auction.isOwner)throw new ApiError('Only the winner can report sending payment.',403);
+ }else if(input.action==='requested-discussion'){
+  if(workflow.dueAt!==null&&!workflow.overdue)throw new ApiError('The payment follow-up deadline has not arrived.',409);
+ }else throw new ApiError('Choose an available payment follow-up action.');
+ await database().prepare('INSERT INTO payment_followups (auction_id,actor_id,action,recorded_at) VALUES (?,?,?,?) ON CONFLICT(auction_id,actor_id) DO UPDATE SET action=excluded.action,recorded_at=excluded.recorded_at').bind(id,userId,input.action,Date.now()).run();
  return paymentStatus(id,userId);
 }

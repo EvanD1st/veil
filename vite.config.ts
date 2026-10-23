@@ -3,6 +3,7 @@ import { defineConfig } from "vite";
 import hostingConfig from "./.openai/hosting.json";
 import { readExecutionProfile } from "./scripts/execution-profile.mjs";
 import { sites } from "./build/sites-vite-plugin";
+import { localTestIdentity } from './build/local-test-plugin';
 import { connectorPreview } from "./build/connector-preview-plugin.mjs";
 
 const SITE_CREATOR_PLACEHOLDER_DATABASE_ID =
@@ -37,6 +38,8 @@ const localBindingConfig = {
 };
 
 export default defineConfig(async ({ command }) => {
+  const localTest=process.env.VEIL_LOCAL_TEST==='1';
+  if(localTest&&(command!=='serve'||managedLinux))throw Error('Local test identity/clock is development-only.');
   // Use Miniflare's local Request.cf placeholder unless fetching is requested.
   process.env.CLOUDFLARE_CF_FETCH_ENABLED ??= "false";
   process.env.WRANGLER_SEND_METRICS ??= "false";
@@ -53,6 +56,7 @@ export default defineConfig(async ({ command }) => {
 
   return {
     server: {
+      host: '127.0.0.1',
       ...(managedLinux
         ? { host: "0.0.0.0", allowedHosts: ["terminal.local"] }
         : {}),
@@ -62,13 +66,16 @@ export default defineConfig(async ({ command }) => {
     },
     plugins: [
       vinext(),
-      sites({ mockAuth: !managedLinux }),
+      ...(localTest ? [localTestIdentity()] : []),
+      sites({ mockAuth: command==='serve'&&!managedLinux&&!localTest }),
       connectorPreview(),
       cloudflare({
         viteEnvironment: { name: "rsc", childEnvironments: ["ssr"] },
         inspectorPort: false,
+        ...(localTest ? {persistState: {path: '.sites-runtime/e2e/state'}} : {}),
         config: {
           ...localBindingConfig,
+          ...(localTest ? {vars: {VEIL_LOCAL_TEST: '1'}} : {}),
           ...(command === "serve"
             ? {
                 services: [
