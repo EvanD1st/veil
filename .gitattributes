@@ -1,3 +1,5 @@
 # These public assets are verified by SHA-256; preserve their committed bytes.
 /public/zk/**/*.bin -text
 /public/zk/**/runtime-*.js -text
+
+/scanner/testnet/*.sh text eol=lf

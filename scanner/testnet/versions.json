@@ -1,0 +1,29 @@
+{
+  "checkedAt": "2026-10-23",
+  "status": "experimental-source-pair-not-live-validated",
+  "environment": "Linux x86_64, native local filesystem, co-located processes",
+  "zallet": {
+    "repository": "https://github.com/zcash/zallet.git",
+    "commit": "0d433b322408c30ee48765a98a81af9001108e7d",
+    "upstreamPullRequest": "https://github.com/zcash/zallet/pull/898",
+    "releaseLabel": "0.1.0-beta.3 plus unmerged NU7 changes; not the beta.3 release artifact",
+    "rust": "1.95.0",
+    "backend": "zebra",
+    "backendFeatures": ["rpc-cli"],
+    "backendLockSha256": "4a6ad6b14b8c8f9ea01b8099f1ddfded73146c37cd57ac8b1feefb6ae0f437c8",
+    "zebraStateCrate": "16.0.0",
+    "upstreamAuditStatus": "Required audits failed at inspection; cargo-vet backlog. Not a release-approved build."
+  },
+  "zebra": {
+    "repository": "https://github.com/ZcashFoundation/zebra.git",
+    "tag": "v7.0.0",
+    "commit": "e8db87eb69254e0d4eedd058eadd48bdfa09065a",
+    "rust": "1.91.0",
+    "features": ["indexer"],
+    "zebraStateCrate": "16.0.0",
+    "stateFormat": "29.0.0+indexer"
+  },
+  "network": "testnet",
+  "testnetNu7ActivationHeight": 4465026,
+  "liveEvidence": "none; source inspection and synthetic regression fixtures only"
+}

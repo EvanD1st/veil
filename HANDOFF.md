@@ -2,7 +2,11 @@
 
 Updated 23 October 2026. Repository: https://github.com/EvanD1st/veil.
 
-## Current scope
+## Live testnet preparation follow-up
+
+Reviewed main `9853bdc7751ab7a89b2b1c4e55f3c7e71bcab128`; its post-merge CI passed (run 39884208213). Work continues on `live-testnet-setup` with pinned experimental Linux lab scripts, read-only scanner preflight, Zebra cookie authentication and stricter node/invoice/schema checks. See [LIVE_TESTNET.md](docs/LIVE_TESTNET.md) and [scanner/testnet/README.md](scanner/testnet/README.md) for exact pins and gates. The Zallet NU7 source is an unmerged upstream PR with failed required audit checks at inspection; published beta.3 must not be paired with Zebra 7’s v29 state. No live build/sync/payment or deployment is claimed. Existing UI/crypto/assets/authentication/report trust remain unchanged.
+
+## Previous implementation scope
 
 Baseline `main` is `b59f5703ee8ef5958426e48efd1732830f785f30`. Its GitHub CI passed frozen installation, typecheck, all 16 original tests, production build, bundle encryption checks and the shipped prover harness. The source repository is public. The existing hosted Site audience is a separate owner-only setting.
 
