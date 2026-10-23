@@ -30,10 +30,10 @@ try{
  expect((await bidder.page.request.get(`/api/auctions/${auction.id}/envelopes`)).status()).toBe(403);
  expect((await page.request.get(`/api/auctions/${auction.id}/envelopes`)).status()).toBe(409);
  await page.evaluate(id=>localStorage.removeItem('veil:auction-key:'+id),auction.id);
- await page.getByRole('button',{name:'Import key',exact:true}).click();await page.locator('input[type=file]').setInputFiles({name:'restored-key.json',mimeType:'application/json',buffer:Buffer.from(backup)});await expect(page.getByRole('status')).toContainText('restored');
+ await page.locator('input[type=file]').setInputFiles({name:'restored-key.json',mimeType:'application/json',buffer:Buffer.from(backup)});await expect(page.getByRole('status')).toContainText('restored');
  const open=page.getByRole('button',{name:'Open all bids & prepare result'});await expect(open).toBeEnabled({timeout:150000});
  const cold=Date.now();await open.click();await expect(page.getByText('LOCAL TALLY / NOT YET PUBLISHED')).toBeVisible({timeout:240000});console.log('Actual native cold proof elapsed ms:',Date.now()-cold);
- await page.getByRole('button',{name:'Bids',exact:true}).click();const cached=Date.now();await page.getByRole('button',{name:'Open all bids & prepare result'}).click();await expect(page.getByText('LOCAL TALLY / NOT YET PUBLISHED')).toBeVisible({timeout:180000});console.log('Actual native cached proof elapsed ms:',Date.now()-cached);
+ await page.getByRole('button',{name:'Overview',exact:true}).click();const cached=Date.now();await page.getByRole('button',{name:'Open all bids & prepare result'}).click();await expect(page.getByText('LOCAL TALLY / NOT YET PUBLISHED')).toBeVisible({timeout:180000});console.log('Actual native cached proof elapsed ms:',Date.now()-cached);
  await page.getByRole('button',{name:'Publish this result'}).click();await expect(page.getByText('ZK-VERIFIED RESULT')).toBeVisible({timeout:30000});
  await observer.page.reload();await observer.page.getByRole('button',{name:new RegExp(title)}).click();await observer.page.getByRole('button',{name:'Result',exact:true}).click();await observer.page.getByRole('button',{name:'Verify highest-bid proof'}).click();await expect(observer.page.getByRole('status')).toContainText('Highest bid, reserve, and tie-break verified',{timeout:30000});
  const detail=await (await observer.page.request.get(`/api/auctions/${auction.id}`)).json();expect(detail.auction.result.status).toBe('zk-verified');expect(detail.bids.length).toBe(1);
