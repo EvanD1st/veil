@@ -20,3 +20,7 @@ Before activating a release:
 6. Test the real future drand flow and independent result verification with ordinary clocks. Payment and physical-device validation remain separate operator gates; this deployment initializes or funds no wallet.
 
 The inspected shared server has two CPUs, approximately 1.9 GiB RAM and 6.8 GB free disk after removing VESSEL. This can be evaluated for the bounded website runtime. It does **not** have capacity for a Zebra/Zallet source build and synchronized testnet node. The upstream NU7 dependency-vetting gate remains unresolved; this web target does not bypass or resolve it.
+
+## Current instance
+
+The owner-authorized hostname is https://ve-il.duckdns.org. Source `09ca59eaebfda7467ba569369ffa7554245bb169` is deployed with the CI artifact, explicit database initialization, private owner account and separate Caddy import. The source Site is retained unchanged. See [deployment provenance and rollback](../../docs/DEPLOYMENT.md) and [actual validation evidence](../../docs/VALIDATION.md).
