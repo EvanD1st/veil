@@ -17,6 +17,7 @@ script_dir="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 versions="$script_dir/versions.json"
 # Pins come from the tracked manifest, never a moving branch or latest-release URL.
 pin() { node --input-type=module -e 'import fs from "node:fs";let v=JSON.parse(fs.readFileSync(process.argv[1]));for(const k of process.argv[2].split("."))v=v[k];process.stdout.write(v);' "$versions" "$1"; }
+[[ "$(pin zallet.commit)" == "$VEIL_EXPERIMENTAL_PIN_APPROVED" ]] || { printf '%s\n' 'Operator approval does not match the selected source pin.' >&2; exit 1; }
 lab_root="$1"
 umask 077
 mkdir -m 700 -- "$lab_root"
@@ -44,5 +45,5 @@ node --input-type=module -e 'import fs from "node:fs";import{createHash}from"nod
 install -m 700 "$lab_root/src/zebra/target/release/zebrad" "$lab_root/bin/zebrad"
 install -m 700 "$lab_root/src/zallet/target/release/zallet" "$lab_root/bin/zallet"
 install -m 700 "$lab_root/src/zallet/backends/zebra/target/release/zallet-zebra" "$lab_root/bin/zallet-zebra"
-node --input-type=module -e 'import fs from "node:fs";import{createHash}from"node:crypto";const v=JSON.parse(fs.readFileSync(process.argv[1]));v.binaries=Object.fromEntries(["zebrad","zallet","zallet-zebra"].map(n=>[n,createHash("sha256").update(fs.readFileSync(process.argv[2]+"/bin/"+n)).digest("hex")]));fs.writeFileSync(process.argv[2]+"/build-manifest.json",JSON.stringify(v,null,2)+"\n",{flag:"wx",mode:0o600});' "$versions" "$lab_root"
+node --input-type=module -e 'import fs from "node:fs";import{createHash}from"node:crypto";import{execFileSync}from"node:child_process";const v=JSON.parse(fs.readFileSync(process.argv[1]));v.binaries=Object.fromEntries(["zebrad","zallet","zallet-zebra"].map(n=>[n,createHash("sha256").update(fs.readFileSync(process.argv[2]+"/bin/"+n)).digest("hex")]));v.actualBuild={finishedAt:new Date().toISOString(),node:process.version,jobs:process.env.CARGO_BUILD_JOBS,os:fs.readFileSync("/etc/os-release","utf8"),compiler:execFileSync("cc",["--version"],{encoding:"utf8"}).split("\n")[0],rust:Object.fromEntries([v.zebra.rust,v.zallet.rust].map(t=>[t,execFileSync("rustup",["run",t,"rustc","--version"],{encoding:"utf8"}).trim()]))};fs.writeFileSync(process.argv[2]+"/build-manifest.json",JSON.stringify(v,null,2)+"\n",{flag:"wx",mode:0o600});' "$versions" "$lab_root"
 printf '%s\n' 'Built pinned experimental binaries; no services started. Review build-manifest.json and the setup guide.'
