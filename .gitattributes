@@ -3,3 +3,4 @@
 /public/zk/**/runtime-*.js -text
 
 /scanner/testnet/*.sh text eol=lf
+/scanner/testnet/patches/*.patch text eol=lf
