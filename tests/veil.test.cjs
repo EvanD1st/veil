@@ -227,13 +227,13 @@ test('payment reports require trusted signatures, exact invoice, sufficient conf
 
 test('read-only scanner checks wallet sync and incoming note, and downgrades reorged output',async()=>{
  const {scanInvoice}=await import('../scanner/scan.mjs');
- const invoice={version:1,network:'testnet',invoiceId:'aa'.repeat(32),auctionId,bidId:opening.bidId,address:'ztestsapling1fixture',amount:'250',memo:`VEIL:${auctionId}:${opening.bidId}`};
+ const invoice={version:1,network:'testnet',invoiceId:'aa'.repeat(32),auctionId,bidId:opening.bidId,address:require('./fixtures/synthetic-receiver.json').address,amount:'250',memo:`VEIL:${auctionId}:${opening.bidId}`};
  const txid='bb'.repeat(32),block='cc'.repeat(32),tip='dd'.repeat(32);
  const state={locked:false,node_tip:{height:100,blockhash:tip},wallet_tip:{height:100,blockhash:tip},fully_synced_height:100};
  const output={pool:'sapling',output:0,address:invoice.address,valueZat:250,memo:Buffer.from(invoice.memo).toString('hex').padEnd(1024,'0'),outgoing:false,walletInternal:false};
  let note={...output},wallet={...state},active=block,conf=3;
  const walletRpc=async method=>method==='getwalletstatus'?wallet:{txid,status:'mined',confirmations:conf,blockhash:block,outputs:[note]};
- const chainRpc=async method=>method==='getblockchaininfo'?{chain:'test',blocks:100,bestblockhash:tip}:method==='getblock'?{height:98,tx:[txid]}:active;
+ const chainRpc=async method=>method==='getblockchaininfo'?{chain:'test',blocks:100,headers:100,estimatedheight:100,verificationprogress:1,bestblockhash:tip}:method==='getblockheader'?{hash:tip,height:100,confirmations:1,time:Math.floor(Date.now()/1000)}:method==='getblock'?{hash:block,confirmations:3,height:98,tx:[txid]}:active;
  assert.equal((await scanInvoice(invoice,txid,0,walletRpc,chainRpc)).status,'confirmed');
  for(const change of [{address:'other'},{valueZat:249},{memo:'00'.repeat(512)},{outgoing:true},{walletInternal:true},{pool:'transparent'}]){note={...output,...change};await assert.rejects(scanInvoice(invoice,txid,0,walletRpc,chainRpc),/Output/);}note={...output};
  wallet={...state,locked:true};await assert.rejects(scanInvoice(invoice,txid,0,walletRpc,chainRpc),/synchronized/);wallet={...state,fully_synced_height:99};await assert.rejects(scanInvoice(invoice,txid,0,walletRpc,chainRpc),/synchronized/);wallet=state;

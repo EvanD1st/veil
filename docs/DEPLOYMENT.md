@@ -22,4 +22,6 @@ Do not expose `pnpm start`, the local preview or a raw Worker on a public standa
 
 ## Release checks
 
+Follow the [exact-commit release and live-demo checklist](LIVE_TESTNET.md). It requires backup and deliberate migration 0003, existing Sites identity/authentication, test-hook exclusion, and deployed asset hashes. `node scripts/check-deployed-assets.mjs https://veil-private-auctions.softball129.chatgpt.site` is read-only; the unauthenticated attempt on 23 October stopped at HTTP 401 on the first asset. The authorized operator must finish integrity verification in their authenticated session without changing audience.
+
 Run the documented verification sequence and production-boundary check. Confirm the configured Site identity/audience, trusted scanner public key and migration status. Check that every pinned proof asset is available and byte-identical after deployment. Perform live drand/browser and real shielded testnet payment validation before claiming the corresponding integrations complete.
