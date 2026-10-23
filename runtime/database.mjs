@@ -1,5 +1,5 @@
 import { DatabaseSync } from 'node:sqlite';
-import { openSync, closeSync, readFileSync, readdirSync } from 'node:fs';
+import { openSync, closeSync, readFileSync, readdirSync, statSync } from 'node:fs';
 import { createHash } from 'node:crypto';
 import { resolve, isAbsolute } from 'node:path';
 export function initializeDatabase(path,migrations) {
@@ -20,6 +20,7 @@ export function initializeDatabase(path,migrations) {
 }
 export function openDatabase(path) {
  if(!path||!isAbsolute(path))throw Error('VEIL_SQLITE_PATH must name an initialized absolute database path.');
+ if(!statSync(path).isFile())throw Error('Database must already be initialized.');
  const db=new DatabaseSync(path,{open:false});db.open();db.exec('PRAGMA foreign_keys=ON; PRAGMA busy_timeout=5000; PRAGMA synchronous=FULL;');
  if(!db.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name='veil_accounts'").get()){db.close();throw Error('Initialize the standalone database explicitly before startup.');}
  return db;
