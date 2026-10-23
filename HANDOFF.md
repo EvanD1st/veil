@@ -2,7 +2,11 @@
 
 Updated 23 October 2026. Repository: https://github.com/EvanD1st/veil.
 
-## Live testnet preparation follow-up
+## Ubuntu migration in progress
+
+Current baseline: merged PR #2, main `73e1aa4b2c4057481c78b16c16622631268ed4c5`; post-merge CI run 39925988928 passed. Branch `integration-evidence` adds a separate Node/SQLite/session-auth target for the owner-authorized Ubuntu website move. No local build is permitted; build and artifact validation run in CI. Existing Sites deployment/data remain intact during preparation. See `deploy/ubuntu/README.md`. The wallet/node compatibility gate is independent and remains unresolved.
+
+## Previous live testnet preparation follow-up
 
 Reviewed main `9853bdc7751ab7a89b2b1c4e55f3c7e71bcab128`; its post-merge CI passed (run 39884208213). Work continues on `live-testnet-setup` with pinned experimental Linux lab scripts, read-only scanner preflight, Zebra cookie authentication and stricter node/invoice/schema checks. See [LIVE_TESTNET.md](docs/LIVE_TESTNET.md) and [scanner/testnet/README.md](scanner/testnet/README.md) for exact pins and gates. The Zallet NU7 source is an unmerged upstream PR with failed required audit checks at inspection; published beta.3 must not be paired with Zebra 7’s v29 state. No live build/sync/payment or deployment is claimed. Existing UI/crypto/assets/authentication/report trust remain unchanged.
 

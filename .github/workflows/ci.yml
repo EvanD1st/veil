@@ -28,3 +28,30 @@ jobs:
       - run: node scripts/check-production-boundary.mjs
       - run: pnpm exec playwright install --with-deps chromium
       - run: pnpm test:e2e
+
+  ubuntu:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24.15.0
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: node --test tests/node-runtime.test.mjs
+      - run: pnpm typecheck
+      - run: pnpm build:ubuntu
+      - run: node scripts/package-ubuntu.mjs
+      - run: node scripts/test-ubuntu.mjs
+      - run: tar -czf veil-ubuntu.tar.gz -C dist/standalone .
+      - run: sha256sum veil-ubuntu.tar.gz > veil-ubuntu.tar.gz.sha256
+      - uses: actions/upload-artifact@v7
+        with:
+          name: veil-ubuntu-${{ github.sha }}
+          path: |
+            veil-ubuntu.tar.gz
+            veil-ubuntu.tar.gz.sha256
+          if-no-files-found: error
+          retention-days: 7
