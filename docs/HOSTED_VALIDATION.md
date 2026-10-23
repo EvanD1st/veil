@@ -14,6 +14,8 @@ AWS public scanner key and token verifier are staged privately on the website ho
 
 Actual post-release HTTPS checks passed login, authenticated auction API, forged identity rejection, unsigned scanner rejection and logout revocation. All six proof-asset hashes/sizes passed in 2.938 seconds from the website host, separately from the desktop browser path. The first desktop browser attempt hit a hydration wait; the repeat reached persisted creation, bidding, key restore, pre-close API locking and live-round reveal, then its old four-minute test wait expired at 45.1/76.5 MB while the application still showed download progress. This is incomplete cold-browser evidence, not an integrity failure or a successful proof. The test now has a finite wait covering existing download/proving caps, preserves seller backups immediately, and supports explicit `resumeAuctionId` to continue the same listing. No application timeout or integrity check was weakened.
 
+`scripts/test-hosted-cancellation.mjs` passed on the public HTTPS website with an actual proof worker: download progress appeared, cancellation restored the action without a success claim, retry started again, and a second cancellation recovered. It used ordinary clocks, live future drand and no request interception. This was the browser-local guided demo with simulated bidders, separate from the persisted auction and not payment evidence. No physical device was used.
+
 ## Physical phone checklist — unverified until an actual device is used
 
 1. On a real phone, sign in as a separate bidder, inspect layout, keyboard, focus, error messages and payment privacy. Record device, OS, browser and network.
