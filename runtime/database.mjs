@@ -33,4 +33,4 @@ export function nodeDatabase() {
 export function d1Adapter(db) {
  return {prepare(sql){const statement=db.prepare(sql);let values=[];const bound={bind(...args){values=args;return bound;},async first(column){const row=statement.get(...values);return column?(row?.[column]??null):(row??null);},async all(){return {results:statement.all(...values),success:true};},async run(){const r=statement.run(...values);return {meta:{changes:Number(r.changes),last_row_id:Number(r.lastInsertRowid)},success:true};}};return bound;}};
 }
-export const env={get DB(){return d1Adapter(nodeDatabase());},get VEIL_SCANNER_PUBLIC_KEY(){return process.env.VEIL_SCANNER_PUBLIC_KEY;}};
+export const env={get DB(){return d1Adapter(nodeDatabase());},get VEIL_SCANNER_PUBLIC_KEY(){return process.env.VEIL_SCANNER_PUBLIC_KEY;},get VEIL_SCANNER_SERVICE_TOKEN_SHA256(){return process.env.VEIL_SCANNER_SERVICE_TOKEN_SHA256;}};

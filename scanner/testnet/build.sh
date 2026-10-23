@@ -6,6 +6,11 @@ if [[ "${1:-}" == "--help" ]]; then
   exit 0
 fi
 [[ "$(uname -s)" == Linux && "$(uname -m)" == x86_64 ]] || { printf '%s\n' 'This source-build procedure supports native x86_64 Linux only.' >&2; exit 1; }
+[[ "${VEIL_EXPERIMENTAL_PIN_APPROVED:-}" == '0d433b322408c30ee48765a98a81af9001108e7d' ]] || { printf '%s\n' 'Explicit operator approval for the experimental commit is required. Read the recorded failed upstream vetting evidence.' >&2; exit 1; }
+export CARGO_BUILD_JOBS="${CARGO_BUILD_JOBS:-1}"
+[[ "$CARGO_BUILD_JOBS" =~ ^[12]$ ]] || { printf '%s\n' 'Use one or two build jobs on the 8 GiB testnet host.' >&2; exit 1; }
+export CMAKE_BUILD_PARALLEL_LEVEL="$CARGO_BUILD_JOBS"
+export CARGO_PROFILE_RELEASE_DEBUG=0
 [[ $# == 1 && "$1" == /* && "$1" != / && ! -e "$1" ]] || { printf '%s\n' 'Choose a new absolute lab directory; existing directories are never overwritten.' >&2; exit 1; }
 for program in node git cargo rustup cc c++ cmake clang pkg-config protoc; do command -v "$program" >/dev/null || { printf 'Missing build prerequisite: %s\n' "$program" >&2; exit 1; }; done
 script_dir="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
@@ -23,6 +28,9 @@ for project in zebra zallet; do
   [[ "$(git -C "$lab_root/src/$project" rev-parse HEAD)" == "$(pin "$project.commit")" ]] || exit 1
   rustup toolchain install "$(pin "$project.rust")" --profile minimal
  done
+df -h "$lab_root" > "$lab_root/build-resources.txt"
+free -h >> "$lab_root/build-resources.txt"
+date -u >> "$lab_root/build-resources.txt"
 node --input-type=module -e 'import fs from "node:fs";import{createHash}from"node:crypto";const v=JSON.parse(fs.readFileSync(process.argv[1]));const h=createHash("sha256").update(fs.readFileSync(process.argv[2])).digest("hex");if(h!==v.zallet.backendLockSha256)throw Error("Backend lock hash mismatch");' "$versions" "$lab_root/src/zallet/backends/zebra/Cargo.lock"
 (
  cd -- "$lab_root/src/zebra"
