@@ -12,6 +12,8 @@ AWS public scanner key and token verifier are staged privately on the website ho
 
 `scripts/check-hosted-release.mjs` uses the same private config for authenticated API, forged-identity rejection, scanner rejection, all six manifest-verified HTTPS proof assets, and logout revocation. It reuses the existing deployed-asset checker. Neither script sends a payment or establishes physical-device performance.
 
+Actual post-release HTTPS checks passed login, authenticated auction API, forged identity rejection, unsigned scanner rejection and logout revocation. All six proof-asset hashes/sizes passed in 2.938 seconds from the website host, separately from the desktop browser path. The first desktop browser attempt hit a hydration wait; the repeat reached persisted creation, bidding, key restore, pre-close API locking and live-round reveal, then its old four-minute test wait expired at 45.1/76.5 MB while the application still showed download progress. This is incomplete cold-browser evidence, not an integrity failure or a successful proof. The test now has a finite wait covering existing download/proving caps, preserves seller backups immediately, and supports explicit `resumeAuctionId` to continue the same listing. No application timeout or integrity check was weakened.
+
 ## Physical phone checklist — unverified until an actual device is used
 
 1. On a real phone, sign in as a separate bidder, inspect layout, keyboard, focus, error messages and payment privacy. Record device, OS, browser and network.
