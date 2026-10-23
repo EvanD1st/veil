@@ -1,6 +1,6 @@
 # Pinned testnet lab
 
-Prepared 23 October 2026. **No live wallet/node build, sync or transfer has been completed here.** This is an experimental, source-compatible setup candidate, not a release-certified integration. Use the [live runbook](../../docs/LIVE_TESTNET.md) to track the remaining gates.
+Prepared 23 October 2026. All three explicitly authorized experimental binaries built successfully on the isolated AWS host. Zebra is syncing and passed a controlled service restart; the new wallet's required private backup confirmation, synchronized wallet integration and actual transfer remain pending. See [actual execution evidence](../../docs/TESTNET_SERVICE.md). This is an experimental setup candidate, not a release-certified integration. Use the [live runbook](../../docs/LIVE_TESTNET.md) to track the remaining gates.
 
 ## Version decision and blocker
 
