@@ -10,7 +10,7 @@ The public baseline's [GitHub CI run](https://github.com/EvanD1st/veil/actions/r
 | --- | --- |
 | Frozen offline installation | Passed; lockfile unchanged by installation |
 | TypeScript | Passed |
-| Service/crypto/recovery/Worker-failure suite | **23 passed**, 0 failed; approximately 44.5 seconds in the final run |
+| Service/crypto/recovery/Worker-failure suite | **23 passed**, 0 failed; 44.5–88.3 seconds across final verification runs |
 | Production build | Passed |
 | Browser encryption bundle check | Passed; real seal/signature/reveal; no separate dynamic tlock chunk |
 | Shipped runtime harness | Passed; a real proof verified with the fixed verifier |
