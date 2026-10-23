@@ -14,7 +14,8 @@
     ],
     "backendLockSha256": "4a6ad6b14b8c8f9ea01b8099f1ddfded73146c37cd57ac8b1feefb6ae0f437c8",
     "zebraStateCrate": "16.0.0",
-    "upstreamAuditStatus": "PR #898 remains open at the pinned head. Inspected required job 119994964058: cargo vet fmt passed; cargo vet --locked exited 255 because 30 versions lack safe-to-deploy coverage. Acceptance gate remains unsatisfied; this does not establish a compiler failure or a proven vulnerability."
+    "upstreamAuditStatus": "PR #898 remains open at the pinned head. Inspected required job 119994964058: cargo vet fmt passed; cargo vet --locked exited 255 because 30 versions lack safe-to-deploy coverage. Acceptance gate remains unsatisfied; this does not establish a compiler failure or a proven vulnerability.",
+    "lockSha256": "90a1c92656d4d591cb184d341e70c4c16d503ab8c4083a0bbeef5add5b23b666"
   },
   "zebra": {
     "repository": "https://github.com/ZcashFoundation/zebra.git",
@@ -25,9 +26,11 @@
       "indexer"
     ],
     "zebraStateCrate": "16.0.0",
-    "stateFormat": "29.0.0+indexer"
+    "stateFormat": "29.0.0+indexer",
+    "lockSha256": "0020f60c1af08d544fa0fc8d361b16861858e6b1ecf4a3a090d680dce5e0f5c3"
   },
   "network": "testnet",
   "testnetNu7ActivationHeight": 4465026,
-  "liveEvidence": "none; source inspection and synthetic regression fixtures only"
+  "liveEvidence": "none; source inspection and synthetic regression fixtures only",
+  "operatorAuthorization": "Exact experimental commit authorized on 2026-10-23 for an isolated AWS TESTNET lab only. Audit gate remains failed. Installation and live results must be recorded separately."
 }

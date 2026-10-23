@@ -31,7 +31,7 @@ for project in zebra zallet; do
 df -h "$lab_root" > "$lab_root/build-resources.txt"
 free -h >> "$lab_root/build-resources.txt"
 date -u >> "$lab_root/build-resources.txt"
-node --input-type=module -e 'import fs from "node:fs";import{createHash}from"node:crypto";const v=JSON.parse(fs.readFileSync(process.argv[1]));const h=createHash("sha256").update(fs.readFileSync(process.argv[2])).digest("hex");if(h!==v.zallet.backendLockSha256)throw Error("Backend lock hash mismatch");' "$versions" "$lab_root/src/zallet/backends/zebra/Cargo.lock"
+node --input-type=module -e 'import fs from "node:fs";import{createHash}from"node:crypto";const v=JSON.parse(fs.readFileSync(process.argv[1]));for(const [file,expected]of [["zebra/Cargo.lock",v.zebra.lockSha256],["zallet/Cargo.lock",v.zallet.lockSha256],["zallet/backends/zebra/Cargo.lock",v.zallet.backendLockSha256]])if(createHash("sha256").update(fs.readFileSync(process.argv[2]+"/src/"+file)).digest("hex")!==expected)throw Error("Pinned source lock hash mismatch");' "$versions" "$lab_root"
 (
  cd -- "$lab_root/src/zebra"
  cargo +"$(pin zebra.rust)" build --locked --release --package zebrad --features indexer

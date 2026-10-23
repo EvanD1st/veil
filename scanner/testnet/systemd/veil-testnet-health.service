@@ -2,6 +2,7 @@
 Description=VEIL read-only testnet synchronization and disk observation
 
 [Service]
+LogNamespace=veil-testnet
 Type=oneshot
 User=veil-testnet
 Group=veil-testnet

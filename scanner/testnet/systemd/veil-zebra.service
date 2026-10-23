@@ -6,6 +6,7 @@ StartLimitIntervalSec=1800
 StartLimitBurst=3
 
 [Service]
+LogNamespace=veil-testnet
 User=veil-testnet
 Group=veil-testnet
 EnvironmentFile=/etc/veil-testnet/paths.env
