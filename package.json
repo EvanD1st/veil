@@ -16,7 +16,8 @@
     "typecheck": "tsc --noEmit",
     "db:local": "node scripts/db-local.mjs",
     "dev:test": "node scripts/dev-test.mjs",
-    "test:e2e": "playwright test"
+    "test:e2e": "playwright test",
+    "build:ubuntu": "node scripts/build-ubuntu.mjs"
   },
   "dependencies": {
     "@base-ui/react": "^1.7.0",

@@ -1,0 +1,8 @@
+# Install as a separate imported Caddy file after choosing the real hostname.
+VEIL_HOSTNAME {
+    encode gzip
+    reverse_proxy 127.0.0.1:8092 {
+        header_up -Oai-Authenticated-*
+        header_up X-Forwarded-Proto https
+    }
+}

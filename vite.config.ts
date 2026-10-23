@@ -37,7 +37,12 @@ const localBindingConfig = {
     : [],
 };
 
-export default defineConfig(async ({ command }) => {
+export default defineConfig(async (configEnv) => {
+  const {command}=configEnv;
+  if(process.env.VEIL_DEPLOY_TARGET==='node'){
+    const {default:nodeConfig}=await import('./vite.node.config');
+    return typeof nodeConfig==='function'?nodeConfig(configEnv):nodeConfig;
+  }
   const localTest=process.env.VEIL_LOCAL_TEST==='1';
   if(localTest&&(command!=='serve'||managedLinux))throw Error('Local test identity/clock is development-only.');
   // Use Miniflare's local Request.cf placeholder unless fetching is requested.

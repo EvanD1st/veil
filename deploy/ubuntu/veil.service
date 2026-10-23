@@ -1,0 +1,28 @@
+[Unit]
+Description=VEIL auction website
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=veil
+Group=veil
+WorkingDirectory=/srv/veil/current
+EnvironmentFile=/srv/veil/shared/runtime.env
+ExecStart=/srv/veil/runtime/bin/node --max-old-space-size=256 /srv/veil/current/runtime/server.mjs
+Restart=on-failure
+RestartSec=5
+MemoryHigh=320M
+MemoryMax=448M
+MemorySwapMax=128M
+CPUQuota=25%
+TasksMax=64
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/srv/veil/shared
+UMask=0077
+
+[Install]
+WantedBy=multi-user.target
