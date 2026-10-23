@@ -299,4 +299,7 @@ test('legacy result reconciliation never relabels an unproved declaration',async
  assert.equal((await reconcilePublication(attempt,async()=>detail)).status,'matched');
  const relabelled={...detail,auction:{...detail.auction,result:{...r,status:'zk-verified'}}};
  assert.equal((await reconcilePublication(attempt,async()=>relabelled)).status,'conflict');
+ for(const changes of [{publicKey:{...detail.auction.publicKey,e:'Aw'}},{publicKey:{...detail.auction.publicKey,key_ops:['verify']}},{paymentWindowHours:48}]){
+  const changed={...detail,auction:{...detail.auction,...changes}};assert.equal((await reconcilePublication(attempt,async()=>changed)).status,'conflict');
+ }
 });

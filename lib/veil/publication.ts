@@ -5,12 +5,13 @@ import {verifyHighestBid} from './zk/verify';
 export type PublicationDetail={auction:Auction;bids:PublicBid[];snapshotHash:string};
 export type PublicationAttempt={auction:Auction;bids:PublicBid[];payload:{winnerId:string|null;amount:string|null;salt:string|null;openedCount:number;proof?:AuctionResult['proof'];snapshotHash:string}};
 export type PublicationOutcome={status:'matched'|'conflict'|'unknown';message:string;detail?:PublicationDetail};
+const keyFingerprint=(key:JsonWebKey)=>JSON.stringify([key.kty,key.n,key.e,key.alg,key.ext,key.key_ops]);
 export async function reconcilePublication(attempt:PublicationAttempt,read:()=>Promise<PublicationDetail>):Promise<PublicationOutcome>{
  let detail:PublicationDetail;
  try{detail=await read();}catch{return {status:'unknown',message:'Publication status is unknown. Check status before taking further action; do not publish again.'};}
  const {auction,bids,payload}=attempt,r=detail.auction.result;
  const conflict=():PublicationOutcome=>({status:'conflict',message:'A different auction log or result is stored. Stop and review the exported record.',detail});
- if(detail.auction.id!==auction.id||detail.auction.protocolVersion!==auction.protocolVersion||detail.auction.proofContext!==auction.proofContext||detail.auction.reserve!==auction.reserve||detail.auction.closesAt!==auction.closesAt||detail.auction.unlockRound!==auction.unlockRound||detail.auction.paymentAddress!==auction.paymentAddress||detail.auction.publicKey.n!==auction.publicKey.n)return conflict();
+ if(detail.auction.id!==auction.id||detail.auction.protocolVersion!==auction.protocolVersion||detail.auction.proofContext!==auction.proofContext||detail.auction.reserve!==auction.reserve||detail.auction.closesAt!==auction.closesAt||detail.auction.unlockRound!==auction.unlockRound||detail.auction.paymentAddress!==auction.paymentAddress||keyFingerprint(detail.auction.publicKey)!==keyFingerprint(auction.publicKey)||(detail.auction.paymentWindowHours??null)!==(auction.paymentWindowHours??null))return conflict();
  if(detail.snapshotHash!==payload.snapshotHash||await snapshotHash(auction.id,detail.bids)!==payload.snapshotHash||await snapshotHash(auction.id,bids)!==payload.snapshotHash||detail.bids.length!==payload.openedCount)return conflict();
  if(!r)return {status:'unknown',message:'No result is visible yet. The original request may still be completing. Check status; no second publication has been sent.',detail};
  if(r.winnerId!==payload.winnerId||r.amount!==payload.amount||r.salt!==payload.salt||r.snapshotHash!==payload.snapshotHash)return conflict();
