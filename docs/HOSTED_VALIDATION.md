@@ -1,0 +1,25 @@
+# Hosted validation and remaining operator checks
+
+The Ubuntu release approved on 23 October 2026 is source `59c35c5e2bd8ed6c2cb68caa9ace2be23b937200`. Its application paths match PR #4 through `0e7724c`; later changes are operational evidence and validation tools. Archive SHA-256: `1273b44bd1d4a6f7bf6ef94f29aa117048e74ac61a57df7a667ff0cbdc29ce83`. CI for the exact release passed run 39967758016; both jobs at the later PR head passed runs 40023506511 and 40023514592.
+
+Deployment applied only reviewed migration `0004_payment_scan_queue.sql`. A new stopped-service consistent backup passed integrity checks; its SHA-256 is `dfe9b723c1e99634d5b7999d5c943b9934cd39ab580706e3029f5fe1360ab9e4`. Account, auction, bid and payment-report counts matched across migration. The previous release, database backup and private deployment record remain on the website host. Caddy was unchanged and existing container identities were preserved. No synchronized-readiness claim follows from deployment.
+
+AWS public scanner key and token verifier are staged privately on the website host. Live runtime configuration remains unchanged; queue registration and scanner delivery remain disabled. Installing these public settings and enabling the existing worker requires successful strict readiness; do not bypass it. Private signing key, bearer token, RPC cookies and wallet material stay on AWS. No synchronization build, restart, configuration or troubleshooting is part of this follow-up.
+
+## Repeating the public website checks
+
+`scripts/test-hosted-browser.mjs` uses administrator-created seller, bidder and observer accounts in separate ordinary browser contexts, the real receiving address, normal clocks and live future drand. It creates a persistent test auction; no fixture identities, mocked beacon, wallet call or transfer are used. Run it only with authorization to create those records. Set `VEIL_HOSTED_TEST_CONFIG` to an owner-only JSON file outside the repository containing `origin`, `receiver`, `privateOutput`, and `accounts` mapping seller/bidder/observer to username/password. `VEIL_BROWSER_CHANNEL=chrome` optionally uses an installed browser. The private output holds the invoice and seller backup; never attach it to CI or publish it.
+
+`scripts/check-hosted-release.mjs` uses the same private config for authenticated API, forged-identity rejection, scanner rejection, all six manifest-verified HTTPS proof assets, and logout revocation. It reuses the existing deployed-asset checker. Neither script sends a payment or establishes physical-device performance.
+
+## Physical phone checklist — unverified until an actual device is used
+
+1. On a real phone, sign in as a separate bidder, inspect layout, keyboard, focus, error messages and payment privacy. Record device, OS, browser and network.
+2. Clear site cache, run the normal future-round proof flow and record download bytes/progress, cold download time, proof time and any browser termination or memory symptom.
+3. Cancel during download/proving, verify a usable recovery state, retry, then measure the cached run. Do not alter clocks or intercept requests.
+4. Restore the seller key from the private backup, publish and independently verify from another session. Check pre-close locking and unauthorized payment access.
+5. After separately authorized actual payment and readiness, check expiry/refresh and temporary-unavailability states. Record actual results separately from desktop/CI evidence.
+
+## Payment gate
+
+No payment has been sent. After the hosted auction exports an exact invoice, use the existing `scanner/prepare-send.mjs` offline helper. Show the operator the exact testnet destination, amount, memo/purpose and bounded fee allowance for separate approval. A compatible funded testnet sender is still required; do not initialize another AWS wallet as a workaround or resend a payment for recovery. Actual incoming output, active-chain inclusion, three confirmations, automatic signed delivery, expiry/refresh and restart recovery remain uncompleted until performed. Controlled reorg tests are synthetic evidence, never public-testnet disruption or transfer evidence.
