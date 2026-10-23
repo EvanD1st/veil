@@ -22,7 +22,7 @@ try{
  const created=await request('/api/auctions',{method:'POST',headers:{Cookie:seller,Origin:'https://veil.example','Content-Type':'application/json'},body:JSON.stringify(lot)});assert.equal(created.status,201,'Native auction create failed: '+await created.clone().text());
  const detail=await request('/api/auctions/'+lot.id,{headers:{Cookie:bidder}});assert.equal(detail.status,200);assert.equal((await detail.json()).auction.isOwner,false);
  assert.equal((await request('/api/auctions/'+lot.id+'/envelopes',{headers:{Cookie:bidder}})).status,403);
- assert.equal((await request('/api/auctions/'+lot.id+'/envelopes',{headers:{Cookie:seller}})).status,200);
+ assert.equal((await request('/api/auctions/'+lot.id+'/envelopes',{headers:{Cookie:seller}})).status,409,'Seller envelopes must remain locked before close.');
  const manifest=JSON.parse(await readFile('lib/veil/zk/assets.json','utf8'));
  await checkDeployedAssets(origin,manifest,(url,init)=>fetch(url,{...init,headers:{Host:'veil.example'}}));
  const logout=await request('/signout-with-chatgpt',{method:'POST',headers:{Cookie:seller,Origin:'https://veil.example','Content-Type':'application/x-www-form-urlencoded'},body:''});assert.equal(logout.status,303);assert.equal((await request('/api/auctions',{headers:{Cookie:seller}})).status,401);
