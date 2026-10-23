@@ -24,3 +24,7 @@ jobs:
       - run: pnpm build
       - run: node scripts/test-bundle.mjs
       - run: node scripts/test-prover-worker.mjs
+
+      - run: node scripts/check-production-boundary.mjs
+      - run: pnpm exec playwright install --with-deps chromium
+      - run: pnpm test:e2e

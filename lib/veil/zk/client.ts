@@ -1,17 +1,25 @@
 import assets from './assets.json';
-import { Auction, BidOpening, PublicBid, ProofBundle, PROOF_CIRCUIT } from '../core';
-import { proofWitness, proofPublicSignals } from './protocol';
-import { verifyHighestBid } from './verify';
-export async function proveHighestBid(auction:Auction,bids:PublicBid[],openings:BidOpening[],winnerId:string|null,amount:string|null,progress:(s:string)=>void):Promise<ProofBundle>{
- const witness=await proofWitness(auction,bids,openings,winnerId,amount);
- const result=await new Promise<{proof:Record<string,unknown>;publicSignals:string[]}>((resolve,reject)=>{
-  const worker=new Worker('/zk/prover-worker.js');
-  const timer=setTimeout(()=>{worker.terminate();reject(Error('Proof generation timed out. Try on a desktop browser.'));},300000);
-  const done=()=>{clearTimeout(timer);worker.terminate();};
-  worker.onerror=()=>{done();reject(Error('The proof worker could not run. Reload and retry on a desktop browser.'));};
-  worker.onmessage=({data})=>{if(data.progress)progress(data.progress);else if(data.error){done();reject(Error(data.error));}else if(data.result){done();resolve(data.result);}};
-  worker.postMessage({assets,witness});
+import {Auction,BidOpening,PublicBid,ProofBundle,PROOF_CIRCUIT} from '../core';
+import {proofWitness,proofPublicSignals} from './protocol';
+import {verifyHighestBid} from './verify';
+export function runProofWorker(witness:unknown,progress:(s:string)=>void,signal?:AbortSignal,timeoutMs=600000):Promise<{proof:Record<string,unknown>;publicSignals:string[]}>{
+ return new Promise((resolve,reject)=>{
+  if(signal?.aborted){reject(new DOMException('Proof cancelled. No result was published.','AbortError'));return;}
+  const worker=new Worker('/zk/prover-worker.js');let settled=false;
+  const finish=(error?:Error,result?:{proof:Record<string,unknown>;publicSignals:string[]})=>{if(settled)return;settled=true;clearTimeout(timer);signal?.removeEventListener('abort',cancel);worker.terminate();if(error)reject(error);else resolve(result!);};
+  const cancel=()=>finish(new DOMException('Proof cancelled. No result was published.','AbortError'));
+  const timer=setTimeout(()=>finish(Error('Proof generation timed out. Retry on a desktop browser.')),timeoutMs);
+  signal?.addEventListener('abort',cancel,{once:true});
+  worker.onerror=()=>finish(Error('The proof worker could not run. Reload and retry on a desktop browser.'));
+  worker.onmessageerror=()=>finish(Error('The proof worker returned an unreadable response. Retry.'));
+  worker.onmessage=({data})=>{if(settled)return;if(data.error)finish(Error(data.error));else if(data.result)finish(undefined,data.result);else if(data.progress)progress(data.progress);};
+  try{worker.postMessage({assets,witness});}catch(error){finish(error as Error);}
  });
- progress('Checking the highest-bid proof…');
- return verifyHighestBid({circuitId:PROOF_CIRCUIT,...result},proofPublicSignals(auction,bids,winnerId,amount));
+}
+export async function proveHighestBid(auction:Auction,bids:PublicBid[],openings:BidOpening[],winnerId:string|null,amount:string|null,progress:(s:string)=>void,signal?:AbortSignal):Promise<ProofBundle>{
+ signal?.throwIfAborted();const witness=await proofWitness(auction,bids,openings,winnerId,amount);
+ const result=await runProofWorker(witness,progress,signal);
+ signal?.throwIfAborted();progress('Checking the highest-bid proof…');
+ const proof=await verifyHighestBid({circuitId:PROOF_CIRCUIT,...result},proofPublicSignals(auction,bids,winnerId,amount));
+ signal?.throwIfAborted();return proof;
 }

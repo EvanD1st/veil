@@ -45,6 +45,8 @@ A separate Ed25519 key signs a five-minute report. Configure only its **public k
 
 **Scanner-confirmed means a trusted scanner attestation, not a zero-knowledge proof of payment.** A compromised scanner key or dishonest scanner can lie. No real testnet transfer or live wallet RPC integration was available in this environment; tests use representative RPC fixtures and exercise the actual scanner/signature/database code. Real-wallet validation remains required before treating the integration as complete.
 
+New auctions can set an explicit payment follow-up window. Overdue follow-up and expired scanner evidence are separate; neither changes the winner or implies escrow/refund. See [the payment workflow](docs/PAYMENTS.md).
+
 ## Boundaries and recovery
 
 - The proof establishes highest-bid selection within the **recorded log**. It does not establish that every attempted submission was accepted, stop host censorship/equivocation, or independently anchor acceptance order.
@@ -58,6 +60,10 @@ A separate Ed25519 key signs a five-minute report. Configure only its **public k
 
 ## Development and verification
 
+Start with [local setup and browser testing](docs/LOCAL_TESTING.md). See the [architecture](docs/ARCHITECTURE.md), [payment follow-up](docs/PAYMENTS.md), [Sites deployment procedure](docs/DEPLOYMENT.md), [short demo script](docs/DEMO.md) and [validation evidence/checklist](docs/VALIDATION.md).
+
+Baseline GitHub CI at `b59f5703ee8ef5958426e48efd1732830f785f30` passed installation, TypeScript, all 16 original tests, production build, encryption bundle and prover harness. The current branch extends that workflow with browser and production-boundary checks.
+
 Requires Node 24 (Node SQLite is used in tests) and pnpm. The lockfile is authoritative.
 
 ```sh
@@ -69,7 +75,7 @@ node scripts/test-bundle.mjs
 node scripts/test-prover-worker.mjs
 ```
 
-Tests run production crypto and service code against SQLite: encryption and drand, permissions, atomic bid acceptance, legacy results, real proof generation, wrong winner/tie/amount/context/omission rejection, empty and no-eligible auctions, signature/report validation, payment expiry/revocation and RPC note/reorg checks. Expected circuit-constraint errors are printed during negative proof tests. `test-prover-worker.mjs` exercises the shipped browser runtime in a JS web-API harness; it is not browser click-through QA. The browser automation environment was unavailable for this update.
+Tests run production crypto and service code against SQLite: encryption and drand, permissions, atomic bid acceptance, legacy results, real proof generation, wrong winner/tie/amount/context/omission rejection, empty and no-eligible auctions, signature/report validation, payment expiry/revocation and RPC note/reorg checks. Expected circuit-constraint errors are printed during negative proof tests. `test-prover-worker.mjs` exercises the shipped browser runtime in a JS web-API harness; it is not browser click-through QA. Real Chromium browser coverage, deterministic timing fixtures and limitations are documented in [docs/LOCAL_TESTING.md](docs/LOCAL_TESTING.md) and [docs/VALIDATION.md](docs/VALIDATION.md).
 
 React/TypeScript/Vinext runs on a Cloudflare Worker with D1. `.openai/hosting.json` preserves the Site ID/database binding. `db/schema.ts` and schema-only migrations under `drizzle/` add proof metadata and payment reports without modifying old auctions. Never seed production with test bids or private test keys.
 
@@ -80,4 +86,4 @@ React/TypeScript/Vinext runs on a Cloudflare Worker with D1. `.openai/hosting.js
 - [tlock-js](https://github.com/drand/tlock-js), [drand](https://docs.drand.love/). The committed beacon fixture is quicknet round 1000.
 - The sneaker concept is AI-generated; the VEIL mark and other gallery artwork are original SVGs. No real product or seller is represented.
 
-Original VEIL source retains its MIT notice in `LICENSE`. The combined application now incorporates GPL-3.0-or-later snarkjs code and runtime; its distribution must comply with GPL-3.0-or-later (`LICENSE-GPL-3.0`). Vendored files retain attribution, and modifications are described in `lib/veil/zk/vendor/README.md`. Dependency licenses remain applicable. Make the corresponding source available when distributing this build. This private review workspace is not yet a public hackathon source release.
+Original VEIL source retains its MIT notice in `LICENSE`. The combined application now incorporates GPL-3.0-or-later snarkjs code and runtime; its distribution must comply with GPL-3.0-or-later (`LICENSE-GPL-3.0`). Vendored files retain attribution, and modifications are described in `lib/veil/zk/vendor/README.md`. Dependency licenses remain applicable. Make the corresponding source available when distributing this build. The repository is public and retains the corresponding source and license notices. The hosted review audience is configured separately.

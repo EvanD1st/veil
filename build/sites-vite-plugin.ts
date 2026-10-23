@@ -29,7 +29,7 @@ async function exists(path: string): Promise<boolean> {
   }
 }
 
-export function sites({ mockAuth = true } = {}): Plugin {
+export function sites({ mockAuth = false } = {}): Plugin {
   let root = process.cwd();
   let command: "build" | "serve" = "build";
 
