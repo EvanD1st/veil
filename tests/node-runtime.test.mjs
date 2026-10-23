@@ -6,7 +6,7 @@ import{authenticationHandler}from'../runtime/http-auth.mjs';
 import{loopbackFetch as fetch}from'./loopback-http.mjs';
 async function database(){const dir=await mkdtemp(join(tmpdir(),'veil-native-')),path=join(dir,'veil.sqlite');initializeDatabase(path,resolve('drizzle'));return {db:openDatabase(path),path};}
 test('standalone migrations preserve D1 integer/atomic/constraint behavior and refuse overwrite',async()=>{
- const {db,path}=await database();try{assert.equal(db.prepare('SELECT COUNT(*) n FROM veil_migrations').get().n,4);assert.throws(()=>initializeDatabase(path,resolve('drizzle')));const d1=d1Adapter(db);
+ const {db,path}=await database();try{assert.equal(db.prepare('SELECT COUNT(*) n FROM veil_migrations').get().n,5);assert.throws(()=>initializeDatabase(path,resolve('drizzle')));const d1=d1Adapter(db);
  await d1.prepare('CREATE TABLE adapter_test(id INTEGER PRIMARY KEY,value TEXT UNIQUE)').run();assert.equal((await d1.prepare('INSERT INTO adapter_test VALUES (?,?)').bind(1,'a').run()).meta.changes,1);assert.equal((await d1.prepare('SELECT * FROM adapter_test WHERE id=?').bind(1).first()).value,'a');assert.equal((await d1.prepare('SELECT * FROM adapter_test').all()).results.length,1);await assert.rejects(d1.prepare('INSERT INTO adapter_test VALUES (?,?)').bind(2,'a').run());
  }finally{db.close();}
 });

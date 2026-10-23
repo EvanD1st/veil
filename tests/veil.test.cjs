@@ -303,3 +303,5 @@ test('legacy result reconciliation never relabels an unproved declaration',async
   const changed={...detail,auction:{...detail.auction,...changes}};assert.equal((await reconcilePublication(attempt,async()=>changed)).status,'conflict');
  }
 });
+
+require('./payment-queue.cjs')({test,assert,db,env,server,core,auctionId,realNow});

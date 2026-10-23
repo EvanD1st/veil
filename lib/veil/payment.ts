@@ -4,7 +4,7 @@ export type PaymentInvoice={version:1;network:'testnet';invoiceId:string;auction
 export type PaymentReport={version:1;invoiceId:string;network:'testnet';txid:string;output:number;pool:'sapling';address:string;amount:string;memo:string;status:'confirmed'|'not-confirmed';blockHash:string|null;blockHeight:number|null;tipHeight:number;confirmations:number;observedAt:number;expiresAt:number};
 export type SignedPaymentReport={report:PaymentReport;signature:string};
 export type PaymentWorkflow={dueAt:number|null;overdue:boolean;isOwner:boolean;actions:{action:string;recordedAt:number;byYou:boolean}[]};
-export type PaymentState={workflow?:PaymentWorkflow;configured:boolean;invoice:PaymentInvoice;status:'unverified'|'scanner-confirmed'|'needs-refresh'|'not-confirmed';report:PaymentReport|null};
+export type PaymentState={automation?:{enabled:boolean;state:string;txid:string|null;output:number|null;nextCheckAt:number|null};workflow?:PaymentWorkflow;configured:boolean;invoice:PaymentInvoice;status:'unverified'|'scanner-confirmed'|'needs-refresh'|'not-confirmed';report:PaymentReport|null};
 export async function paymentInvoice(auction:Auction):Promise<PaymentInvoice>{
  const r=auction.result;if(!r?.winnerId||!r.amount||!auction.paymentAddress)throw Error('This auction has no payment request.');
  const memo=`VEIL:${auction.id}:${r.winnerId}`;

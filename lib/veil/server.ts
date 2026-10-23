@@ -142,11 +142,13 @@ export async function paymentStatus(id:string,userId:string){
  const configured=typeof key==='string'&&/^[a-f0-9]{64}$/.test(key);
  const row=await database().prepare('SELECT signed_report FROM payment_reports WHERE auction_id=?').bind(id).first<{signed_report:string}>();
  const workflow=await paymentWorkflow(auction,userId);
- if(!row)return {configured,invoice,status:'unverified',report:null,workflow};
+ const {automationStatus}=await import('./payment-queue');
+ const automation=await automationStatus(id);
+ if(!row)return {configured,invoice,status:'unverified',report:null,workflow,automation};
  const signed=JSON.parse(row.signed_report);
  let status='needs-refresh';
  try{await validatePaymentReport(signed,invoice,key??'');status=signed.report.status==='confirmed'?'scanner-confirmed':'not-confirmed';}catch{/* Expiry, key rotation, or unavailable scanner never stays confirmed. */}
- return {configured,invoice,status,report:signed.report,workflow};
+ return {configured,invoice,status,report:signed.report,workflow,automation};
 }
 export async function submitPaymentReport(id:string,input:Record<string,unknown>,userId:string){
  const {paymentInvoice,validatePaymentReport}=await import('./payment');
