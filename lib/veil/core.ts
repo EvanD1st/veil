@@ -22,6 +22,7 @@ export type Auction = {
   publicKey: JsonWebKey; createdAt: number; bidCount: number; isOwner: boolean;
   state: 'open' | 'closed' | 'result'; result: AuctionResult | null;
   paymentAddress: string | null;
+  paymentWindowHours?: number | null;
   protocolVersion: 1 | 2; proofContext: string | null;
 };
 export type AuctionResult = { winnerId: string | null; amount: string | null; salt: string | null; snapshotHash: string; declaredAt: number; status: 'seller-declared' | 'zk-verified'; proof?: ProofBundle };
