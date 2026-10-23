@@ -1,5 +1,5 @@
 // Separate bounded network/proving budgets; a stream making progress is not a stalled proof.
-export function proofDeadline(expire:(message:string)=>void,override?:number,timers={set:setTimeout,clear:clearTimeout}){
+export function proofDeadline(expire:(message:string)=>void,override?:number,timers={set:(callback:()=>void,delay:number)=>setTimeout(callback,delay),clear:(timer:ReturnType<typeof setTimeout>)=>clearTimeout(timer)}){
  let phase='download',loaded=-1,stopped=false;
  let budget:ReturnType<typeof setTimeout>,idle:ReturnType<typeof setTimeout>|undefined;
  const fail=(message:string)=>{if(stopped)return;stop();expire(message);};
