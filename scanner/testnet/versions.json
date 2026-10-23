@@ -9,17 +9,21 @@
     "releaseLabel": "0.1.0-beta.3 plus unmerged NU7 changes; not the beta.3 release artifact",
     "rust": "1.95.0",
     "backend": "zebra",
-    "backendFeatures": ["rpc-cli"],
+    "backendFeatures": [
+      "rpc-cli"
+    ],
     "backendLockSha256": "4a6ad6b14b8c8f9ea01b8099f1ddfded73146c37cd57ac8b1feefb6ae0f437c8",
     "zebraStateCrate": "16.0.0",
-    "upstreamAuditStatus": "Required audits failed at inspection; cargo-vet backlog. Not a release-approved build."
+    "upstreamAuditStatus": "PR #898 remains open at the pinned head. Inspected required job 119994964058: cargo vet fmt passed; cargo vet --locked exited 255 because 30 versions lack safe-to-deploy coverage. Acceptance gate remains unsatisfied; this does not establish a compiler failure or a proven vulnerability."
   },
   "zebra": {
     "repository": "https://github.com/ZcashFoundation/zebra.git",
     "tag": "v7.0.0",
     "commit": "e8db87eb69254e0d4eedd058eadd48bdfa09065a",
     "rust": "1.91.0",
-    "features": ["indexer"],
+    "features": [
+      "indexer"
+    ],
     "zebraStateCrate": "16.0.0",
     "stateFormat": "29.0.0+indexer"
   },

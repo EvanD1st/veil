@@ -1,5 +1,24 @@
 # Validation evidence and completion checklist
 
+## Ubuntu migration evidence — 23 October 2026
+
+Main baseline `73e1aa4b2c4057481c78b16c16622631268ed4c5` passed post-merge [CI 39925988928](https://github.com/EvanD1st/veil/actions/runs/39925988928). Fresh branch `integration-evidence` was created from it. The deployed release `09ca59eaebfda7467ba569369ffa7554245bb169` passed both jobs in [CI 39936389121](https://github.com/EvanD1st/veil/actions/runs/39936389121): frozen install, typecheck, existing automated service/scanner/crypto checks, Cloudflare build, bundle/prover checks, production boundary, browser suite, plus native migration/auth tests, standalone build and artifact HTTP checks. Earlier failed attempts identified and fixed custom-Host test transport and native identity adapter resolution; the smoke test was corrected to require the existing pre-close envelope lock.
+
+Actual Ubuntu execution at https://ve-il.duckdns.org passed homepage/sign-in HTTPS 200, anonymous and forged identity rejection (401), actual owner password/session authentication, logout revocation, development-route exclusion (404), and streamed size/SHA-256 checks for **all six pinned proof-asset parts**. The service had zero restarts and a measured peak of **89,391,104 bytes** during initial checks; this is website smoke evidence, not load testing. All nine pre-existing Mintly container IDs/start times were unchanged and running; Mintly and Smart Attendance both returned HTTPS 200 after Caddy's validated graceful reload. [Deployment provenance and backup/migration procedure](DEPLOYMENT.md).
+
+Fresh host inspection: Ubuntu 24.04.4 LTS x86_64, two CPUs, about 1.9 GiB RAM, 4 GiB swap, ext4 root with about 6.8 GB free before VEIL staging. This is insufficient for the pinned Rust/RocksDB build and testnet sync. No Zallet/Zebra binaries, wallets or synchronized services were created. A separate native Linux lab with at least four cores, preferably 16 GB RAM and 100 GB free SSD planning capacity remains necessary; actual usage must be monitored.
+
+Upstream [Zallet PR #898](https://github.com/zcash/zallet/pull/898) remains open and unmerged at `0d433b322408c30ee48765a98a81af9001108e7d`. Inspected the actual [required check job 119994964058](https://github.com/zcash/zallet/actions/runs/39827611778/job/119994964058): formatting passed, then `cargo vet --locked` exited 255 with 30 versions missing `safe-to-deploy` coverage, including the new Zcash/Zebra dependency cohort. Missing vet coverage is the precise acceptance blocker, not evidence of a proven vulnerability or a compile failure. Published beta.3 still uses the incompatible older state format. The experimental NU7 candidate retains matching state-16/v29+indexer source compatibility, its pinned lock hash and Rust toolchains; no approved replacement was found. Pins were not advanced or relabelled approved.
+
+Actual browser live-drand check on **23 October, approximately 10:34–10:36 UTC**, at the Ubuntu HTTPS origin: started a fresh guided demo, sealed its three envelopes, observed “Open as seller” disabled before unlock, waited with ordinary clocks, opened after the real future quicknet round, then observed “Your offer won” and “Highest-bid proof generated and independently verified in this browser.” No fixture interception, local-test identity, clock override, wallet or payment was used. This exercises genuine live drand and the shipped Worker/prover/verifier, but the guided sample bidders are simulated participants; it creates no persisted listing or published result. It does **not** establish genuine separate-account hosted auction publication.
+
+The initial cold download on this browser connection reached the existing ten-minute proof timeout before completing all 76.5 MB. The later fresh demo passed using verified cached assets. Record this as a cold-download limitation, not an uninterrupted cold proof pass or physical-device performance evidence. A separate public HTTPS stream/hash check on Ubuntu passed all six parts in about 2.56 seconds, so no deployed byte mismatch was found. Verified-cache integrity checks and all existing cancellation/time limits were preserved.
+
+**Still uncompleted:** genuine separate-account hosted creation/bidding/publication/independent verification, actual synchronized wallet/node RPC captures, real shielded testnet transfer/report import/expiry/refresh, and physical-device measurements. The tests elsewhere in this document use explicitly synthetic source-derived RPC fixtures or local identities where stated. Migration and a green build do not complete these live gates.
+
+## Earlier validation record
+
+
 Recorded 23 October 2026. Local environment: Windows, Chrome **155.0.8059.85**, Node **24.15.0**, pnpm **11.25.0**, 8 logical CPUs and approximately 7.9 GiB system RAM. Chrome was launched headlessly by Playwright; mobile checks used viewport emulation.
 
 The public baseline's [GitHub CI run](https://github.com/EvanD1st/veil/actions/runs/39872505423) completed successfully at `b59f5703ee8ef5958426e48efd1732830f785f30`. New branch GitHub results appear on the PR; the evidence below is from local execution.
@@ -81,3 +100,10 @@ These are observations from one constrained workstation, not a hardware-independ
 - [ ] Current event/submission-rule verification and final recorded submission materials.
 
 No deployment, audience change, mainnet/testnet transaction or movement of funds was performed. No live wallet RPC endpoints, scanner signing key file or trusted public key are configured on this workstation; Zallet/Zebra executables were not detected on PATH. Follow `PAYMENTS.md` and `scanner/README.md` for the exact external validation procedure. Do not substitute a synthetic receiver, fixture RPC report, proof success or payment QR for a live transfer.
+
+
+## Remaining operator actions for full live validation
+
+1. Use the privately provisioned owner account and provision separate intended participants through the Ubuntu administrator command. Test persisted auction creation, bidding, key backup, reveal, publication and independent verification in isolated browser profiles/accounts. The available in-app browser test used one browser profile and guided sample participants; do not relabel it as separate-account evidence.
+2. Obtain an accepted current-testnet Zallet/Zebra combination after the required upstream vetting gate is satisfied, and use a separate adequately provisioned native Linux lab. Build/record the pinned binaries there and finish sync, then capture the authorized read-only preflight/RPC evidence privately. This shared website host must not be used for the node build/state.
+3. Separately authorize and perform the actual shielded testnet transfer, then validate the incoming output and signed report import/expiry/refresh. Test the UI/prover on an actual physical device and record cold/cached timings. No transfer or device result can be inferred from the guided demo or CI fixtures.
