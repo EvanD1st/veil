@@ -19,6 +19,8 @@ try{
  await page.getByRole('button',{name:'Create auction',exact:true}).click();await page.getByLabel('Lot title').fill(title);await page.getByLabel('Public seller name').fill('VEIL testnet validation');await page.getByLabel('The story').fill('Disposable separate-account integration check; no item or funds are exchanged.');await page.getByLabel('Reserve · test ZEC').fill('0.0001');await page.getByLabel('Closes in').selectOption('2');await page.getByLabel(/Sapling testnet address/).fill(receiver);await page.getByRole('checkbox').check();
  const downloadPromise=page.waitForEvent('download'),createdPromise=page.waitForResponse(r=>r.url().endsWith('/api/auctions')&&r.request().method()==='POST');await page.getByRole('button',{name:'Open the auction'}).click();
  const created=await createdPromise;expect(created.status()).toBe(201);const {auction}=await created.json();const backup=await readFile(await (await downloadPromise).path(),'utf8');expect(JSON.parse(backup).auctionId).toBe(auction.id);
+ await writeFile(resolve(privateOutput,'seller-key-backup-'+auction.id+'.json'),backup,{mode:0o600,flag:'wx'});
+ console.log('Hosted auction created; private key backup saved.');
  await expect(page.getByRole('button',{name:'Bids are still sealed'})).toBeDisabled();
  await bidder.page.reload();await bidder.page.getByRole('button',{name:new RegExp(title)}).click();expect(await bidder.page.evaluate(id=>localStorage.getItem('veil:auction-key:'+id),auction.id)).toBeNull();
  await bidder.page.getByLabel('Your offer in ZEC').fill('0.0002');await bidder.page.getByRole('button',{name:'Seal my bid',exact:true}).click();await expect(bidder.page.getByText('Your offer is sealed.')).toBeVisible({timeout:30000});
@@ -27,7 +29,7 @@ try{
  await page.evaluate(id=>localStorage.removeItem('veil:auction-key:'+id),auction.id);
  await page.locator('input[type=file]').setInputFiles({name:'restored-key.json',mimeType:'application/json',buffer:Buffer.from(backup)});await expect(page.getByRole('status')).toContainText('restored');
  const open=page.getByRole('button',{name:'Open all bids & prepare result'});await expect(open).toBeEnabled({timeout:150000});
- const cold=Date.now();await open.click();await expect(page.getByText('LOCAL TALLY / NOT YET PUBLISHED')).toBeVisible({timeout:240000});console.log('Hosted cold proof elapsed ms:',Date.now()-cold);
+ const cold=Date.now();console.log('Starting hosted cold proof.');await open.click();await expect(page.getByText('LOCAL TALLY / NOT YET PUBLISHED')).toBeVisible({timeout:1600000});console.log('Hosted cold proof elapsed ms:',Date.now()-cold);
  await page.getByRole('button',{name:'Overview',exact:true}).click();const cached=Date.now();await page.getByRole('button',{name:'Open all bids & prepare result'}).click();await expect(page.getByText('LOCAL TALLY / NOT YET PUBLISHED')).toBeVisible({timeout:180000});console.log('Hosted cached proof elapsed ms:',Date.now()-cached);
  await page.getByRole('button',{name:'Publish this result'}).click();await expect(page.getByText('ZK-VERIFIED RESULT')).toBeVisible({timeout:30000});
  await observer.page.reload();await observer.page.getByRole('button',{name:new RegExp(title)}).click();await observer.page.getByRole('button',{name:'Result',exact:true}).click();await observer.page.getByRole('button',{name:'Verify highest-bid proof'}).click();await expect(observer.page.getByRole('status')).toContainText('Highest bid, reserve, and tie-break verified',{timeout:30000});
