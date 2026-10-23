@@ -1,0 +1,29 @@
+[Unit]
+Description=Build the explicitly approved experimental VEIL testnet binaries
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+User=veil-build
+Group=veil-build
+EnvironmentFile=/etc/veil-testnet/build.env
+Environment=CARGO_HOME=/var/lib/veil-build/.cargo
+Environment=RUSTUP_HOME=/var/lib/veil-build/.rustup
+Environment=PATH=/var/lib/veil-build/.cargo/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+Environment=CARGO_BUILD_JOBS=1
+ExecStart=/bin/bash /opt/veil-testnet/app/scanner/testnet/build.sh /var/lib/veil-build/experimental-0d433b322408
+TimeoutStartSec=12h
+TimeoutStopSec=120
+MemoryHigh=5G
+MemoryMax=6G
+MemorySwapMax=3G
+CPUQuota=180%
+TasksMax=256
+UMask=0077
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/var/lib/veil-build
+LogNamespace=veil-testnet

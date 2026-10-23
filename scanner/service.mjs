@@ -7,7 +7,7 @@ import {pathToFileURL} from 'node:url';
 import {sign} from 'node:crypto';
 import {scanInvoice,reportMessage} from './scan.mjs';
 import {validateInvoice} from './invoice.mjs';
-import {configuredClients,readSigningKey} from './rpc.mjs';
+import {configuredClients,readSigningKey,readServiceToken} from './rpc.mjs';
 
 export function openOutbox(path){
  if(!isAbsolute(path))throw Error('Use an absolute private outbox path.');
@@ -61,9 +61,9 @@ export class ScannerWorker {
 }
 async function main(){
  const env=process.env,path=env.VEIL_SCANNER_OUTBOX;
- if(!path||!env.VEIL_SCANNER_RECEIVER||!env.VEIL_WEBSITE_ORIGIN||!env.VEIL_SCANNER_SERVICE_TOKEN)throw Error('Missing scanner service configuration.');
+ if(!path||!env.VEIL_SCANNER_RECEIVER||!env.VEIL_WEBSITE_ORIGIN)throw Error('Missing scanner service configuration.');
  const db=openOutbox(path),key=await readSigningKey(),{walletRpc,chainRpc}=await configuredClients();
- const worker=new ScannerWorker({db,key,walletRpc,chainRpc,receiver:env.VEIL_SCANNER_RECEIVER,exchange:transport(env.VEIL_WEBSITE_ORIGIN,env.VEIL_SCANNER_SERVICE_TOKEN)});
+ const worker=new ScannerWorker({db,key,walletRpc,chainRpc,receiver:env.VEIL_SCANNER_RECEIVER,exchange:transport(env.VEIL_WEBSITE_ORIGIN,await readServiceToken())});
  let stopping=false,failures=0,wake;
  for(const signal of ['SIGINT','SIGTERM'])process.on(signal,()=>{stopping=true;wake?.();});
  try{while(!stopping){
