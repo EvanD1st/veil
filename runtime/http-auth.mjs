@@ -3,15 +3,16 @@ const escape=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&g
 function html(title,body) {return `<!doctype html><html lang="en"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${title} · VEIL</title><style>body{background:#f5f4ee;color:#20382c;font:17px system-ui;margin:0;padding:24px}main{max-width:380px;margin:10vh auto;background:#fff;border:1px solid #dce3d8;border-radius:20px;padding:32px}h1{font:36px Georgia}label{display:block;margin:18px 0}input,button{box-sizing:border-box;width:100%;font:inherit;padding:12px;border:1px solid #899c8a;border-radius:8px}button{background:#254d39;color:white;cursor:pointer}a{color:#254d39}p{line-height:1.5}input:focus,button:focus,a:focus{outline:3px solid #adbb82;outline-offset:3px}</style><main><a href="/">VEIL</a><h1>${title}</h1>${body}</main></html>`;}
 function send(res,status,body,headers={}) {res.writeHead(status,{'Content-Type':'text/html; charset=utf-8','Cache-Control':'no-store','X-Content-Type-Options':'nosniff','Referrer-Policy':'no-referrer','Content-Security-Policy':"default-src 'none'; style-src 'unsafe-inline'; form-action 'self'; frame-ancestors 'none'; base-uri 'none'",...headers});res.end(body);}
 async function form(req) {let text='';for await(const chunk of req){text+=chunk;if(Buffer.byteLength(text)>2048)throw Error('Body too large');}return new URLSearchParams(text);}
-export function authenticationHandler(db,origin) {
- const expected=new URL(origin);if(expected.protocol!=='https:'||expected.pathname!=='/'||expected.search||expected.hash||expected.username)throw Error('Set a clean HTTPS VEIL_PUBLIC_ORIGIN.');
+export function authenticationHandler(db,origin,{allowLoopbackHttp=false}={}) {
+ const expected=new URL(origin),privateTunnel=allowLoopbackHttp&&expected.protocol==='http:'&&['localhost','127.0.0.1','[::1]'].includes(expected.hostname);
+ if((expected.protocol!=='https:'&&!privateTunnel)||expected.pathname!=='/'||expected.search||expected.hash||expected.username)throw Error('Set a clean HTTPS VEIL_PUBLIC_ORIGIN. HTTP requires explicit private-loopback mode.');
  const attempts=new Map();let hashing=0;
  return async function handle(req,res,next) {
   // Neither arbitrary authenticated-user headers nor forwarded-host/proto values authenticate Node requests.
   for(const key of Object.keys(req.headers))if(key.startsWith('oai-authenticated-')||key.startsWith('x-forwarded-'))delete req.headers[key];
   const raw=[];for(let i=0;i<req.rawHeaders.length;i+=2)if(!/^(oai-authenticated-|x-forwarded-)/i.test(req.rawHeaders[i]))raw.push(req.rawHeaders[i],req.rawHeaders[i+1]);req.rawHeaders=raw;
   if(req.headers.host!==expected.host){send(res,400,'Invalid host.');return;}
-  req.headers['x-forwarded-proto']='https';
+  req.headers['x-forwarded-proto']=expected.protocol.slice(0,-1);
   const url=new URL(req.url,expected);
   if(!['/signin-with-chatgpt','/signout-with-chatgpt'].includes(url.pathname)){next(req,res);return;}
   const returning=safeReturn(url.searchParams.get('return_to')??'/');
