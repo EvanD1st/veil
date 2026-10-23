@@ -1,0 +1,11 @@
+[Unit]
+Description=Record VEIL build resources and protect disk reserve
+[Service]
+Type=oneshot
+ExecStart=/usr/bin/python3 /opt/veil-testnet/app/scanner/testnet/guard-build.py
+UMask=0077
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/var/lib/veil-build
+LogNamespace=veil-testnet

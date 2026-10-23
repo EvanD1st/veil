@@ -10,7 +10,7 @@ Group=veil-build
 EnvironmentFile=/etc/veil-testnet/build.env
 Environment=CARGO_HOME=/var/lib/veil-build/.cargo
 Environment=RUSTUP_HOME=/var/lib/veil-build/.rustup
-Environment=PATH=/var/lib/veil-build/.cargo/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+Environment=PATH=/opt/veil-testnet/node/bin:/var/lib/veil-build/.cargo/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
 Environment=CARGO_BUILD_JOBS=1
 ExecStart=/bin/bash /opt/veil-testnet/app/scanner/testnet/build.sh /var/lib/veil-build/experimental-0d433b322408
 TimeoutStartSec=12h
