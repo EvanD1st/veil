@@ -1,5 +1,7 @@
 # Short hackathon demo script
 
+For the complete separate-account auction and actual payment leg, use [LIVE_TESTNET.md](LIVE_TESTNET.md). It records pinned setup, upstream blockers, exact operator actions and a physical-device checklist. The payment leg remains pending; no transfer was made here.
+
 1. Introduce the problem: an open auction reveals participants' bids; VEIL seals offers on the bidder's browser and proves the highest eligible offer against the recorded log.
 2. Open **Try a sealed auction**. Submit an offer above the sample high bid, wait for the unlock signal, open as seller and show the actual download/proving/verification stages. Explain that the two sample bidders are locally simulated, while encryption and the proof are real.
 3. Repeat with a tie: first acceptance wins. Show a real persisted auction in isolated seller and bidder browser contexts, then publish and independently verify its result.
