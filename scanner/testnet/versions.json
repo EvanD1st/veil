@@ -31,6 +31,6 @@
   },
   "network": "testnet",
   "testnetNu7ActivationHeight": 4465026,
-  "liveEvidence": "none; source inspection and synthetic regression fixtures only",
+  "liveEvidence": "Authorized native AWS build completed for all three binaries with recorded hashes; Zebra early testnet sync and controlled service restart observed. Wallet backup, synchronized RPC/output checks and payment remain pending. See docs/TESTNET_SERVICE.md.",
   "operatorAuthorization": "Exact experimental commit authorized on 2026-10-23 for an isolated AWS TESTNET lab only. Audit gate remains failed. Installation and live results must be recorded separately."
 }
