@@ -36,7 +36,20 @@ export async function ensureEscrowOrder(id:string){
  return db().prepare('SELECT * FROM escrow_orders WHERE id=?').bind(id).first<Order>();
 }
 function operator(userId:string){return setting('VEIL_ESCROW_OPERATOR_IDS').split(',').map(x=>x.trim()).filter(Boolean).includes(userId);}
-async function access(id:string,userId:string){const order=await ensureEscrowOrder(id);if(!order)throw new ApiError('No payable escrow order.',409);if(userId!==order.buyer_id&&userId!==order.seller_id&&!(operator(userId)&&(order.dispute==='open'||(order.dispute==='reviewed'&&order.last_actor===userId))))throw new ApiError('Private escrow order.',403);return order;}
+async function access(id:string,userId:string){
+ // Reject unrelated viewers before lazy creation writes an order or its audit event.
+ // A dispute operator can only access an existing order with an authorized dispute.
+ await auctionRow(id);
+ let order=await db().prepare('SELECT * FROM escrow_orders WHERE id=?').bind(id).first<Order>();
+ if(!order){
+  const detail=await details(id,userId);
+  if(!detail.auction.isOwner&&(!detail.auction.result?.winnerId||detail.myBid!==detail.auction.result.winnerId))throw new ApiError('Private escrow order.',403);
+  order=await ensureEscrowOrder(id);
+ }
+ if(!order)throw new ApiError('No payable escrow order.',409);
+ if(userId!==order.buyer_id&&userId!==order.seller_id&&!(operator(userId)&&(order.dispute==='open'||(order.dispute==='reviewed'&&order.last_actor===userId))))throw new ApiError('Private escrow order.',403);
+ return order;
+}
 async function refundDestinationFrozen(order:Order){return order.settlement!=='none'||order.dispute!=='none'||!!await db().prepare('SELECT id FROM escrow_intents WHERE order_id=? LIMIT 1').bind(order.id).first();}
 async function funding(order:Order){
  const ledger=await db().prepare('SELECT * FROM escrow_deposits WHERE order_id=?').bind(order.id).first<{output_key:string;late:number}>();

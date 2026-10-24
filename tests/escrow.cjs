@@ -16,6 +16,8 @@ module.exports=({test,assert,db,env,server,core,auctionId,realNow})=>{
  test('synthetic escrow: private fulfillment, strict signed deposits, expiry, dispute races and separate operator decisions',async()=>{
   const id=lot(),pair=generateKeyPairSync('ed25519');env.VEIL_SCANNER_PUBLIC_KEY=pair.publicKey.export({format:'der',type:'spki'}).subarray(-32).toString('hex');env.VEIL_ESCROW_OPERATOR_IDS='escrow-operator';
   await assert.rejects(escrow.escrowStatus(id,'outsider'),{status:403});await assert.rejects(escrow.escrowStatus(id,'escrow-operator'),{status:403});
+  assert.equal(db.prepare('SELECT COUNT(*) n FROM escrow_orders WHERE id=?').get(id).n,0,'Rejected viewers must not create an order');
+  assert.equal(db.prepare('SELECT COUNT(*) n FROM escrow_events WHERE order_id=?').get(id).n,0,'Rejected viewers must not create audit events');
   let state=await escrow.escrowStatus(id,'escrow-buyer');assert.equal(state.funding.state,'unverified');assert.equal(state.refundDestinationFrozen,false);const now=realNow();
   const r={version:1,invoiceId:state.invoice.invoiceId,network:'testnet',txid:'f1'.repeat(32),output:12,pool:'sapling',address:receiver,amount:'120000000',memo:state.invoice.memo,status:'confirmed',blockHash:'a1'.repeat(32),blockHeight:98,tipHeight:100,confirmations:3,observedAt:now,expiresAt:now+300000};const signed=r=>({report:r,signature:sign(null,reportMessage(r),pair.privateKey).toString('hex')});
   for(const change of [{network:'mainnet'},{address:'wrong'},{memo:'wrong'},{amount:'1'},{output:-1},{confirmations:2}])await assert.rejects(server.submitPaymentReport(id,signed({...r,...change}),'escrow-buyer'));
