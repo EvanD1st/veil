@@ -12,7 +12,7 @@ const privateOutput=resolve(credentials.privateOutput);await mkdir(privateOutput
 let browser;
 try{
  browser=await chromium.launch({headless:true,...(process.env.VEIL_BROWSER_CHANNEL?{channel:process.env.VEIL_BROWSER_CHANNEL}:{})});
- async function login(username){const context=await browser.newContext({baseURL:origin,acceptDownloads:true});const page=await context.newPage();page.on('pageerror',()=>console.log('Hosted browser script error in',username,'session.'));await page.goto('/signin-with-chatgpt');await page.getByLabel('Username').fill(credentials.accounts[username].username);await page.getByLabel('Password',{exact:true}).fill(credentials.accounts[username].password);await page.getByRole('button',{name:'Sign in',exact:true}).click();await expect(page.locator('main[data-hydrated="true"]')).toBeVisible({timeout:90000});expect((await page.request.get('/api/auctions')).status()).toBe(200);return {page,context};}
+ async function login(username){const context=await browser.newContext({baseURL:origin,acceptDownloads:true});const page=await context.newPage();page.on('pageerror',()=>console.log('Hosted browser script error in',username,'session.'));await page.goto('/signin-with-chatgpt');await page.getByLabel('Username').fill(credentials.accounts[username].username);await page.getByLabel('Password',{exact:true}).fill(credentials.accounts[username].password);await page.getByRole('button',{name:/^(Log in|Sign in)$/,exact:true}).click();await expect(page.locator('main[data-hydrated="true"]')).toBeVisible({timeout:90000});expect((await page.request.get('/api/auctions')).status()).toBe(200);return {page,context};}
  const seller=await login('seller'),bidder=await login('bidder'),observer=await login('observer');
  expect((await browser.newContext().then(async c=>{const r=await c.request.get(origin+'/api/auctions',{headers:{'oai-authenticated-user-id':'forged','oai-authenticated-user-email':'forged@invalid.example'}});await c.close();return r.status();}))).toBe(401);
  let auction,backup,title;const page=seller.page;
@@ -48,7 +48,7 @@ try{
  await writeFile(resolve(privateOutput,'seller-key-backup.json'),backup,{mode:0o600});
  await page.goto('/signout-with-chatgpt');
  // Logout is checked below using the app's explicit CSRF-protected form.
- const logout=page.getByRole('button',{name:/sign out/i});if(await logout.count())await logout.click();
+ const logout=page.getByRole('button',{name:/^(sign|log) out$/i});if(await logout.count())await logout.click();
  expect((await page.request.get('/api/auctions')).status()).toBe(401);
  console.log('PASS hosted accounts, persisted auction, bid, key restore, real future drand, proof publication, independent verification and payment privacy. No transfer performed.');
 }catch(error){
