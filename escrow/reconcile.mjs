@@ -1,0 +1,6 @@
+// Read-only liabilities / unknown-intent summary. No addresses, usernames or transaction metadata.
+import {DatabaseSync} from 'node:sqlite';
+import {isAbsolute} from 'node:path';
+const path=process.argv[2];if(!path||!isAbsolute(path))throw Error('Provide an absolute private SQLite path.');
+const db=new DatabaseSync(path,{readOnly:true});
+try{const orders=db.prepare('SELECT amount,settlement FROM escrow_orders').all();const deposits=db.prepare('SELECT d.amount,o.settlement,o.fee_cap FROM escrow_deposits d JOIN escrow_orders o ON o.id=d.order_id').all();const intents=db.prepare('SELECT state FROM escrow_intents').all();console.log(JSON.stringify({orders:orders.length,recordedDeposits:deposits.length,recordedDepositZatoshis:deposits.reduce((s,r)=>s+BigInt(r.amount),0n).toString(),unsettledRecordedDepositZatoshis:deposits.filter(r=>r.settlement!=='confirmed').reduce((s,r)=>s+BigInt(r.amount),0n).toString(),unsettledMaximumFeeReserveZatoshis:deposits.filter(r=>r.settlement!=='confirmed').reduce((s,r)=>s+BigInt(r.fee_cap),0n).toString(),unfundedOrderCount:orders.length-deposits.length,intentStates:intents.reduce((s,r)=>(s[r.state]=(s[r.state]||0)+1,s),{}),notice:'Recorded claims are not proof of current spendability. Reconcile with synchronized wallet and chain before settlement.'}));}finally{db.close();}

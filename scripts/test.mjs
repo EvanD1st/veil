@@ -16,5 +16,5 @@ for (const file of [...await files('lib/veil'),'app/chatgpt-auth.ts'].filter(f=>
 const assets=JSON.parse(await readFile('lib/veil/zk/assets.json','utf8'));
 await mkdir('.sites-runtime/zk-build/auction_js',{recursive:true});
 for(const [name,target] of [['wasm','auction_js/auction.wasm'],['zkey','auction.zkey']]){await writeFile('.sites-runtime/zk-build/'+target,Buffer.concat(await Promise.all(assets[name].map(p=>readFile('public'+p.url)))));}
-const result = spawnSync(process.execPath, ['--test', 'tests/veil.test.cjs','tests/worker.test.mjs','tests/scanner.test.mjs','tests/scanner-service.test.mjs','tests/testnet-startup.test.mjs'], { stdio: 'inherit' });
+const result = spawnSync(process.execPath, ['--test', 'tests/veil.test.cjs','tests/worker.test.mjs','tests/scanner.test.mjs','tests/scanner-service.test.mjs','tests/testnet-startup.test.mjs','tests/escrow-standalone.cjs','tests/escrow-executor.test.mjs','tests/escrow-pczt.test.mjs'], { stdio: 'inherit' });
 process.exit(result.status ?? 1);

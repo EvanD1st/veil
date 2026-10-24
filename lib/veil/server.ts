@@ -4,7 +4,7 @@ import { env } from 'cloudflare:workers';
 import { getChatGPTUser } from '@/app/chatgpt-auth';
 import { Auction, AuctionResult, PublicBid, QUICKNET, MAX_PROOF_BIDS, SNARK_FIELD, auctionProofContext, commitmentFor, isSaplingTestnet, roundTimeMs, sha256, snapshotHash, unlockRoundFor, validZatoshis, validateTimelockArmor } from './core';
 
-type AuctionRow = { payment_window_hours:number|null; protocol_version: 1 | 2; proof_context: string | null; id: string; owner_id: string; title: string; description: string; category: string; artwork: string; seller_name: string; reserve: string; closes_at: number; unlock_round: number; public_key: string; created_at: number; payment_address: string | null; result: string | null; bid_count?: number };
+type AuctionRow = { payment_mode:'direct'|'escrow-testnet';fulfillment_terms:string|null;escrow_payout_address:string|null;escrow_fee_cap:string|null; payment_window_hours:number|null; protocol_version: 1 | 2; proof_context: string | null; id: string; owner_id: string; title: string; description: string; category: string; artwork: string; seller_name: string; reserve: string; closes_at: number; unlock_round: number; public_key: string; created_at: number; payment_address: string | null; result: string | null; bid_count?: number };
 type BidRow = { sequence: number; id: string; auction_id: string; bidder_id: string; commitment: string; ciphertext: string; ciphertext_hash: string; accepted_at: number };
 export class ApiError extends Error { constructor(message: string, public status = 400) { super(message); } }
 function database() { if (!env.DB) throw new ApiError('The auction database is unavailable. Please try again shortly.', 503); return env.DB as D1Database; }
@@ -41,7 +41,7 @@ function hex(value: unknown): string { if (typeof value !== 'string' || !/^[a-f0
 function publicBid(row: BidRow): PublicBid { return { id: row.id, sequence: row.sequence, commitment: row.commitment, ciphertextHash: row.ciphertext_hash, acceptedAt: row.accepted_at }; }
 export async function auctionRow(id: string) { const row = await database().prepare('SELECT a.*, (SELECT COUNT(*) FROM bids b WHERE b.auction_id=a.id) AS bid_count FROM auctions a WHERE a.id=?').bind(uuid(id)).first<AuctionRow>(); if (!row) throw new ApiError('Auction not found.', 404); return row; }
 function publicAuction(row: AuctionRow, userId: string): Auction {
-  return { protocolVersion: row.protocol_version, proofContext: row.proof_context, id: row.id, title: row.title, description: row.description, category: row.category, artwork: row.artwork, sellerName: row.seller_name, reserve: row.reserve, closesAt: row.closes_at, unlockRound: row.unlock_round, publicKey: JSON.parse(row.public_key), createdAt: row.created_at, paymentAddress: row.payment_address, paymentWindowHours:row.payment_window_hours, bidCount: row.bid_count ?? 0, isOwner: row.owner_id === userId, state: row.result ? 'result' : Date.now() >= row.closes_at ? 'closed' : 'open', result: row.result ? JSON.parse(row.result) : null };
+  return { paymentMode:row.payment_mode??'direct',fulfillmentTerms:row.fulfillment_terms?JSON.parse(row.fulfillment_terms):null,protocolVersion: row.protocol_version, proofContext: row.proof_context, id: row.id, title: row.title, description: row.description, category: row.category, artwork: row.artwork, sellerName: row.seller_name, reserve: row.reserve, closesAt: row.closes_at, unlockRound: row.unlock_round, publicKey: JSON.parse(row.public_key), createdAt: row.created_at, paymentAddress: row.payment_address, paymentWindowHours:row.payment_window_hours, bidCount: row.bid_count ?? 0, isOwner: row.owner_id === userId, state: row.result ? 'result' : Date.now() >= row.closes_at ? 'closed' : 'open', result: row.result ? JSON.parse(row.result) : null };
 }
 export async function listAuctions(userId: string) {
   const rows = await database().prepare('SELECT a.*, (SELECT COUNT(*) FROM bids b WHERE b.auction_id=a.id) AS bid_count FROM auctions a ORDER BY a.created_at DESC LIMIT 100').all<AuctionRow>();
@@ -67,15 +67,16 @@ export async function createAuction(input: Record<string, unknown>, userId: stri
   if (!key || key.kty !== 'RSA' || key.e !== 'AQAB' || typeof key.n !== 'string' || key.n.length !== 342 || key.d || key.p || key.q || (key.key_ops && key.key_ops.join(',') !== 'encrypt')) throw new ApiError('A fresh public encryption key is required. Never upload the private key.');
   try { await crypto.subtle.importKey('jwk', key, { name: 'RSA-OAEP', hash: 'SHA-256' }, false, ['encrypt']); } catch { throw new ApiError('The public encryption key is invalid.'); }
   const publicKey = { kty: key.kty, n: key.n, e: key.e, alg: 'RSA-OAEP-256', key_ops: ['encrypt'], ext: true };
-  const address = input.paymentAddress ? text(input.paymentAddress, 20, 200, 'Payment address') : null;
+  let address = input.paymentAddress ? text(input.paymentAddress, 20, 200, 'Payment address') : null;
   if (address && !isSaplingTestnet(address)) throw new ApiError('Use a checksum-valid Sapling testnet address beginning ztestsapling1.');
+  const {creationPolicy}=await import('./escrow');const policy=creationPolicy(input,address);address=policy.address;
   const count = await database().prepare('SELECT COUNT(*) AS total FROM auctions WHERE owner_id=?').bind(userId).first<{ total: number }>();
   if ((count?.total ?? 0) >= 100) throw new ApiError('This review workspace has reached its 100-auction limit.');
   const paymentWindow=input.paymentWindowHours===undefined?24:input.paymentWindowHours;
   if(paymentWindow!==null&&![24,48,72].includes(paymentWindow as number))throw new ApiError('Choose a payment follow-up window of 24, 48 or 72 hours, or none.');
   const round = unlockRoundFor(closesAt);
   const proofContext = await auctionProofContext({id,reserve:input.reserve,closesAt,unlockRound:round,publicKey,paymentAddress:address});
-  await database().prepare('INSERT INTO auctions (id,owner_id,title,description,category,artwork,seller_name,reserve,closes_at,unlock_round,public_key,created_at,payment_address,protocol_version,proof_context,payment_window_hours) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)').bind(id, userId, title, description, category, artwork, sellerName, input.reserve, closesAt, round, JSON.stringify(publicKey), now, address, 2, proofContext,paymentWindow).run();
+  await database().prepare('INSERT INTO auctions (id,owner_id,title,description,category,artwork,seller_name,reserve,closes_at,unlock_round,public_key,created_at,payment_address,protocol_version,proof_context,payment_window_hours,payment_mode,fulfillment_terms,escrow_payout_address,escrow_fee_cap) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)').bind(id, userId, title, description, category, artwork, sellerName, input.reserve, closesAt, round, JSON.stringify(publicKey), now, address, 2, proofContext,paymentWindow,policy.mode,policy.terms,policy.payout,policy.fee).run();
   return publicAuction(await auctionRow(id), userId);
 }
 export async function acceptBid(id: string, input: Record<string, unknown>, userId: string) {
@@ -141,7 +142,7 @@ export async function paymentStatus(id:string,userId:string){
  const auction=await paymentAccess(id,userId),invoice=await paymentInvoice(auction),key=scannerKey();
  const configured=typeof key==='string'&&/^[a-f0-9]{64}$/.test(key);
  const row=await database().prepare('SELECT signed_report FROM payment_reports WHERE auction_id=?').bind(id).first<{signed_report:string}>();
- const workflow=await paymentWorkflow(auction,userId);
+ const workflow=auction.paymentMode==='escrow-testnet'?undefined:await paymentWorkflow(auction,userId);
  const {automationStatus}=await import('./payment-queue');
  const automation=await automationStatus(id);
  if(!row)return {configured,invoice,status:'unverified',report:null,workflow,automation};
@@ -153,6 +154,7 @@ export async function paymentStatus(id:string,userId:string){
 export async function submitPaymentReport(id:string,input:Record<string,unknown>,userId:string){
  const {paymentInvoice,validatePaymentReport}=await import('./payment');
  const auction=await paymentAccess(id,userId),invoice=await paymentInvoice(auction);
+ if(auction.paymentMode==='escrow-testnet'){const {ensureEscrowOrder}=await import('./escrow');await ensureEscrowOrder(id);}
  let signed;try{signed=await validatePaymentReport(input,invoice,scannerKey()??'');}catch(error){throw new ApiError((error as Error).message);}
  const r=signed.report,outputKey=`testnet:${r.txid}:sapling:${r.output}`;
  try{

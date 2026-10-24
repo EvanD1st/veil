@@ -53,7 +53,4 @@ export async function openBid(envelope: BidEnvelope, privateKey: JsonWebKey, auc
 }
 export function saveKey(auctionId: string, key: JsonWebKey) { localStorage.setItem(`veil:auction-key:${auctionId}`, JSON.stringify(key)); }
 export function readKey(auctionId: string): JsonWebKey | null { const value = localStorage.getItem(`veil:auction-key:${auctionId}`); return value ? JSON.parse(value) : null; }
-export function downloadJson(filename: string, value: unknown) {
-  const url = URL.createObjectURL(new Blob([JSON.stringify(value, null, 2)], { type: 'application/json' }));
-  const anchor = document.createElement('a'); anchor.href = url; anchor.download = filename; anchor.click(); setTimeout(() => URL.revokeObjectURL(url), 1000);
-}
+export {downloadJson} from './download';

@@ -4,6 +4,10 @@ Updated 23 October 2026. Repository: https://github.com/EvanD1st/veil.
 
 24 October follow-up: branch `public-signup` / PR #5 adds native public registration, login-first browser entry, preserved API/scanner authentication, administrator-only account lists and compatible existing sessions without a schema migration. See [account access and rollback](docs/ACCOUNTS.md). This follow-up does not deploy, merge, touch synchronization, activate scanner delivery or send funds. The live website remains on its previously approved release until a new exact-artifact approval.
 
+## Experimental escrow implementation (disabled)
+
+Branch `experimental-testnet-escrow` adds additive migration 0005, immutable terms/custody bindings, private fulfillment and disputes, durable deposit claims/observations, atomic release/refund intents and a hard-disabled live executor boundary. See [design, capability evidence and recovery gates](docs/EXPERIMENTAL_ESCROW.md). No deployment, wallet/sync changes or transfer. Synthetic fixtures are not live payment evidence. Preserve every obligation during rollback; do not run an older reader that mislabels escrow auctions as direct payments.
+
 ## Current AWS testnet and verification work
 
 Current release: the operator approved website source `59c35c5e2bd8ed6c2cb68caa9ace2be23b937200`, now deployed with queue migration 0004, a fresh integrity-checked backup and preserved account/auction/bid/payment counts. Scanner public settings are staged separately; live queue/delivery configuration remains disabled pending synchronized readiness. Synchronization is explicitly outside this follow-up's mutation scope. See [hosted validation](docs/HOSTED_VALIDATION.md) for current checks and remaining payment/physical-device gates. Older observations below are historical.
@@ -100,3 +104,6 @@ UI: `app/veil-app.tsx`, `app/payment-status.tsx`, `app/globals.css`. Service/per
 Public proving-key chunks, verification key and WASM are deliberately committed public artifacts. Keep their size/hash checks and pinned public ceremony. Do not replace them with a new trusted setup under the old circuit ID.
 
 Preserve the original MIT notice, GPL-3.0-or-later snarkjs runtime/source notices, `LICENSE-GPL-3.0`, vendored attributions and corresponding-source availability. Never commit environment secrets, auction private keys, wallet/viewing keys, scanner signing keys, RPC credentials or real payment reports.
+
+
+Escrow PCZT follow-up: a default-closed isolated-account preparation/recovery adapter now exists with source-derived tests and read-only live RPC-discovery evidence. Shared-account note selection remains unsupported; live funding/signing/broadcast and authenticated intent-worker activation remain pending a separately approved isolated trial. Merge/deploy may ship only the disabled website workflow, not activate custody or spending. See `docs/EXPERIMENTAL_ESCROW.md`.
