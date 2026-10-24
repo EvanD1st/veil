@@ -96,6 +96,11 @@ test('server requires signed-in identity and rejects cross-site writes', async (
   requestHeaders = new Headers({ 'oai-authenticated-user-id': 'test-user', 'oai-authenticated-user-email': 'test@example.invalid' });
   assert.equal(await server.actor(new Request('https://veil.test/api/auctions')), 'test-user');
   await assert.rejects(server.actor(new Request('https://veil.test/api/auctions', { headers: { origin: 'https://other.test' } }), true), { status: 403 });
+  for (const origin of ['http://veil.test', 'null', 'not-a-url', 'https://veil.test@other.test', '']) {
+    await assert.rejects(server.actor(new Request('https://veil.test/api/auctions', { headers: { origin } }), true), { status: 403 });
+  }
+  assert.equal(await server.actor(new Request('https://veil.test/api/auctions', { headers: { origin: 'https://veil.test' } }), true), 'test-user');
+  await assert.rejects(server.actor(new Request('https://veil.test/api/auctions', { headers: { origin: 'https://veil.test', 'sec-fetch-site': 'cross-site' } }), true), { status: 403 });
 });
 test('persisted auction accepts a sealed bid, preserves its bytes and hides identity/ciphertext in the public log', async () => {
   Date.now = () => core.roundTimeMs(1000) - 120000;
