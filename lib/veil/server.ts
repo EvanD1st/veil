@@ -11,7 +11,7 @@ function database() { if (!env.DB) throw new ApiError('The auction database is u
 export async function actor(request: Request, write = false) {
   if (write) {
     const origin = request.headers.get('origin');
-    if (request.headers.get('sec-fetch-site') === 'cross-site' || (origin && new URL(origin).host !== new URL(request.url).host)) throw new ApiError('Cross-site requests are not accepted.', 403);
+    if (request.headers.get('sec-fetch-site') === 'cross-site' || (origin !== null && origin !== new URL(request.url).origin)) throw new ApiError('Cross-site requests are not accepted.', 403);
   }
   const user = await getChatGPTUser();
   if (!user) throw new ApiError('Sign in to use your auction workspace.', 401);
