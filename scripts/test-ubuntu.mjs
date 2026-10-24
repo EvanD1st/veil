@@ -12,7 +12,7 @@ const origin='http://127.0.0.1:'+port;
 async function request(path,init={}){return fetch(origin+path,{...init,headers:{Host:'veil.example',...init.headers},redirect:'manual'});}
 async function login(username,password){const response=await request('/signin-with-chatgpt',{method:'POST',headers:{Origin:'https://veil.example','Content-Type':'application/x-www-form-urlencoded'},body:new URLSearchParams({username,password})});assert.equal(response.status,303);return response.headers.get('set-cookie').split(';')[0];}
 try{
- let ready=false;for(let attempt=0;attempt<120;attempt++){if(server.exitCode!==null)break;try{const r=await request('/');if(r.ok){ready=true;break;}}catch{}await new Promise(r=>setTimeout(r,250));}
+ let ready=false;for(let attempt=0;attempt<120;attempt++){if(server.exitCode!==null)break;try{const r=await request('/');if(r.status===303){ready=true;break;}}catch{}await new Promise(r=>setTimeout(r,250));}
  assert.ok(ready,'Standalone server did not start: '+output);
  assert.equal((await request('/api/auctions',{headers:{'oai-authenticated-user-id':'forged','oai-authenticated-user-email':'fake@example.invalid'}})).status,401);
  const seller=await login('seller','ci-only-password-seller'),bidder=await login('bidder','ci-only-password-bidder');

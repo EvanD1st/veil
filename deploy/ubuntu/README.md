@@ -1,5 +1,7 @@
 # Ubuntu deployment target
 
+Pending public-account release: [account access](../../docs/ACCOUNTS.md) documents `/login`, `/signup`, bounded registration and the private CLI / explicitly allowlisted web administrator account list. Existing account/session tables need no migration. Until that release is approved and activated, the historical deployed account behavior below remains in effect.
+
 This target runs the existing VEIL UI, auction protocol, fixed verifier and proof assets on Node 24.15.0. Builds run in GitHub Actions, not on the Windows workstation or the shared Ubuntu host. The normal Cloudflare/Sites build remains available and retains its original authentication/D1 integration.
 
 `pnpm build:ubuntu` selects the separate Vite target. `scripts/package-ubuntu.mjs` packages Vinext's supported standalone Node output, the explicit schema migrations, operator commands and exact source provenance. CI tests the built artifact over HTTP before uploading it.
