@@ -48,7 +48,7 @@ try{
  await writeFile(resolve(privateOutput,'seller-key-backup.json'),backup,{mode:0o600});
  await page.goto('/signout-with-chatgpt');
  // Logout is checked below using the app's explicit CSRF-protected form.
- const logout=page.getByRole('button',{name:/sign out/i});if(await logout.count())await logout.click();
+ const logout=page.getByRole('button',{name:/^(sign|log) out$/i});if(await logout.count())await logout.click();
  expect((await page.request.get('/api/auctions')).status()).toBe(401);
  console.log('PASS hosted accounts, persisted auction, bid, key restore, real future drand, proof publication, independent verification and payment privacy. No transfer performed.');
 }catch(error){
