@@ -11,11 +11,11 @@ import {generateKeyPairSync,randomBytes,createHash} from 'node:crypto';
 import {openOutbox,ScannerWorker,transport} from '../scanner/service.mjs';
 const root=resolve('dist/standalone'),directory=await mkdtemp(join(tmpdir(),'veil-live-browser-')),path=join(directory,'private.sqlite');
 initializeDatabase(path,join(root,'drizzle'));const db=openDatabase(path);
-for(const username of ['observer'])await createAccount(db,username,'ci-only-live-browser-password-'+username);
+const observerId=await createAccount(db,'observer','ci-only-live-browser-password-observer');
 db.close();const port=5187,origin='http://127.0.0.1:'+port;
 const signer=generateKeyPairSync('ed25519'),serviceToken=randomBytes(32).toString('hex');
 const receiver=JSON.parse(await readFile('tests/fixtures/synthetic-receiver.json','utf8')).address;
-const child=spawn(process.execPath,[join(root,'runtime/server.mjs')],{cwd:root,env:{...process.env,VEIL_PUBLIC_ORIGIN:origin,VEIL_ALLOW_LOOPBACK_HTTP:'1',VEIL_SQLITE_PATH:path,PORT:String(port),VEIL_SCANNER_PUBLIC_KEY:signer.publicKey.export({format:'der',type:'spki'}).subarray(-32).toString('hex'),VEIL_SCANNER_SERVICE_TOKEN_SHA256:createHash('sha256').update(serviceToken).digest('hex')},stdio:['ignore','pipe','pipe']});
+const child=spawn(process.execPath,[join(root,'runtime/server.mjs')],{cwd:root,env:{...process.env,VEIL_PUBLIC_ORIGIN:origin,VEIL_ALLOW_LOOPBACK_HTTP:'1',VEIL_ADMIN_ACCOUNT_IDS:observerId,VEIL_SQLITE_PATH:path,PORT:String(port),VEIL_SCANNER_PUBLIC_KEY:signer.publicKey.export({format:'der',type:'spki'}).subarray(-32).toString('hex'),VEIL_SCANNER_SERVICE_TOKEN_SHA256:createHash('sha256').update(serviceToken).digest('hex')},stdio:['ignore','pipe','pipe']});
 let output='';child.stdout.on('data',b=>{output+=b;});child.stderr.on('data',b=>{output+=b;});
 let browser;
 try{
@@ -27,11 +27,13 @@ try{
   if(username==='seller')await page.screenshot({path:'auth-login-desktop.png'});
   if(registering){await page.getByRole('link',{name:'Create account',exact:true}).click();if(username==='bidder'){await page.screenshot({path:'auth-signup-mobile.png'});expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);}}
   await page.getByLabel('Username',{exact:true}).fill(username);await page.getByLabel('Password',{exact:true}).fill('ci-only-live-browser-password-'+username);
-  if(registering){await page.getByLabel('Confirm password',{exact:true}).fill('ci-only-live-browser-password-'+username);await page.getByRole('button',{name:'Show password',exact:true}).click();expect(await page.getByLabel('Password',{exact:true}).getAttribute('type')).toBe('text');await page.getByRole('button',{name:'Hide password',exact:true}).click();}
+  if(registering){await page.getByLabel('Confirm password',{exact:true}).fill('mismatch-test-password');await page.getByRole('button',{name:'Create account',exact:true}).click();expect(new URL(page.url()).pathname).toBe('/signup');expect(await page.getByLabel('Confirm password',{exact:true}).evaluate(input=>input.validationMessage)).toBe('Passwords do not match.');await page.getByLabel('Confirm password',{exact:true}).fill('ci-only-live-browser-password-'+username);await page.getByRole('button',{name:'Show password',exact:true}).click();expect(await page.getByLabel('Password',{exact:true}).getAttribute('type')).toBe('text');await page.getByRole('button',{name:'Hide password',exact:true}).click();}
   await page.getByRole('button',{name:registering?'Create account':'Log in',exact:true}).click();await expect(page.locator('main[data-hydrated="true"]')).toBeVisible({timeout:30000});expect((await page.request.get('/api/auctions')).status()).toBe(200);
   await page.goto('/signup');expect(new URL(page.url()).pathname).toBe('/');return {page,context};
  }
  const seller=await login('seller'),bidder=await login('bidder'),observer=await login('observer');
+ expect((await seller.page.request.get('/admin/accounts')).status()).toBe(403);expect((await bidder.page.request.get('/admin/accounts')).status()).toBe(403);
+ await observer.page.goto('/admin/accounts');await expect(observer.page.getByRole('heading',{name:'Accounts',exact:true})).toBeVisible();await expect(observer.page.getByRole('cell',{name:'seller',exact:true})).toBeVisible();await expect(observer.page.getByRole('cell',{name:'bidder',exact:true})).toBeVisible();await observer.page.goto('/');
  expect((await browser.newContext().then(async c=>{const r=await c.request.get(origin+'/api/auctions',{headers:{'oai-authenticated-user-id':'forged','oai-authenticated-user-email':'forged@invalid.example'}});await c.close();return r.status();}))).toBe(401);
  const page=seller.page,title='Ordinary-clock CI auction';
  await page.getByRole('button',{name:'Create auction',exact:true}).click();await page.getByLabel('Lot title').fill(title);await page.getByLabel('Public seller name').fill('CI test studio');await page.getByLabel('The story').fill('Disposable separate-account integration check; no item or funds are exchanged.');await page.getByLabel('Reserve · test ZEC').fill('1.20');await page.getByLabel('Closes in').selectOption('2');await page.getByLabel(/Sapling testnet address/).fill(receiver);await page.getByRole('checkbox').check();
