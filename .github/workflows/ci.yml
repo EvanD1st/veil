@@ -49,6 +49,7 @@ jobs:
       - run: node scripts/test-ubuntu.mjs
       - run: pnpm exec playwright install --with-deps chromium
       - run: node scripts/test-native-browser.mjs
+      - run: node scripts/test-auth-scene.mjs
       - run: tar -czf veil-ubuntu.tar.gz -C dist/standalone .
       - run: sha256sum veil-ubuntu.tar.gz > veil-ubuntu.tar.gz.sha256
       - uses: actions/upload-artifact@v7
