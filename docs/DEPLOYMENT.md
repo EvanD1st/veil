@@ -1,5 +1,7 @@
 # Deployment targets
 
+Pending native public-signup release: [accounts and rollback](ACCOUNTS.md) describes the no-migration upgrade, optional private `VEIL_ADMIN_ACCOUNT_IDS` allowlist and code/config rollback that retains newly created records. No deployment or merge is performed by that implementation task.
+
 Current Ubuntu release: operator-approved `59c35c5e2bd8ed6c2cb68caa9ace2be23b937200` with queue migration 0004 is deployed. See [fresh backup, rollback and hosted checks](HOSTED_VALIDATION.md). Existing Sites and unrelated services remain unchanged; older identifiers below record historical deployments.
 
 VEIL remains associated with Site project `appgprj_6ad60ddb6cc08191adf85da59c23c6aa` in `.openai/hosting.json`. The source repository is public; the hosted review audience is a separate setting and remains owner-only unless the operator explicitly changes it.
