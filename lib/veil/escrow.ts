@@ -29,12 +29,28 @@ export async function ensureEscrowOrder(id:string){
  const auction=(await details(id,row.owner_id)).auction;
  if(!auction.result?.winnerId)return null;if(auction.result.status!=='zk-verified')throw new ApiError('Escrow requires a published verified winning result.',409);
  const invoice=await paymentInvoice(auction),now=Date.now(),terms=JSON.parse(row.fulfillment_terms!);
+ const publishedAt=auction.result.declaredAt,deliveryDueAt=publishedAt+terms.deliveryDays*86400000;
+ if(!Number.isSafeInteger(publishedAt)||publishedAt<0||!Number.isSafeInteger(deliveryDueAt)||deliveryDueAt<=publishedAt)throw new ApiError('Invalid published delivery deadline.',409);
  await db().prepare(`INSERT INTO escrow_orders(id,bid_id,buyer_id,seller_id,network,amount,invoice_id,invoice,terms,payout_address,fee_cap,created_at,delivery_due_at,last_actor,last_action,updated_at)
- SELECT a.id,b.id,b.bidder_id,a.owner_id,'testnet',?,?,?,?,?,?,?,?,'system','order-created',? FROM auctions a JOIN bids b ON b.auction_id=a.id AND b.id=? WHERE a.id=? AND a.payment_mode='escrow-testnet' AND a.result IS NOT NULL ON CONFLICT(id) DO NOTHING`).bind(invoice.amount,invoice.invoiceId,JSON.stringify(invoice),row.fulfillment_terms,row.escrow_payout_address,row.escrow_fee_cap,now,now+terms.deliveryDays*86400000,now,auction.result.winnerId,id).run();
+ SELECT a.id,b.id,b.bidder_id,a.owner_id,'testnet',?,?,?,?,?,?,?,?,'system','order-created',? FROM auctions a JOIN bids b ON b.auction_id=a.id AND b.id=? WHERE a.id=? AND a.payment_mode='escrow-testnet' AND a.result IS NOT NULL ON CONFLICT(id) DO NOTHING`).bind(invoice.amount,invoice.invoiceId,JSON.stringify(invoice),row.fulfillment_terms,row.escrow_payout_address,row.escrow_fee_cap,now,deliveryDueAt,now,auction.result.winnerId,id).run();
  return db().prepare('SELECT * FROM escrow_orders WHERE id=?').bind(id).first<Order>();
 }
 function operator(userId:string){return setting('VEIL_ESCROW_OPERATOR_IDS').split(',').map(x=>x.trim()).filter(Boolean).includes(userId);}
-async function access(id:string,userId:string){const order=await ensureEscrowOrder(id);if(!order)throw new ApiError('No payable escrow order.',409);if(userId!==order.buyer_id&&userId!==order.seller_id&&!(operator(userId)&&(order.dispute==='open'||(order.dispute==='reviewed'&&order.last_actor===userId))))throw new ApiError('Private escrow order.',403);return order;}
+async function access(id:string,userId:string){
+ // Reject unrelated viewers before lazy creation writes an order or its audit event.
+ // A dispute operator can only access an existing order with an authorized dispute.
+ await auctionRow(id);
+ let order=await db().prepare('SELECT * FROM escrow_orders WHERE id=?').bind(id).first<Order>();
+ if(!order){
+  const detail=await details(id,userId);
+  if(!detail.auction.isOwner&&(!detail.auction.result?.winnerId||detail.myBid!==detail.auction.result.winnerId))throw new ApiError('Private escrow order.',403);
+  order=await ensureEscrowOrder(id);
+ }
+ if(!order)throw new ApiError('No payable escrow order.',409);
+ if(userId!==order.buyer_id&&userId!==order.seller_id&&!(operator(userId)&&(order.dispute==='open'||(order.dispute==='reviewed'&&order.last_actor===userId))))throw new ApiError('Private escrow order.',403);
+ return order;
+}
+async function refundDestinationFrozen(order:Order){return order.settlement!=='none'||order.dispute!=='none'||!!await db().prepare('SELECT id FROM escrow_intents WHERE order_id=? LIMIT 1').bind(order.id).first();}
 async function funding(order:Order){
  const ledger=await db().prepare('SELECT * FROM escrow_deposits WHERE order_id=?').bind(order.id).first<{output_key:string;late:number}>();
  const report=await db().prepare('SELECT signed_report FROM payment_reports WHERE auction_id=?').bind(order.id).first<{signed_report:string}>();
@@ -44,7 +60,7 @@ async function funding(order:Order){
 }
 export async function escrowStatus(id:string,userId:string){
  const o=await access(id,userId),funds=await funding(o),events=await db().prepare('SELECT action,reason,recorded_at,actor_id FROM escrow_events WHERE order_id=? ORDER BY sequence').bind(id).all<{action:string;reason:string;recorded_at:number;actor_id:string}>(),intent=await db().prepare("SELECT kind,state,created_at,updated_at FROM escrow_intents WHERE order_id=? AND state<>'cancelled'").bind(id).first();
- return {experimental:true,custody:'operator-custodied',network:'testnet',executorEnabled:false,settlementsStopped:settlementsStopped(),invoice:JSON.parse(o.invoice),terms:JSON.parse(o.terms),funding:funds,fulfillment:o.fulfillment,dispute:o.dispute,settlement:o.settlement,intent,deliveryDueAt:o.delivery_due_at,overdue:Date.now()>o.delivery_due_at,deliveryDetails:o.delivery_details,tracking:o.tracking,payoutAddress:o.payout_address,refundAddress:o.refund_address,amount:o.amount,maxFee:o.fee_cap,revision:o.revision,role:userId===o.buyer_id?'buyer':userId===o.seller_id?'seller':'operator',events:events.results.map(e=>({action:e.action,reason:e.reason,recordedAt:e.recorded_at,byYou:e.actor_id===userId}))};
+ return {experimental:true,custody:'operator-custodied',network:'testnet',executorEnabled:false,settlementsStopped:settlementsStopped(),invoice:JSON.parse(o.invoice),terms:JSON.parse(o.terms),funding:funds,fulfillment:o.fulfillment,dispute:o.dispute,settlement:o.settlement,intent,deliveryDueAt:o.delivery_due_at,overdue:Date.now()>o.delivery_due_at,deliveryDetails:o.delivery_details,tracking:o.tracking,payoutAddress:o.payout_address,refundAddress:o.refund_address,refundDestinationFrozen:await refundDestinationFrozen(o),amount:o.amount,maxFee:o.fee_cap,revision:o.revision,role:userId===o.buyer_id?'buyer':userId===o.seller_id?'seller':'operator',events:events.results.map(e=>({action:e.action,reason:e.reason,recordedAt:e.recorded_at,byYou:e.actor_id===userId}))};
 }
 export async function escrowAction(id:string,input:Record<string,unknown>,userId:string){
  const o=await access(id,userId),action=input.action,now=Date.now();
@@ -56,7 +72,7 @@ export async function escrowAction(id:string,input:Record<string,unknown>,userId
   if(!buyer||o.settlement!=='none')throw new ApiError('Buyer delivery details are locked.',403);
   values.delivery_details=str(input.details,1,1500,'private delivery details');
  }else if(action==='refund-destination'){
-  if(!buyer||o.settlement!=='none'||o.dispute!=='none')throw new ApiError('Refund destination is locked.',403);
+  if(!buyer||await refundDestinationFrozen(o))throw new ApiError('Refund destination is frozen; existing authorizations require operator review.',403);
   if(typeof input.address!=='string'||!isSaplingTestnet(input.address))throw new ApiError('Use a Sapling TESTNET refund receiver.');values.refund_address=input.address;
  }else if(action==='fulfilled'){
   if(!seller||o.dispute!=='none'||o.fulfillment!=='awaiting')throw new ApiError('Only seller can declare fulfillment before dispute.',403);
