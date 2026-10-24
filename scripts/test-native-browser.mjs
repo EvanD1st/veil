@@ -65,6 +65,7 @@ try{
   const payment=await (await bidder.page.request.get(paymentPath)).json();expect(payment.status).toBe('not-confirmed');expect(payment.report.output).toBe(4);
   console.log('PASS synthetic-payment transport: authenticated participant queue, scoped worker delivery, trusted signature, duplicate ACK, outsider rejection. No actual RPC or payment claim.');
  }finally{outbox.close();}
+ await page.getByRole('button',{name:'Close dialog',exact:true}).click();await expect(page.getByRole('dialog')).toHaveCount(0);
  await page.getByRole('link',{name:'Log out',exact:true}).click();await page.getByRole('button',{name:'Log out',exact:true}).click();expect(new URL(page.url()).pathname).toBe('/login');expect((await page.request.get('/api/auctions')).status()).toBe(401);expect((await page.request.get('/api/account')).status()).toBe(401);
  console.log('PASS production artifact: distinct real accounts, isolated contexts, persisted bid, key backup/restore, future live drand, cold/cached proof, publication and independent observer verification. No payment/device claim.');
 }finally{await browser?.close();if(child.exitCode===null){child.kill('SIGTERM');await new Promise(r=>child.once('exit',r));}}
