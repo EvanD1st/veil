@@ -16,7 +16,7 @@ module.exports=({test,assert,db,env,server,core,auctionId,realNow})=>{
  test('synthetic escrow: private fulfillment, strict signed deposits, expiry, dispute races and separate operator decisions',async()=>{
   const id=lot(),pair=generateKeyPairSync('ed25519');env.VEIL_SCANNER_PUBLIC_KEY=pair.publicKey.export({format:'der',type:'spki'}).subarray(-32).toString('hex');env.VEIL_ESCROW_OPERATOR_IDS='escrow-operator';
   await assert.rejects(escrow.escrowStatus(id,'outsider'),{status:403});await assert.rejects(escrow.escrowStatus(id,'escrow-operator'),{status:403});
-  let state=await escrow.escrowStatus(id,'escrow-buyer');assert.equal(state.funding.state,'unverified');const now=realNow();
+  let state=await escrow.escrowStatus(id,'escrow-buyer');assert.equal(state.funding.state,'unverified');assert.equal(state.refundDestinationFrozen,false);const now=realNow();
   const r={version:1,invoiceId:state.invoice.invoiceId,network:'testnet',txid:'f1'.repeat(32),output:12,pool:'sapling',address:receiver,amount:'120000000',memo:state.invoice.memo,status:'confirmed',blockHash:'a1'.repeat(32),blockHeight:98,tipHeight:100,confirmations:3,observedAt:now,expiresAt:now+300000};const signed=r=>({report:r,signature:sign(null,reportMessage(r),pair.privateKey).toString('hex')});
   for(const change of [{network:'mainnet'},{address:'wrong'},{memo:'wrong'},{amount:'1'},{output:-1},{confirmations:2}])await assert.rejects(server.submitPaymentReport(id,signed({...r,...change}),'escrow-buyer'));
   await server.submitPaymentReport(id,signed(r),'escrow-buyer');state=await escrow.escrowStatus(id,'escrow-buyer');assert.equal(state.funding.state,'current');assert.equal(db.prepare('SELECT COUNT(*) n FROM escrow_deposits WHERE order_id=?').get(id).n,1);
@@ -28,7 +28,9 @@ module.exports=({test,assert,db,env,server,core,auctionId,realNow})=>{
   const snapshot=await escrow.escrowStatus(id,'escrow-buyer');const concurrent=await Promise.allSettled([escrow.escrowAction(id,{revision:snapshot.revision,action:'release',confirm:'I confirm receipt and authorize payment to the seller'},'escrow-buyer'),escrow.escrowAction(id,{revision:snapshot.revision,action:'dispute',reason:'Synthetic missing delivery'},'escrow-buyer')]);assert.equal(concurrent.filter(x=>x.status==='fulfilled').length,1);
   if((await escrow.escrowStatus(id,'escrow-buyer')).dispute!=='open')await action(id,'escrow-buyer','dispute',{reason:'Synthetic missing delivery'});
   assert.equal(db.prepare("SELECT count(*) n FROM escrow_intents WHERE order_id=? AND state<>'cancelled'").get(id).n,0);
-  await assert.rejects(action(id,'escrow-buyer','refund-destination',{address:receiver}),/frozen|locked/i);
+  // Dispute cancellation must keep the refund control locked, even without an active intent.
+  assert.equal((await escrow.escrowStatus(id,'escrow-buyer')).refundDestinationFrozen,true);
+  await assert.rejects(action(id,'escrow-buyer','refund-destination',{address:receiver}),{status:403});
   await assert.rejects(action(id,'escrow-seller','operator-release',{reason:'Unprivileged operator attempt'}),{status:403});
   await action(id,'escrow-operator','operator-refund',{reason:'Synthetic operator full refund decision'});
   const intent=db.prepare("SELECT * FROM escrow_intents WHERE order_id=? AND state<>'cancelled'").get(id);assert.equal(intent.kind,'refund');assert.equal(intent.state,'requested');assert.equal(intent.destination,receiver);
@@ -37,6 +39,21 @@ module.exports=({test,assert,db,env,server,core,auctionId,realNow})=>{
   const revoked={...r,status:'not-confirmed',blockHash:null,blockHeight:null,confirmations:0,observedAt:now+1,expiresAt:now+300000};await server.submitPaymentReport(id,signed(revoked),'escrow-buyer');assert.equal((await escrow.escrowStatus(id,'escrow-buyer')).funding.state,'uncertain');
   const other=lot();await escrow.ensureEscrowOrder(other);await assert.rejects(server.submitPaymentReport(other,signed({...r,invoiceId:(await escrow.escrowStatus(other,'escrow-buyer')).invoice.invoiceId,memo:(await escrow.escrowStatus(other,'escrow-buyer')).invoice.memo}),'escrow-buyer'),/already belongs/);
   delete env.VEIL_ESCROW_OPERATOR_IDS;
+ });
+ test('delivery deadline is anchored to publication rather than first order access',async()=>{
+  const id=lot(),published=realNow()-2*86400000,row=db.prepare('SELECT result FROM auctions WHERE id=?').get(id);
+  db.prepare('UPDATE auctions SET result=? WHERE id=?').run(JSON.stringify({...JSON.parse(row.result),declaredAt:published}),id);
+  const state=await escrow.escrowStatus(id,'escrow-buyer');assert.equal(state.deliveryDueAt,published+7*86400000);
+  assert.equal((await escrow.escrowStatus(id,'escrow-seller')).deliveryDueAt,state.deliveryDueAt);
+  Date.now=()=>published+8*86400000;
+  try{assert.equal((await escrow.escrowStatus(id,'escrow-buyer')).overdue,true);}finally{Date.now=realNow;}
+  const overdueId=lot(),overdueRow=db.prepare('SELECT result FROM auctions WHERE id=?').get(overdueId);
+  db.prepare('UPDATE auctions SET result=? WHERE id=?').run(JSON.stringify({...JSON.parse(overdueRow.result),declaredAt:realNow()-8*86400000}),overdueId);
+  assert.equal((await escrow.escrowStatus(overdueId,'escrow-buyer')).overdue,true);
+  const invalidId=lot(),invalidRow=db.prepare('SELECT result FROM auctions WHERE id=?').get(invalidId);
+  db.prepare('UPDATE auctions SET result=? WHERE id=?').run(JSON.stringify({...JSON.parse(invalidRow.result),declaredAt:null}),invalidId);
+  await assert.rejects(escrow.ensureEscrowOrder(invalidId),{status:409});
+  assert.equal(db.prepare('SELECT COUNT(*) n FROM escrow_orders WHERE id=?').get(invalidId).n,0);
  });
  test('late exact deposits remain durable but held for explicit operator review',async()=>{
   const id=lot(),now=realNow(),row=db.prepare('SELECT result FROM auctions WHERE id=?').get(id);db.prepare('UPDATE auctions SET result=? WHERE id=?').run(JSON.stringify({...JSON.parse(row.result),declaredAt:now-25*3600000}),id);
