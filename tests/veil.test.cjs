@@ -265,7 +265,7 @@ test('persisted payment status is private, rejects replay/reused outputs and exp
  assert.equal((await server.submitPaymentReport(auctionId,signed(revoked),'seller')).status,'not-confirmed');
  // A second invoice cannot claim the same note even if the scanner signs it.
  const otherId=crypto.randomUUID();
- db.prepare('INSERT INTO auctions SELECT ?,owner_id,title,description,category,artwork,seller_name,reserve,closes_at,unlock_round,public_key,created_at,payment_address,result,protocol_version,proof_context,payment_window_hours FROM auctions WHERE id=?').run(otherId,auctionId);
+ db.prepare('INSERT INTO auctions (id,owner_id,title,description,category,artwork,seller_name,reserve,closes_at,unlock_round,public_key,created_at,payment_address,result,protocol_version,proof_context,payment_window_hours) SELECT ?,owner_id,title,description,category,artwork,seller_name,reserve,closes_at,unlock_round,public_key,created_at,payment_address,result,protocol_version,proof_context,payment_window_hours FROM auctions WHERE id=?').run(otherId,auctionId);
  const otherInvoice=await paymentInvoice((await server.details(otherId,'seller')).auction);
  await assert.rejects(server.submitPaymentReport(otherId,signed({...revoked,invoiceId:otherInvoice.invoiceId,memo:otherInvoice.memo}),'seller'),{status:409});
  delete env.VEIL_SCANNER_PUBLIC_KEY;assert.equal((await server.paymentStatus(auctionId,'seller')).configured,false);Date.now=realNow;
