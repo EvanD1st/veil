@@ -26,7 +26,7 @@ test('HTTP auth rejects forged identity/host/origin, rate limits, and keeps retu
  assert.throws(()=>authenticationHandler(db,'http://127.0.0.1:8092'));
  const server=createServer((req,res)=>handle(req,res,(r,s)=>{s.writeHead(200);s.end(JSON.stringify({identity:r.headers['oai-authenticated-user-id']??null}));}));await new Promise(r=>server.listen(0,'127.0.0.1',r));
  const url='http://127.0.0.1:'+server.address().port,headers={Host:'veil.example',Origin:'https://veil.example','Content-Type':'application/x-www-form-urlencoded'};
- try{const forged=await fetch(url,{headers:{Host:'veil.example','oai-authenticated-user-id':'forged'}});assert.equal((await forged.json()).identity,null);assert.equal((await fetch(url)).status,400);
+ try{const forged=await fetch(url+'/api/probe',{headers:{Host:'veil.example','oai-authenticated-user-id':'forged'}});assert.equal((await forged.json()).identity,null);assert.equal((await fetch(url)).status,400);
  assert.equal((await fetch(url+'/signin-with-chatgpt',{headers:{Host:'veil.example'}})).headers.get('referrer-policy'),'same-origin');
  assert.equal((await fetch(url+'/signin-with-chatgpt',{method:'POST',headers:{...headers,Origin:'https://evil.example'},body:'username=seller&password=whatever'})).status,403);
  const login=await fetch(url+'/signin-with-chatgpt',{method:'POST',headers,body:new URLSearchParams({username:'seller',password:'another-good-test-password',return_to:'//evil.example'}),redirect:'manual'});assert.equal(login.status,303);assert.equal(login.headers.get('location'),'/');const cookie=login.headers.get('set-cookie').split(';')[0];assert.ok(sessionUser(db,cookie));
