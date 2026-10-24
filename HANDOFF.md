@@ -104,3 +104,6 @@ UI: `app/veil-app.tsx`, `app/payment-status.tsx`, `app/globals.css`. Service/per
 Public proving-key chunks, verification key and WASM are deliberately committed public artifacts. Keep their size/hash checks and pinned public ceremony. Do not replace them with a new trusted setup under the old circuit ID.
 
 Preserve the original MIT notice, GPL-3.0-or-later snarkjs runtime/source notices, `LICENSE-GPL-3.0`, vendored attributions and corresponding-source availability. Never commit environment secrets, auction private keys, wallet/viewing keys, scanner signing keys, RPC credentials or real payment reports.
+
+
+Escrow PCZT follow-up: a default-closed isolated-account preparation/recovery adapter now exists with source-derived tests and read-only live RPC-discovery evidence. Shared-account note selection remains unsupported; live funding/signing/broadcast and authenticated intent-worker activation remain pending a separately approved isolated trial. Merge/deploy may ship only the disabled website workflow, not activate custody or spending. See `docs/EXPERIMENTAL_ESCROW.md`.
