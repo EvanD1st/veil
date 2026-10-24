@@ -3,7 +3,7 @@ import {useEffect,useRef,useState} from 'react';
 import {Download,Upload,RefreshCw,ShieldCheck} from 'lucide-react';
 import type {PaymentState} from '@/lib/veil/payment';
 import {downloadJson} from '@/lib/veil/crypto';
-export default function PaymentStatus({auctionId,now}:{auctionId:string;now:number}){
+export default function PaymentStatus({auctionId,now,escrow=false}:{auctionId:string;now:number;escrow?:boolean}){
  const [state,setState]=useState<PaymentState|null>(null),[busy,setBusy]=useState(false),[error,setError]=useState('');
  const sequence=useRef(0);
  const [transaction,setTransaction]=useState(''),[output,setOutput]=useState('0');
@@ -51,8 +51,8 @@ export default function PaymentStatus({auctionId,now}:{auctionId:string;now:numb
  {state.workflow.actions.map((action,i)=><p key={i}>{action.byYou?'You':'The other participant'} {action.action==='reported-sent'?'reported sending payment (unverified)':'requested direct discussion'} at {new Date(action.recordedAt).toLocaleString()}.</p>)}
  </div>}
  {state&&<p className="field-hint">{status==='scanner-confirmed'?'Keep the invoice and refresh the scan before relying on confirmation again.':status==='needs-refresh'?'Rescan the same transaction and Sapling output, then import the new signed report. If the scanner is unavailable, wait for it to recover; an old report cannot confirm current payment.':status==='not-confirmed'?'Check the exact invoice address, amount and memo with the payer. Wait for at least three confirmations, then rescan the same output. Do not send another payment just because a scan failed.':'If already sent, wait for at least three confirmations, then ask the scanner operator to scan the transaction and output against this invoice. Import the signed report within five minutes.'}</p>}
- <p className="field-hint">Seller and winner must arrange delayed or unmatched payments directly. Split payments, overpayments and replacement outputs are unsupported.</p>
- <p className="field-hint">Reports trust the configured viewing wallet and scanner. They are not zero-knowledge payment proofs. A scan does not guarantee future finality, escrow, or delivery.</p>
+ <p className="field-hint">{escrow?'Late, partial, excess or unmatched deposits require custodian review. Never send another payment to recover a scan failure.':'Seller and winner must arrange delayed or unmatched payments directly. Split payments, overpayments and replacement outputs are unsupported.'}</p>
+ <p className="field-hint">Reports trust the configured viewing wallet and scanner. They are not zero-knowledge payment proofs. A scan does not guarantee future finality or delivery.</p>
  {error&&<p role="alert">{error}</p>}
  </div>;
 }

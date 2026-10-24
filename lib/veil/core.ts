@@ -17,6 +17,7 @@ export type ProofBundle = { circuitId: string; proof: Record<string, unknown>; p
 export type PublicBid = { id: string; commitment: string; ciphertextHash: string; acceptedAt: number; sequence: number };
 export type BidEnvelope = PublicBid & { ciphertext: string };
 export type Auction = {
+  paymentMode?:'direct'|'escrow-testnet';fulfillmentTerms?:Record<string,unknown>|null;
   id: string; title: string; description: string; category: string; artwork: string;
   sellerName: string; reserve: string; closesAt: number; unlockRound: number;
   publicKey: JsonWebKey; createdAt: number; bidCount: number; isOwner: boolean;
