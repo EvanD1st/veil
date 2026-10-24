@@ -15,6 +15,7 @@ try{
  await page.mouse.move(200,550);await page.waitForTimeout(300);assert.notEqual(await envelope.getAttribute('transform'),before);
  await page.screenshot({path:'outputs/auth-scene/login-desktop.png',fullPage:true});
  await page.emulateMedia({reducedMotion:'reduce'});await page.waitForTimeout(100);const still=await envelope.getAttribute('transform');await page.waitForTimeout(200);assert.equal(await envelope.getAttribute('transform'),still);
+ for(const viewport of [{width:1366,height:768},{width:1280,height:720},{width:1024,height:600}]){await page.setViewportSize(viewport);assert.equal(await page.evaluate(()=>document.documentElement.scrollHeight<=innerHeight&&document.documentElement.scrollWidth<=innerWidth),true,`Login must fit ${viewport.width}x${viewport.height}`);const box=await page.getByRole('link',{name:'Create account',exact:true}).boundingBox();assert.ok(box&&box.y+box.height<=viewport.height);}
  await page.setViewportSize({width:390,height:844});await page.goto('http://127.0.0.1:5199/signup');await page.locator('.scene-envelope').first().waitFor();
  assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),true);
  assert.equal(await page.locator('.scene-envelope:visible').count(),4);
