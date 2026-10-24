@@ -2,7 +2,7 @@
 import {useEffect,useRef,useState} from 'react';
 import {Download,Upload,RefreshCw,ShieldCheck} from 'lucide-react';
 import type {PaymentState} from '@/lib/veil/payment';
-import {downloadJson} from '@/lib/veil/crypto';
+import {downloadJson} from '@/lib/veil/download';
 export default function PaymentStatus({auctionId,now,escrow=false}:{auctionId:string;now:number;escrow?:boolean}){
  const [state,setState]=useState<PaymentState|null>(null),[busy,setBusy]=useState(false),[error,setError]=useState('');
  const sequence=useRef(0);

@@ -4,6 +4,10 @@ Updated 23 October 2026. Repository: https://github.com/EvanD1st/veil.
 
 24 October follow-up: branch `public-signup` / PR #5 adds native public registration, login-first browser entry, preserved API/scanner authentication, administrator-only account lists and compatible existing sessions without a schema migration. See [account access and rollback](docs/ACCOUNTS.md). This follow-up does not deploy, merge, touch synchronization, activate scanner delivery or send funds. The live website remains on its previously approved release until a new exact-artifact approval.
 
+## Experimental escrow implementation (disabled)
+
+Branch `experimental-testnet-escrow` adds additive migration 0005, immutable terms/custody bindings, private fulfillment and disputes, durable deposit claims/observations, atomic release/refund intents and a hard-disabled live executor boundary. See [design, capability evidence and recovery gates](docs/EXPERIMENTAL_ESCROW.md). No deployment, wallet/sync changes or transfer. Synthetic fixtures are not live payment evidence. Preserve every obligation during rollback; do not run an older reader that mislabels escrow auctions as direct payments.
+
 ## Current AWS testnet and verification work
 
 Current release: the operator approved website source `59c35c5e2bd8ed6c2cb68caa9ace2be23b937200`, now deployed with queue migration 0004, a fresh integrity-checked backup and preserved account/auction/bid/payment counts. Scanner public settings are staged separately; live queue/delivery configuration remains disabled pending synchronized readiness. Synchronization is explicitly outside this follow-up's mutation scope. See [hosted validation](docs/HOSTED_VALIDATION.md) for current checks and remaining payment/physical-device gates. Older observations below are historical.

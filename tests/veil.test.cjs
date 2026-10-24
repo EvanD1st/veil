@@ -305,4 +305,3 @@ test('legacy result reconciliation never relabels an unproved declaration',async
 });
 
 require('./payment-queue.cjs')({test,assert,db,env,server,core,auctionId,realNow});
-

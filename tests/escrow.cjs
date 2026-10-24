@@ -38,4 +38,10 @@ module.exports=({test,assert,db,env,server,core,auctionId,realNow})=>{
   const other=lot();await escrow.ensureEscrowOrder(other);await assert.rejects(server.submitPaymentReport(other,signed({...r,invoiceId:(await escrow.escrowStatus(other,'escrow-buyer')).invoice.invoiceId,memo:(await escrow.escrowStatus(other,'escrow-buyer')).invoice.memo}),'escrow-buyer'),/already belongs/);
   delete env.VEIL_ESCROW_OPERATOR_IDS;
  });
+ test('late exact deposits remain durable but held for explicit operator review',async()=>{
+  const id=lot(),now=realNow(),row=db.prepare('SELECT result FROM auctions WHERE id=?').get(id);db.prepare('UPDATE auctions SET result=? WHERE id=?').run(JSON.stringify({...JSON.parse(row.result),declaredAt:now-25*3600000}),id);
+  const pair=generateKeyPairSync('ed25519');env.VEIL_SCANNER_PUBLIC_KEY=pair.publicKey.export({format:'der',type:'spki'}).subarray(-32).toString('hex');const state=await escrow.escrowStatus(id,'escrow-buyer');
+  const r={version:1,invoiceId:state.invoice.invoiceId,network:'testnet',txid:'f3'.repeat(32),output:3,pool:'sapling',address:receiver,amount:'120000000',memo:state.invoice.memo,status:'confirmed',blockHash:'a3'.repeat(32),blockHeight:98,tipHeight:100,confirmations:3,observedAt:now,expiresAt:now+300000};await server.submitPaymentReport(id,{report:r,signature:sign(null,reportMessage(r),pair.privateKey).toString('hex')},'escrow-buyer');const current=await escrow.escrowStatus(id,'escrow-buyer');assert.equal(current.funding.state,'uncertain');assert.equal(current.funding.late,true);assert.equal(db.prepare("SELECT COUNT(*) n FROM escrow_exceptions WHERE order_id=? AND category='late'").get(id).n,1);
+ });
+
 };
