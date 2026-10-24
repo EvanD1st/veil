@@ -42,7 +42,7 @@ jobs:
           node-version: 24.15.0
           cache: pnpm
       - run: pnpm install --frozen-lockfile
-      - run: node --test tests/node-runtime.test.mjs
+      - run: node --test tests/node-runtime.test.mjs tests/native-signup.test.mjs
       - run: pnpm typecheck
       - run: pnpm build:ubuntu
       - run: node scripts/package-ubuntu.mjs
@@ -57,5 +57,7 @@ jobs:
           path: |
             veil-ubuntu.tar.gz
             veil-ubuntu.tar.gz.sha256
+            auth-login-desktop.png
+            auth-signup-mobile.png
           if-no-files-found: error
           retention-days: 7
