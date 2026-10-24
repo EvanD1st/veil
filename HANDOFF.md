@@ -2,7 +2,7 @@
 
 Updated 23 October 2026. Repository: https://github.com/EvanD1st/veil.
 
-24 October code review: `review-auth-payment-escrow` fixes full-origin comparison for supplied API Origin headers, publication-anchored delivery deadlines for new escrow orders and the frozen refund control after disputes/cancelled intents. No migration or live changes. See [findings, regressions and workstation validation limits](docs/CODE_REVIEW_2026-10-24.md). Escrow creation/spending remain disabled; release and wallet readiness are independent gates.
+24 October code review: `review-auth-payment-escrow` fixes full-origin comparison for supplied API Origin headers, publication-anchored delivery deadlines for new escrow orders, the frozen refund control after disputes/cancelled intents and unauthorized lazy order creation by rejected viewers. No migration or live changes. See [findings, regressions and workstation validation limits](docs/CODE_REVIEW_2026-10-24.md). Escrow creation/spending remain disabled; release and wallet readiness are independent gates.
 
 24 October follow-up: branch `public-signup` / PR #5 adds native public registration, login-first browser entry, preserved API/scanner authentication, administrator-only account lists and compatible existing sessions without a schema migration. See [account access and rollback](docs/ACCOUNTS.md). This follow-up does not deploy, merge, touch synchronization, activate scanner delivery or send funds. The live website remains on its previously approved release until a new exact-artifact approval.
 
