@@ -1,6 +1,6 @@
 # Payment follow-up and operator procedure
 
-Current Ubuntu follow-up: the automatic queue/worker implementation is deployed, but live delivery stays disabled pending strict synchronized readiness and configuration activation. Public scanner settings are staged separately; no transfer has occurred. See [current hosted validation](HOSTED_VALIDATION.md). Manual import remains available; polling alone does not scan the chain.
+Current execution status (25 October 2026): automatic verification is enabled. One separately approved faucet-funded exact TESTNET invoice payment passed actual output, signature, delivery, expiry and recovery checks. The independent sender remains under memory-recovery validation. See [execution evidence and remaining gates](PAYMENT_VALIDATION_2026-10-25.md); older setup observations below are historical. Manual import remains supported.
 
 ## Deadline policy
 

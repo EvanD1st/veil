@@ -6,6 +6,9 @@ import subprocess
 import sys
 import time
 
+MONITORED_UNITS = ('veil-zebra.service', 'veil-zallet@receiver-v2.service',
+                   'veil-zallet@sender.service', 'veil-build.service', 'veil-scanner.service')
+
 
 def integer(value):
     return value if type(value) is int and 0 <= value < 2**63 else None
@@ -53,8 +56,7 @@ def main():
     except (OSError, ValueError):
         pass
     disk = shutil.disk_usage(root)
-    services = {name: unit(name) for name in ['veil-zebra.service',
-                'veil-zallet@receiver-v2.service', 'veil-build.service', 'veil-scanner.service']}
+    services = {name: unit(name) for name in MONITORED_UNITS}
     print(json.dumps({'observedAt': now, 'diskFreeBytes': disk.free,
                       'health': health_summary(data, now), 'services': services}))
 
