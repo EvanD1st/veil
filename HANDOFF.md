@@ -1,6 +1,8 @@
 # VEIL — Implementation handoff
 
-Updated 23 October 2026. Repository: https://github.com/EvanD1st/veil.
+Updated 25 October 2026. Repository: https://github.com/EvanD1st/veil.
+
+25 October follow-up: see [actual payment evidence, sender memory recovery and physical-device status](docs/PAYMENT_VALIDATION_2026-10-25.md). An exact faucet-funded incoming invoice, automatic signed delivery, expiry and recovery passed. The independent sender is testing a smaller supported history-recovery batch without changing its binary or readiness. Redmi K30 Pro forms/bidding were reported by the operator; proof/device measurements remain pending. New application wording requires a reviewed release; historical deployment and readiness descriptions below are not current status.
 
 24 October code review: `review-auth-payment-escrow` fixes full-origin comparison for supplied API Origin headers, publication-anchored delivery deadlines for new escrow orders, the frozen refund control after disputes/cancelled intents and unauthorized lazy order creation by rejected viewers. No migration or live changes. See [findings, regressions and workstation validation limits](docs/CODE_REVIEW_2026-10-24.md). Escrow creation/spending remain disabled; release and wallet readiness are independent gates.
 

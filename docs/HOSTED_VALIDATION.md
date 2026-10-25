@@ -1,5 +1,7 @@
 # Hosted validation and remaining operator checks
 
+**Latest execution, 25 October 2026:** [actual invoice payment and recovery passed](PAYMENT_VALIDATION_2026-10-25.md). Live application source is `1ea44089f9e9c576dd3edca23f116c57333f5489` and scanner delivery is enabled. Earlier source, disabled-delivery and no-transfer statements below describe the prior validation stage.
+
 The Ubuntu release approved on 23 October 2026 is source `59c35c5e2bd8ed6c2cb68caa9ace2be23b937200`. Its application paths match PR #4 through `0e7724c`; later changes are operational evidence and validation tools. Archive SHA-256: `1273b44bd1d4a6f7bf6ef94f29aa117048e74ac61a57df7a667ff0cbdc29ce83`. CI for the exact release passed run 39967758016; both jobs at the later PR head passed runs 40023506511 and 40023514592.
 
 Deployment applied only reviewed migration `0004_payment_scan_queue.sql`. A new stopped-service consistent backup passed integrity checks; its SHA-256 is `dfe9b723c1e99634d5b7999d5c943b9934cd39ab580706e3029f5fe1360ab9e4`. Account, auction, bid and payment-report counts matched across migration. The previous release, database backup and private deployment record remain on the website host. Caddy was unchanged and existing container identities were preserved. No synchronized-readiness claim follows from deployment.

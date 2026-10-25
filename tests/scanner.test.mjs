@@ -104,7 +104,7 @@ test('config generator creates explicit testnet loopback configs and refuses exi
  await initialize(dir);
  const nodeConfig=await readFile(join(dir,'zebrad.toml'),'utf8');
  assert.match(nodeConfig,/network = "Testnet"/);assert.match(nodeConfig,/indexer_listen_addr = "127.0.0.1:18230"/);assert.match(nodeConfig,/enable_cookie_auth = true/);
- for(const [role,port] of [['receiver',28232],['sender',28233]]){const cfg=await readFile(join(dir,role,'zallet.toml'),'utf8');assert.match(cfg,/network = "test"/);assert.ok(cfg.includes(`127.0.0.1:${port}`));assert.match(cfg,/require_backup = true/);assert.match(cfg,/allow_insecure_remote_bind = false/);assert.match(cfg,/validator_cookie_path/);}
+ for(const [role,port] of [['receiver',28232],['sender',28233]]){const cfg=await readFile(join(dir,role,'zallet.toml'),'utf8');assert.match(cfg,/network = "test"/);assert.ok(cfg.includes(`127.0.0.1:${port}`));assert.match(cfg,/require_backup = true/);assert.match(cfg,/allow_insecure_remote_bind = false/);assert.match(cfg,/validator_cookie_path/);assert.match(cfg,/\[sync\]\s+recover_batch_size = 100\s*$/);assert.doesNotMatch(cfg,/lock_threshold|debug_force_finished_sync/);}
  await assert.rejects(initialize(dir));assert.equal(await readFile(join(dir,'zebrad.toml'),'utf8'),nodeConfig);
  const other=await mkdtemp(join(tmpdir(),'veil-existing-'));const {mkdir}=await import('node:fs/promises');await mkdir(join(other,'receiver'));await writeFile(join(other,'receiver','wallet.db'),'existing');
  await assert.rejects(initialize(other));assert.equal(await readFile(join(other,'receiver','wallet.db'),'utf8'),'existing');
