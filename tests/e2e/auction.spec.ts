@@ -148,3 +148,23 @@ test('cancelling a real proof worker restores the demo without a success state',
  await page.getByRole('button',{name:'Cancel proof'}).click();release();await expect(page.getByRole('button',{name:'Open as seller'})).toBeEnabled();
  await expect(page.getByText('Your offer won.',{exact:true})).toHaveCount(0);await expect(page.getByRole('status')).toContainText('cancelled');
 });
+
+
+test('seller receiver lookup survives edits while eligibility is pending',async({page})=>{
+ await identity(page,'seller');
+ let release!:()=>void;const gate=new Promise<void>(resolve=>{release=resolve;});
+ await page.route('**/api/digital/config',async route=>{const response=await route.fetch();await gate;await route.fulfill({response});});
+ await page.getByRole('button',{name:'Create auction',exact:true}).click();
+ await page.getByLabel('Lot title').fill('Typing while coverage loads');
+ await page.getByLabel('Public seller name').fill('Pending lookup studio');
+ await expect(page.getByLabel(/Sapling testnet address/)).toHaveValue('');
+ release();
+ await page.getByLabel('The story').fill('Keep typed metadata while the server assigns this seller receiver.');
+ await page.getByLabel('Reserve · test ZEC').fill('2.75');
+ await expect(page.getByLabel(/Sapling testnet address/)).toHaveValue(receiver);
+ await page.getByLabel('Lot title').fill('Typed title stays intact');
+ await expect(page.getByLabel('Public seller name')).toHaveValue('Pending lookup studio');
+ await expect(page.getByLabel('Reserve · test ZEC')).toHaveValue('2.75');
+ await expect(page.getByLabel(/Sapling testnet address/)).toHaveValue(receiver);
+ await expect(page.getByLabel(/Sapling testnet address/)).toHaveAttribute('readonly','');
+});
