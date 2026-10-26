@@ -1,15 +1,19 @@
 import {authPage,sendPage} from '../runtime/auth-pages.mjs';
 import {createServer} from 'node:http';
-import {mkdir} from 'node:fs/promises';
+import {mkdir,readFile} from 'node:fs/promises';
 import {chromium} from '@playwright/test';
 import assert from 'node:assert/strict';
-const server=createServer((req,res)=>sendPage(res,200,authPage(req.url.includes('signup')?'signup':'login','/')));
+const server=createServer(async(req,res)=>{if(/^\/fonts\/(inter|playfair-display)-(regular|semibold)\.ttf$/.test(req.url)){res.writeHead(200,{'Content-Type':'font/ttf'});res.end(await readFile('public'+req.url));return;}sendPage(res,200,authPage(req.url.includes('signup')?'signup':'login','/'));});
 await new Promise(r=>server.listen(5199,'127.0.0.1',r));let browser;
 try{
  await mkdir('outputs/auth-scene',{recursive:true});
  browser=await chromium.launch({headless:true,...(process.env.VEIL_BROWSER_CHANNEL?{channel:process.env.VEIL_BROWSER_CHANNEL}:{})});
  const page=await browser.newPage({viewport:{width:1440,height:960}}),errors=[];page.on('pageerror',e=>errors.push(e.message));
  await page.goto('http://127.0.0.1:5199/login');await page.locator('.scene-envelope').last().waitFor();
+ await page.evaluate(()=>document.fonts.ready);assert.equal(await page.evaluate(()=>document.fonts.check('16px "Playfair Display"')&&document.fonts.check('14px Inter')),true);
+ assert.equal(await page.getByLabel('Password',{exact:true}).inputValue(),'');
+ assert.equal(await page.locator('#authScenery').evaluate(c=>c.width>0&&c.height>0),true);
+ assert.ok((await page.locator('.scene-envelope use').first().getAttribute('href')).includes('FrontV'));
  assert.equal(await page.locator('.scene-envelope').count(),14);
  const envelope=page.locator('.scene-envelope').first(),before=await envelope.getAttribute('transform');
  await page.mouse.move(200,550);await page.waitForTimeout(300);assert.notEqual(await envelope.getAttribute('transform'),before);

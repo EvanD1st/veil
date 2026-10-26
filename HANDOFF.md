@@ -1,5 +1,9 @@
 # VEIL — Implementation handoff
 
+## Supplied UI references — 26 October 2026
+
+`ui-reference-refresh` starts from merged PR #17 / main `abc2986` and adapts the two supplied HTML designs to the real native authentication and auction workspace. See [visual scope, security and validation](docs/UI_REFERENCE_REFRESH.md). No deployment, database change, payment or wallet/node/scanner change occurs. Existing digital release requirements remain in force; earlier candidate descriptions below are dated observations.
+
 ## Digital-goods candidate — 26 October 2026
 
 Branch `digital-goods-delivery` preserves PR #16 head `b50b43f` and current main `5a20843` (upstream merges of PRs #15/#16). PR #17 now targets main. Do not merge or deploy automatically. New private uploads, immutable digital terms, atomic payment entitlements and protected downloads are prepared with migration 0006. The ivory/gold redesign covers authentication and the auction workspace. Legacy listings, proof assets/context, account IDs and scanner checks are preserved; new escrow and execution remain disabled. Read [digital behavior/recovery](docs/DIGITAL_GOODS.md), [candidate release gates](docs/DIGITAL_RELEASE.md) and [judge walkthrough](docs/JUDGING.md) first. Earlier sections below are dated history.

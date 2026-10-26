@@ -31,7 +31,8 @@ test('signup and login abuse counters are bounded and signup defaults to ordinar
  assert.equal((await t.post('/signup',good)).status,429);
  for(let i=0;i<5;i++)assert.equal((await t.post('/login',{username:'missing',password:'wrong'})).status,401);
  assert.equal((await t.post('/login',{username:'missing',password:'wrong'})).status,429);
- for(const path of ['/signup','/login']){const r=await t.request(path);const html=await r.text();assert.match(html,/autocomplete="(?:new|current)-password"/);assert.match(html,/data-toggle=/);assert.match(r.headers.get('content-security-policy'),/script-src 'nonce-/);assert.doesNotMatch(html,/<input[^>]+name="(?:password|confirm_password)"[^>]+maxlength=/);}
+ assert.equal((await t.request('/fonts/inter-regular.ttf')).status,200,'Self-hosted authentication fonts remain public static assets.');
+ for(const path of ['/signup','/login']){const r=await t.request(path);const html=await r.text();assert.match(html,/autocomplete="(?:new|current)-password"/);assert.match(html,/data-toggle=/);assert.match(r.headers.get('content-security-policy'),/script-src 'nonce-/);assert.match(r.headers.get('content-security-policy'),/font-src 'self'/);assert.doesNotMatch(html,/<input[^>]+name="(?:password|confirm_password)"[^>]+maxlength=/);}
  }finally{await t.close();}});
 test('redirect validation rejects external, encoded, control and authentication-loop destinations',()=>{
  for(const path of ['https://evil.example','//evil.example','/%2f%2fevil.example','/%5cevil.example','/login','/signup?return_to=/','/a/../logout','/%6cogin','/x%0d%0aLocation:evil','/\\evil'])assert.equal(safeReturn(path),'/');assert.equal(safeReturn('/admin/accounts?after=user#accounts'),'/admin/accounts?after=user#accounts');
