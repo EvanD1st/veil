@@ -104,7 +104,9 @@ test('server requires signed-in identity and rejects cross-site writes', async (
 });
 test('persisted auction accepts a sealed bid, preserves its bytes and hides identity/ciphertext in the public log', async () => {
   Date.now = () => core.roundTimeMs(1000) - 120000;
-  const auction = await server.createAuction({ id: auctionId, title: 'Test auction', description: 'A fictional test auction object.', sellerName: 'Studio', category: 'Art', artwork: 'orbit', reserve: '100000000', closesAt: core.roundTimeMs(1000) - 1, publicKey: keys.publicKey }, 'seller');
+  // Explicit pre-digital legacy row: preserve old protocol/permission regressions.
+  db.prepare('INSERT INTO auctions(id,owner_id,title,description,category,artwork,seller_name,reserve,closes_at,unlock_round,public_key,created_at,protocol_version,proof_context) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?)').run(auctionId,'seller','Test auction','A fictional legacy test auction object.','Art','orbit','Studio','100000000',core.roundTimeMs(1000)-1,1000,JSON.stringify(keys.publicKey),Date.now(),2,'1');
+  const auction=(await server.details(auctionId,'seller')).auction;
   assert.equal(auction.unlockRound, 1000);
   assert.equal(auction.protocolVersion,2);
   // Preserve regression coverage for already deployed v1 auctions.
@@ -173,7 +175,12 @@ test('v2 proof binds complete accepted log, winner, reserve and context; malform
   const {plonk,wtns}=await import('snarkjs');
   Date.now=()=>core.roundTimeMs(1000)-120000;
   const id=crypto.randomUUID();
-  const auction=await server.createAuction({id,title:'Proof auction',description:'A proof-enabled fictional auction.',sellerName:'Studio',category:'Art',artwork:'orbit',reserve:'100',closesAt:core.roundTimeMs(1000)-1,publicKey:keys.publicKey},'seller');
+  // Explicit source-level digital metadata fixture; native tests validate actual file contents.
+  const receiver=require('./fixtures/synthetic-receiver.json').address,draftId=crypto.randomUUID(),assetIds=['da'.repeat(16),'db'.repeat(16)];
+  for(const [n,kind]of ['preview','deliverable'].entries())db.prepare("INSERT INTO digital_assets VALUES(?,?,?,?,?,'complete',?,?,?,?)").run(assetIds[n],'seller',kind,'png','image/png',1,1,'ff'.repeat(32),Date.now());
+  db.prepare('INSERT INTO digital_drafts VALUES(?,?,?,?,?,?,?,?,?,?)').run(draftId,'seller',...assetIds,'Digital Art','Synthetic personal use license.','','Synthetic source-level fixture.',receiver,Date.now());
+  env.VEIL_DIGITAL_PUBLISHING_ENABLED='1';env.VEIL_DIGITAL_SELLERS=JSON.stringify({seller:receiver});env.VEIL_DIGITAL_VERIFY=async()=>true;
+  const auction=await server.createAuction({id,title:'Proof auction',description:'A proof-enabled fictional auction.',sellerName:'Studio',category:'Digital Art',artwork:'orbit',reserve:'100',closesAt:core.roundTimeMs(1000)-1,publicKey:keys.publicKey,paymentAddress:receiver,digitalDraftId:draftId},'seller');
   const openings=[],bids=[];
   for(const [i,amount] of ['180','250','250'].entries()){
     const envelope=await crypt.sealBid(id,keys.publicKey,1000,amount,auction.proofContext);

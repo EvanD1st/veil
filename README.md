@@ -1,18 +1,57 @@
 # VEIL
 
-**Bid privately. Prove the winner. Pay with Zcash.**
+**Digital goods. Sealed bids. Verifiable winners. Pay with Zcash testnet.**
 
-An experimental private auction house for Zecathon. Browser encryption and drand keep bids sealed until close. New auctions use a zero-knowledge highest-bid proof. A separate read-only wallet scanner can attest to an exact shielded testnet payment. Gallery objects are fictional sample lots.
+VEIL is an experimental digital-goods auction application. Browse [ve-il.duckdns.org](https://ve-il.duckdns.org), create a username/password account and keep your auction-key backup private. Public signup creates ordinary accounts; administrator access is separately allowlisted. Login, logout and safe internal return destinations use native cookie sessions.
 
-## Try it
+## Release status
 
-1. Choose **Try a sealed auction**, enter an offer, and seal three bids. The two other bidders are simulated locally; the encryption and proof are real.
-2. Wait about 20 seconds for the drand unlock time, then **Open as seller**. The browser decrypts all envelopes, generates a PLONK proof, and verifies it. Only the winning amount is displayed. The first proof downloads about 80 MB of integrity-checked assets; a desktop browser is recommended. Local measured proving time was about 27 seconds, not a device-independent guarantee.
-3. Create a test auction and keep its downloaded private auction-key backup. It is not a wallet key. New auctions allow eight bids, one final bid per signed-in participant.
-4. After close, open every envelope in Seller studio. Publishing sends the proof and winning opening. The server derives the expected inputs from its complete accepted log and verifies the proof before storing a result. Anyone in the workspace can verify that result again.
-5. A winner can prepare a ZIP 321 payment link/QR for the seller's Sapling testnet address. Seller and winner can download the invoice and import a signed scanner report. **No live wallet scanner is configured in this deployment; payment remains unverified until one is connected.**
+The current website is the separately approved PR #16 artifact `577c90dfe566de35aaff7a8d8e4ab99da3233123` (26 October 2026). **The digital-delivery redesign in this branch is a deployment candidate, not a live release.** PRs #15 and #16 were merged upstream on 26 October; their payment/runtime work and validation records are preserved here. PR #17 targets main. No merge, production migration, transfer or deployment is authorized by this implementation task.
 
-The hosted workspace remains owner-only. Sellers cannot bid on their own persisted listings; use the browser-local demo to review both roles. Sharing with other participants requires a separate audience change.
+One prior **legacy** invoice received an actual shielded testnet payment and automatic signed verification on 25 October. [The dated evidence](docs/PAYMENT_VALIDATION_2026-10-25.md) records its limits. That payment does not fund a new digital listing and does not validate new download delivery. New digital purchases need their own approved live payment/download test. Previous Redmi K30 Pro checks do not validate this new upload/purchase UI.
+
+## Purchase path
+
+1. An eligible seller uploads a still-image preview and a protected deliverable, states the license and provenance, and publishes. New categories are **Digital Art**, **Digital Items** and **Digital Collectibles**. Numbered editions are seller-declared files, not NFTs. Initially accepted deliverables are PNG, JPEG and constrained binary STL; templates/archives, active documents and executables are unsupported.
+2. Buyers see the sanitized preview, file format/size and frozen terms before bidding. Eight sealed bids maximum, one final bid per account; sellers cannot bid on their own listings. Sample concepts are explicitly labelled and cannot be bought.
+3. After the real drand deadline the seller restores their private auction key if needed, opens all envelopes, generates the existing highest-bid proof and publishes. Another account can independently verify it.
+4. The winner pays the **new canonical testnet invoice once**, then identifies its exact transaction/output. An authenticated scanner checks address, amount, memo, incoming output, active chain and confirmations. A queued scan, transaction ID or payment-sent note grants nothing.
+5. A valid trusted confirmation atomically grants the winning account access to the exact frozen original and license. **My purchases** lists grants. Each download checks the current session, entitlement, version and file integrity. Ordinary five-minute report expiry does not erase an earned grant; fresh explicit non-confirmation suspends future downloads pending operator review.
+
+Only operator-approved sellers whose **own** receiver is actually observed by the scanner can publish automatic-delivery auctions. Public registration alone does not establish scanner coverage. Funds are never silently routed to an operator address. Legacy listings retain their original category, terms, results and payment obligations; they have no retroactive file entitlement. New escrow creation and settlement execution are disabled.
+
+See [digital storage, authorization, recovery and limits](docs/DIGITAL_GOODS.md), [judge walkthrough and recording script](docs/JUDGING.md), [account access](docs/ACCOUNTS.md) and [deployment preparation](docs/DIGITAL_RELEASE.md).
+
+## Trust and privacy
+
+The operator can access server-hosted originals, accounts and certain payment/network metadata. Protected downloads are **not end-to-end encryption**. Shielded payment does not make website accounts or connection metadata anonymous. Original filenames and file hashes are not public; sanitized previews, file type/size, license and seller-declared provenance are intentionally visible to authenticated bidders.
+
+The seller can read losing bids after reveal. Private seller keys and openings remain in browser storage/backups, so shared devices or origin compromise can expose them. The proof establishes winner selection within the recorded accepted log, not authorship, copyright, exclusive ownership, file quality or delivery acceptance. The operator could censor a bid; the seller could refuse to reveal. A served download is distinct from an access grant and proves neither opening nor acceptance. Already downloaded files cannot be recalled or made uncopyable. Copyright changes only as the frozen license states.
+
+The trusted scanner signs five-minute attestations; this is not a ZK proof of payment. RPC, viewing material and signing keys remain on the isolated node host; only the trusted public key and service-token verifier belong on the website. The approved experimental Zallet build and its failed upstream cargo-vet evidence remain explicit. No mainnet funds, guaranteed delivery, refunds, escrow activation or NFT transfers are offered.
+
+## Development and validation
+
+Use Node 24.15.0 and the pnpm version pinned in package.json. Preserve the lockfile and existing proof assets.
+
+```sh
+pnpm install --frozen-lockfile
+pnpm typecheck
+pnpm test
+pnpm build
+node scripts/test-bundle.mjs
+node scripts/test-prover-worker.mjs
+node scripts/check-production-boundary.mjs
+pnpm test:e2e
+pnpm build:ubuntu
+node scripts/package-ubuntu.mjs
+node scripts/test-ubuntu.mjs
+node scripts/test-native-browser.mjs
+```
+
+Production builds run in Linux CI, not the workstation or shared website host. The portable Worker browser tests use explicitly synthetic digital metadata; native tests exercise actual uploads, SQLite, filesystem permissions and protected downloads. The production-artifact browser flow uses separate real cookie accounts, ordinary clocks and live future drand; only its signed payment observation is synthetic. It must never be described as a live transfer. Private originals, databases, credentials and wallet material are excluded from release artifacts.
+
+See [current candidate evidence](docs/DIGITAL_RELEASE.md), [historical validation](docs/VALIDATION.md), [scanner](scanner/README.md) and [testnet infrastructure](scanner/testnet/README.md). The native Ubuntu target supports private local storage. The retained Sites/Worker target fails closed for new file-backed publishing and has no production filesystem adapter. Never enable a fixture to make a hosted target pass.
 
 ## Proof protocol
 
@@ -37,53 +76,11 @@ Reproduce with `node scripts/build-circuit.mjs`. The O1 circuit compilation prod
 
 Legacy version-1 auctions keep SHA-256 commitments and explicitly **seller-declared** results; they are never relabelled as proof verified.
 
-## Payment scanner
-
-See [scanner/README.md](scanner/README.md), the [pinned Linux testnet lab](scanner/testnet/README.md), and [live demonstration/release gates](docs/LIVE_TESTNET.md). The local Node bridge uses Zallet `getwalletstatus` / `z_viewtransaction` and Zebra's active-chain RPC. The receiving wallet must have viewing access to the seller's Sapling address and be fully synchronized. The bridge checks the incoming output's exact address, integer amount, 512-byte memo, block inclusion, active block hash and at least three confirmations. It refuses an unsynchronized/locked wallet or a changing tip.
-
-A separate Ed25519 key signs a five-minute report. Configure only its **public key** as the Site environment variable `VEIL_SCANNER_PUBLIC_KEY`. Wallet/viewing keys, signing private key and local RPC credentials stay off the Site. Seller/winner upload the signed report; the server checks its trusted signature, invoice binding, confirmations, clock, expiry, monotonic timestamp and output reuse. Payment metadata is visible only to those two roles. A stale report becomes **needs refresh**; a fresh non-confirmation report revokes the prior confirmation. This is a manual rescan flow, not a continuous chain monitor. Each invoice tracks one selected Sapling output; replacing it with a different output is not supported in this prototype.
-
-**Scanner-confirmed means a trusted scanner attestation, not a zero-knowledge proof of payment.** A compromised scanner key or dishonest scanner can lie. No real testnet transfer or live wallet RPC integration was available in this environment; tests use representative RPC fixtures and exercise the actual scanner/signature/database code. Real-wallet validation remains required before treating the integration as complete.
-
-New auctions can set an explicit payment follow-up window. Overdue follow-up and expired scanner evidence are separate; neither changes the winner or implies escrow/refund. See [the payment workflow](docs/PAYMENTS.md).
-
-## Boundaries and recovery
-
-- The proof establishes highest-bid selection within the **recorded log**. It does not establish that every attempted submission was accepted, stop host censorship/equivocation, or independently anchor acceptance order.
-- The seller can read every amount after close, disclose losing bids, lose their key, or refuse to publish. The proof does not force availability.
-- A malformed encrypted bid can block the tally. Submit-time encryption/commitment consistency is not proved. The app stops rather than dropping an invalid envelope.
-- drand's pinned quicknet threshold network must remain honest and available. An outer tlock envelope unlocks strictly after close; a seller RSA-OAEP key is still needed for the AES-GCM inner envelope.
-- Private auction keys are stored in browser local storage and downloaded backups. Device/origin compromise can reveal them and openings. No server recovery exists. Keep backups private.
-- Hosting authentication associates accounts with bids; connection metadata is not hidden. This is not an anonymity network or Sybil-resistant market.
-- There is no escrow, deposit, automatic transfer, refund, delivery guarantee or payment enforcement. Only testnet Sapling requests are supported, not Unified Addresses. Do not use real funds.
-- An interrupted create/bid request is reconciled against the same record ID before reporting failure.
-
-## Development and verification
-
-Start with [local setup and browser testing](docs/LOCAL_TESTING.md). See the [architecture](docs/ARCHITECTURE.md), [payment follow-up](docs/PAYMENTS.md), [Sites deployment procedure](docs/DEPLOYMENT.md), [short demo script](docs/DEMO.md) and [validation evidence/checklist](docs/VALIDATION.md).
-
-Baseline GitHub CI at `b59f5703ee8ef5958426e48efd1732830f785f30` passed installation, TypeScript, all 16 original tests, production build, encryption bundle and prover harness. The current branch extends that workflow with browser and production-boundary checks.
-
-Requires Node 24 (Node SQLite is used in tests) and pnpm. The lockfile is authoritative.
-
-```sh
-pnpm install --frozen-lockfile
-pnpm typecheck
-pnpm test
-pnpm build
-node scripts/test-bundle.mjs
-node scripts/test-prover-worker.mjs
-```
-
-Tests run production crypto and service code against SQLite: encryption and drand, permissions, atomic bid acceptance, legacy results, real proof generation, wrong winner/tie/amount/context/omission rejection, empty and no-eligible auctions, signature/report validation, payment expiry/revocation and RPC note/reorg checks. Expected circuit-constraint errors are printed during negative proof tests. `test-prover-worker.mjs` exercises the shipped browser runtime in a JS web-API harness; it is not browser click-through QA. Real Chromium browser coverage, deterministic timing fixtures and limitations are documented in [docs/LOCAL_TESTING.md](docs/LOCAL_TESTING.md) and [docs/VALIDATION.md](docs/VALIDATION.md).
-
-React/TypeScript/Vinext runs on a Cloudflare Worker with D1. `.openai/hosting.json` preserves the Site ID/database binding. `db/schema.ts` and schema-only migrations under `drizzle/` add proof metadata and payment reports without modifying old auctions. Never seed production with test bids or private test keys.
-
 ## Sources and licenses
 
 - [snarkjs 0.7.6](https://github.com/iden3/snarkjs/tree/v0.7.6), [Circom](https://docs.circom.io/), [circomlib](https://github.com/iden3/circomlib).
 - [Zallet RPC source](https://github.com/zcash/zallet/tree/main/zallet-core/src/components/json_rpc/methods), [Zebra](https://zebra.zfnd.org/), [ZIP 321](https://zips.z.cash/zip-0321).
 - [tlock-js](https://github.com/drand/tlock-js), [drand](https://docs.drand.love/). The committed beacon fixture is quicknet round 1000.
-- The sneaker concept is AI-generated; the VEIL mark and other gallery artwork are original SVGs. No real product or seller is represented.
+- The retained legacy sneaker concept is AI-generated; the VEIL mark, golden envelope and other decorative/gallery SVGs are original. Sample concepts are not purchasable deliverables.
 
 Original VEIL source retains its MIT notice in `LICENSE`. The combined application now incorporates GPL-3.0-or-later snarkjs code and runtime; its distribution must comply with GPL-3.0-or-later (`LICENSE-GPL-3.0`). Vendored files retain attribution, and modifications are described in `lib/veil/zk/vendor/README.md`. Dependency licenses remain applicable. Make the corresponding source available when distributing this build. The repository is public and retains the corresponding source and license notices. The hosted review audience is configured separately.
