@@ -46,6 +46,7 @@ jobs:
       - run: pnpm typecheck
       - run: pnpm build:ubuntu
       - run: node scripts/package-ubuntu.mjs
+      - run: node scripts/check-private-artifact.mjs
       - run: node scripts/test-ubuntu.mjs
       - run: pnpm exec playwright install --with-deps chromium
       - run: node scripts/test-native-browser.mjs
@@ -61,5 +62,7 @@ jobs:
             veil-ubuntu.tar.gz.sha256
             auth-login-desktop.png
             auth-signup-mobile.png
+            digital-explore-desktop.png
+            digital-purchase-mobile.png
           if-no-files-found: error
           retention-days: 7

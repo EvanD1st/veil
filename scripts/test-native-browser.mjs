@@ -1,7 +1,7 @@
 // Actual production artifact, distinct password accounts and isolated browser contexts.
 // Ordinary clocks and live future drand; no request interception, beacon fixture or mock identity.
 import {chromium,expect} from '@playwright/test';
-import {mkdtemp,readFile} from 'node:fs/promises';
+import {mkdtemp,readFile,writeFile} from 'node:fs/promises';
 import {tmpdir} from 'node:os';
 import {join,resolve} from 'node:path';
 import {spawn} from 'node:child_process';
@@ -14,8 +14,10 @@ initializeDatabase(path,join(root,'drizzle'));const db=openDatabase(path);
 const observerId=await createAccount(db,'observer','ci-only-live-browser-password-observer');
 db.close();const port=5187,origin='http://127.0.0.1:'+port;
 const signer=generateKeyPairSync('ed25519'),serviceToken=randomBytes(32).toString('hex');
+const storage=join(directory,'originals'),sellers=join(directory,'sellers.json');await writeFile(sellers,'{}',{mode:0o600});
+const sharp=(await import('sharp')).default,fileBytes=await sharp({create:{width:320,height:200,channels:3,background:'#f4d462'}}).png().toBuffer();
 const receiver=JSON.parse(await readFile('tests/fixtures/synthetic-receiver.json','utf8')).address;
-const child=spawn(process.execPath,[join(root,'runtime/server.mjs')],{cwd:root,env:{...process.env,VEIL_PUBLIC_ORIGIN:origin,VEIL_ALLOW_LOOPBACK_HTTP:'1',VEIL_ADMIN_ACCOUNT_IDS:observerId,VEIL_SQLITE_PATH:path,PORT:String(port),VEIL_SCANNER_PUBLIC_KEY:signer.publicKey.export({format:'der',type:'spki'}).subarray(-32).toString('hex'),VEIL_SCANNER_SERVICE_TOKEN_SHA256:createHash('sha256').update(serviceToken).digest('hex')},stdio:['ignore','pipe','pipe']});
+const child=spawn(process.execPath,[join(root,'runtime/server.mjs')],{cwd:root,env:{...process.env,VEIL_PUBLIC_ORIGIN:origin,VEIL_ALLOW_LOOPBACK_HTTP:'1',VEIL_ADMIN_ACCOUNT_IDS:observerId,VEIL_DIGITAL_ROOT:storage,VEIL_DIGITAL_SELLERS_FILE:sellers,VEIL_DIGITAL_PUBLISHING_ENABLED:'1',VEIL_SQLITE_PATH:path,PORT:String(port),VEIL_SCANNER_PUBLIC_KEY:signer.publicKey.export({format:'der',type:'spki'}).subarray(-32).toString('hex'),VEIL_SCANNER_SERVICE_TOKEN_SHA256:createHash('sha256').update(serviceToken).digest('hex')},stdio:['ignore','pipe','pipe']});
 let output='';child.stdout.on('data',b=>{output+=b;});child.stderr.on('data',b=>{output+=b;});
 let browser;
 try{
@@ -32,11 +34,16 @@ try{
   await page.goto('/signup');expect(new URL(page.url()).pathname).toBe('/');return {page,context};
  }
  const seller=await login('seller'),bidder=await login('bidder'),observer=await login('observer');
+ const accounts=openDatabase(path),sellerId=accounts.prepare('SELECT id FROM veil_accounts WHERE username=?').get('seller').id;accounts.close();await writeFile(sellers,JSON.stringify({[sellerId]:receiver}),{mode:0o600});
+ await seller.page.screenshot({path:'digital-explore-desktop.png'});
  expect((await seller.page.request.get('/admin/accounts')).status()).toBe(403);expect((await bidder.page.request.get('/admin/accounts')).status()).toBe(403);
  await observer.page.goto('/admin/accounts');await expect(observer.page.getByRole('heading',{name:'Accounts',exact:true})).toBeVisible();await expect(observer.page.getByRole('cell',{name:'seller',exact:true})).toBeVisible();await expect(observer.page.getByRole('cell',{name:'bidder',exact:true})).toBeVisible();await observer.page.goto('/');
  expect((await browser.newContext().then(async c=>{const r=await c.request.get(origin+'/api/auctions',{headers:{'oai-authenticated-user-id':'forged','oai-authenticated-user-email':'forged@invalid.example'}});await c.close();return r.status();}))).toBe(401);
  const page=seller.page,title='Ordinary-clock CI auction';
- await page.getByRole('button',{name:'Create auction',exact:true}).click();await page.getByLabel('Lot title').fill(title);await page.getByLabel('Public seller name').fill('CI test studio');await page.getByLabel('The story').fill('Disposable separate-account integration check; no item or funds are exchanged.');await page.getByLabel('Reserve · test ZEC').fill('1.20');await page.getByLabel('Closes in').selectOption('2');await page.getByLabel(/Sapling testnet address/).fill(receiver);await page.getByRole('checkbox').check();
+ await page.getByRole('button',{name:'Create auction',exact:true}).click();await page.getByLabel('Lot title').fill(title);await page.getByLabel('Public seller name').fill('CI test studio');await page.getByLabel('The story').fill('Disposable separate-account integration check; no item or funds are exchanged.');await page.getByLabel('Reserve · test ZEC').fill('1.20');await page.getByLabel('Closes in').selectOption('2');await expect(page.getByLabel(/Sapling testnet address/)).toHaveValue(receiver);
+ await page.getByLabel('Public preview (PNG or JPEG)').setInputFiles({name:'preview.png',mimeType:'image/png',buffer:fileBytes});await expect(page.getByRole('status')).toContainText('Sanitized preview ready.');
+ await page.getByLabel('Protected deliverable',{exact:true}).setInputFiles({name:'private-original.png',mimeType:'image/png',buffer:fileBytes});await expect(page.getByRole('status')).toContainText('Protected deliverable validated.');
+ await page.getByLabel('License / usage terms').fill('CI demonstration image: personal use only. Copyright retained by seller.');await page.getByLabel('Provenance (seller-declared)').fill('Created locally for this synthetic CI delivery check. No authorship verification claimed.');await page.getByRole('checkbox').check();
  const downloadPromise=page.waitForEvent('download'),createdPromise=page.waitForResponse(r=>r.url().endsWith('/api/auctions')&&r.request().method()==='POST');await page.getByRole('button',{name:'Open the auction'}).click();
  const created=await createdPromise;expect(created.status()).toBe(201);const {auction}=await created.json();const backup=await readFile(await (await downloadPromise).path(),'utf8');expect(JSON.parse(backup).auctionId).toBe(auction.id);
  await expect(page.getByRole('button',{name:'Bids are still sealed'})).toBeDisabled();expect((await page.request.post('/api/auctions/'+auction.id+'/bids',{data:{id:crypto.randomUUID(),commitment:'01'.repeat(32)}})).status()).toBe(403);
@@ -53,6 +60,7 @@ try{
  await observer.page.reload();await observer.page.getByRole('button',{name:new RegExp(title)}).click();await observer.page.getByRole('button',{name:'Result',exact:true}).click();await observer.page.getByRole('button',{name:'Verify highest-bid proof'}).click();await expect(observer.page.getByRole('status')).toContainText('Highest bid, reserve, and tie-break verified',{timeout:30000});
  const detail=await (await observer.page.request.get(`/api/auctions/${auction.id}`)).json();expect(detail.auction.result.status).toBe('zk-verified');expect(detail.bids.length).toBe(1);
  // Synthetic payment selector and observation: actual signed worker/HTTP delivery, NOT wallet/payment evidence.
+ const protectedPath='/api/digital/download/'+auction.id;expect((await bidder.page.request.get(protectedPath)).status()).toBe(403);expect((await observer.page.request.get(protectedPath)).status()).toBe(403);
  const paymentPath=`/api/auctions/${auction.id}/payment`,selector={txid:'bc'.repeat(32),output:4};
  expect((await observer.page.request.get(paymentPath)).status()).toBe(403);
  expect((await observer.page.request.post(paymentPath+'/scan',{data:selector})).status()).toBe(403);
@@ -60,9 +68,9 @@ try{
  expect((await page.request.post('/api/scanner/jobs',{data:{action:'claim'}})).status()).toBe(401);
  const outbox=openOutbox(join(directory,'scanner-outbox.sqlite')),exchange=transport(origin,serviceToken,fetch,{allowLoopbackTest:true});
  try{
-  const worker=new ScannerWorker({db:outbox,key:signer.privateKey,receiver,exchange,scan:async(invoice,txid,output)=>{const observedAt=Date.now();return {version:1,invoiceId:invoice.invoiceId,network:'testnet',txid,output,pool:'sapling',address:invoice.address,amount:invoice.amount,memo:invoice.memo,status:'not-confirmed',blockHash:null,blockHeight:null,tipHeight:100,confirmations:0,observedAt,expiresAt:observedAt+300000};}});
+  const worker=new ScannerWorker({db:outbox,key:signer.privateKey,receiver,exchange,scan:async(invoice,txid,output)=>{const observedAt=Date.now();return {version:1,invoiceId:invoice.invoiceId,network:'testnet',txid,output,pool:'sapling',address:invoice.address,amount:invoice.amount,memo:invoice.memo,status:'confirmed',blockHash:'de'.repeat(32),blockHeight:98,tipHeight:100,confirmations:3,observedAt,expiresAt:observedAt+300000};}});
   expect(await worker.tick()).toBe('queued-delivery');const delivery=JSON.parse(outbox.prepare('SELECT payload FROM outbox').get().payload);expect(await worker.tick()).toBe('delivered');expect((await exchange(delivery)).accepted).toBe(true);
-  const payment=await (await bidder.page.request.get(paymentPath)).json();expect(payment.status).toBe('not-confirmed');expect(payment.report.output).toBe(4);
+  const payment=await (await bidder.page.request.get(paymentPath)).json();expect(payment.status).toBe('confirmed');expect(payment.report.output).toBe(4);
   console.log('PASS synthetic-payment transport: authenticated participant queue, scoped worker delivery, trusted signature, duplicate ACK, outsider rejection. No actual RPC or payment claim.');
  }finally{outbox.close();}
  await bidder.page.reload();await bidder.page.getByRole('button',{name:new RegExp(title)}).click();await bidder.page.getByRole('button',{name:'Result',exact:true}).click();
@@ -70,6 +78,12 @@ try{
  await expect(bidder.page.locator('.payment-panel')).toContainText('Check the confirmation above before paying.');
  await expect(bidder.page.locator('.payment-panel')).toContainText('Do not send again to refresh verification.');
  await expect(bidder.page.locator('.payment-panel')).not.toContainText('No payment has been verified.');
+ await expect(bidder.page.getByRole('heading',{name:'Download available',exact:true})).toBeVisible();
+ const fileDownload=bidder.page.waitForEvent('download');await bidder.page.getByRole('button',{name:'Download protected file',exact:true}).click();expect(await readFile(await(await fileDownload).path())).toEqual(fileBytes);
+ expect((await observer.page.request.get(protectedPath)).status()).toBe(403);
+ const mine=await(await bidder.page.request.get('/api/digital/purchases')).json();expect(mine.purchases).toHaveLength(1);expect((await(await observer.page.request.get('/api/digital/purchases')).json()).purchases).toHaveLength(0);
+ await bidder.page.screenshot({path:'digital-purchase-mobile.png'});expect(await bidder.page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
+ console.log('PASS production-artifact digital purchase: actual sanitized preview and private-file upload, frozen terms, verified winner, explicitly SYNTHETIC signed payment, exact-byte authorized download, outsider denial. No real transfer claimed.');
  await page.getByRole('button',{name:'Close dialog',exact:true}).click();await expect(page.getByRole('dialog')).toHaveCount(0);
  await page.getByRole('link',{name:'Log out',exact:true}).click();await page.getByRole('button',{name:'Log out',exact:true}).click();expect(new URL(page.url()).pathname).toBe('/login');expect((await page.request.get('/api/auctions')).status()).toBe(401);expect((await page.request.get('/api/account')).status()).toBe(401);
  console.log('PASS production artifact: distinct real accounts, isolated contexts, persisted bid, key backup/restore, future live drand, cold/cached proof, publication and independent observer verification. No payment/device claim.');
