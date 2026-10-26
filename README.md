@@ -6,7 +6,7 @@ VEIL is an experimental digital-goods auction application. Browse [ve-il.duckdns
 
 ## Release status
 
-The current website is the separately approved PR #16 artifact `577c90dfe566de35aaff7a8d8e4ab99da3233123` (26 October 2026). **The digital-delivery redesign in this branch is a deployment candidate, not a live release.** PR #16 remains an unmerged prerequisite; its application/payment fixes are preserved here. No merge, production migration, transfer or deployment is authorized by this implementation task.
+The current website is the separately approved PR #16 artifact `577c90dfe566de35aaff7a8d8e4ab99da3233123` (26 October 2026). **The digital-delivery redesign in this branch is a deployment candidate, not a live release.** PRs #15 and #16 were merged upstream on 26 October; their payment/runtime work and validation records are preserved here. PR #17 targets main. No merge, production migration, transfer or deployment is authorized by this implementation task.
 
 One prior **legacy** invoice received an actual shielded testnet payment and automatic signed verification on 25 October. [The dated evidence](docs/PAYMENT_VALIDATION_2026-10-25.md) records its limits. That payment does not fund a new digital listing and does not validate new download delivery. New digital purchases need their own approved live payment/download test. Previous Redmi K30 Pro checks do not validate this new upload/purchase UI.
 
