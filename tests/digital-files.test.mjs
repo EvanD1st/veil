@@ -148,15 +148,16 @@ test('digital purchase boundary: real local files and HTTP, synthetic signed pay
    db=openDatabase(path);env.DB=d1Adapter(db);await start();assert.equal((await call('/api/digital/download/'+auction.id,{as:'buyer'})).status,200);
   });
   await t.test('corrupt/missing originals and symlinks never produce a successful download; repair keeps the grant',async()=>{
-   const file=join(root,'objects',fileId);await fs.writeFile(file,'corrupt');const bad=await call('/api/digital/download/'+auction.id,{as:'buyer'});assert.equal(bad.status,503);assert.ok(!(await bad.text()).includes(root));assert.equal(db.prepare('SELECT state FROM digital_entitlements').get().state,'active');
+   const file=join(root,'objects',fileId);await fs.writeFile(file,'corrupt');const state=await(await call('/api/digital/listing/'+auction.id,{as:'buyer'})).json();assert.equal(state.accessState,'unavailable');assert.equal(state.downloadAvailable,false);const bad=await call('/api/digital/download/'+auction.id,{as:'buyer'});assert.equal(bad.status,503);assert.ok(!(await bad.text()).includes(root));assert.equal(db.prepare('SELECT state FROM digital_entitlements').get().state,'active');
    await fs.unlink(file);assert.equal((await call('/api/digital/download/'+auction.id,{as:'buyer'})).status,503);
    if(process.platform!=='win32'){const outside=join(dir,'outside.txt');await fs.writeFile(outside,'SENSITIVE_NEVER_SERVE');await fs.symlink(outside,file);const r=await call('/api/digital/download/'+auction.id,{as:'buyer'});assert.equal(r.status,503);assert.ok(!(await r.text()).includes('SENSITIVE_NEVER_SERVE'));await fs.unlink(file);}
    await fs.writeFile(file,bytes,{mode:0o600});assert.equal((await call('/api/digital/download/'+auction.id,{as:'buyer'})).status,200);
   });
-  await t.test('operator cleanup retains active/paid originals, and database-plus-files backup verifies',async()=>{
+  await t.test('operator cleanup retains active/paid originals; a matched database-plus-files restore serves exact bytes',async()=>{
    await stop();db.close();const script=resolve('runtime/digital-admin.mjs');assert.equal(spawnSync(process.execPath,[script,'cleanup'],{env:process.env,encoding:'utf8'}).status,0);
    const backup=join(dir,'paired-backup');const result=spawnSync(process.execPath,[script,'backup',backup],{env:process.env,encoding:'utf8'});assert.equal(result.status,0,result.stderr);const manifest=JSON.parse(await fs.readFile(join(backup,'complete.json'),'utf8'));assert.ok(manifest.files>=2);assert.deepEqual(await fs.readFile(join(backup,'objects',fileId)),bytes);
-   db=openDatabase(path);env.DB=d1Adapter(db);assert.equal(db.prepare('SELECT COUNT(*) n FROM digital_entitlements').get().n,1);
+   const restoredRoot=join(dir,'restored-files'),restoredPath=join(dir,'restored.sqlite');await fs.mkdir(restoredRoot);await fs.cp(join(backup,'objects'),join(restoredRoot,'objects'),{recursive:true});await fs.copyFile(join(backup,'veil.sqlite'),restoredPath);
+   process.env.VEIL_DIGITAL_ROOT=restoredRoot;process.env.VEIL_SQLITE_PATH=restoredPath;db=openDatabase(restoredPath);env.DB=d1Adapter(db);assert.equal(db.prepare('SELECT COUNT(*) n FROM digital_entitlements').get().n,1);await start();const response=await call('/api/digital/download/'+auction.id,{as:'buyer'});assert.equal(response.status,200);assert.deepEqual(Buffer.from(await response.arrayBuffer()),bytes);
   });
  }finally{
   Date.now=realNow;Module._load=realLoad;await stop();try{db.close();}catch{}for(const k of Object.keys(process.env))if(!(k in saved))delete process.env[k];Object.assign(process.env,saved);
