@@ -64,5 +64,6 @@ jobs:
             auth-signup-mobile.png
             digital-explore-desktop.png
             digital-purchase-mobile.png
+            digital-purchases-mobile.png
           if-no-files-found: error
           retention-days: 7

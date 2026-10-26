@@ -10,7 +10,7 @@ Read-only website inspection found two legacy Design/direct auctions, two publis
 
 ## Validation record
 
-- Local native HTTP/SQLite/file/auth tests: 21 passing, including real temporary files, interrupted upload recovery, quota/reserve/type/traversal checks, frozen terms, synthetic signed payment rejection/grant/ACK recovery, exact-byte access, ordinary expiry, restart, explicit suspension/operator review, corruption and paired backup. Payment/result observations are synthetic and explicitly labelled.
+- Local native HTTP/SQLite/file/auth tests: 22 passing, including real temporary files, interrupted upload recovery, quota/reserve/type/traversal checks, frozen terms, synthetic signed payment rejection/grant/ACK recovery, exact-byte access, ordinary expiry, restart, explicit suspension/operator review, corruption, bounded throttling and matched backup/restore. Payment/result observations are synthetic and explicitly labelled.
 - Typecheck: passed locally.
 - Scanner/testnet/escrow targeted regression: 40 passed locally; one existing POSIX owner-only outbox permission test cannot pass on the Windows filesystem. Its guard remains intact for Linux CI.
 - The large local cryptographic suite exhausted workstation V8 memory after its negative constraint checks. This is not a proof pass. Full cryptographic regressions and production builds run in Linux CI; no production build ran on the workstation or shared host.

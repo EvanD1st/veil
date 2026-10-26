@@ -36,6 +36,7 @@ try{
  const seller=await login('seller'),bidder=await login('bidder'),observer=await login('observer');
  const accounts=openDatabase(path),sellerId=accounts.prepare('SELECT id FROM veil_accounts WHERE username=?').get('seller').id;accounts.close();await writeFile(sellers,JSON.stringify({[sellerId]:receiver}),{mode:0o600});
  await seller.page.screenshot({path:'digital-explore-desktop.png'});
+ expect(await seller.page.locator('.gold-envelope img').first().evaluate(e=>getComputedStyle(e).animationName)).toContain('gold-float');await seller.page.emulateMedia({reducedMotion:'reduce'});expect(await seller.page.locator('.gold-envelope img').first().evaluate(e=>getComputedStyle(e).animationName)).toBe('none');await seller.page.emulateMedia({reducedMotion:'no-preference'});
  expect((await seller.page.request.get('/admin/accounts')).status()).toBe(403);expect((await bidder.page.request.get('/admin/accounts')).status()).toBe(403);
  await observer.page.goto('/admin/accounts');await expect(observer.page.getByRole('heading',{name:'Accounts',exact:true})).toBeVisible();await expect(observer.page.getByRole('cell',{name:'seller',exact:true})).toBeVisible();await expect(observer.page.getByRole('cell',{name:'bidder',exact:true})).toBeVisible();await observer.page.goto('/');
  expect((await browser.newContext().then(async c=>{const r=await c.request.get(origin+'/api/auctions',{headers:{'oai-authenticated-user-id':'forged','oai-authenticated-user-email':'forged@invalid.example'}});await c.close();return r.status();}))).toBe(401);
@@ -47,7 +48,7 @@ try{
  const downloadPromise=page.waitForEvent('download'),createdPromise=page.waitForResponse(r=>r.url().endsWith('/api/auctions')&&r.request().method()==='POST');await page.getByRole('button',{name:'Open the auction'}).click();
  const created=await createdPromise;expect(created.status()).toBe(201);const {auction}=await created.json();const backup=await readFile(await (await downloadPromise).path(),'utf8');expect(JSON.parse(backup).auctionId).toBe(auction.id);
  await expect(page.getByRole('button',{name:'Bids are still sealed'})).toBeDisabled();expect((await page.request.post('/api/auctions/'+auction.id+'/bids',{data:{id:crypto.randomUUID(),commitment:'01'.repeat(32)}})).status()).toBe(403);
- await bidder.page.reload();await bidder.page.getByRole('button',{name:new RegExp(title)}).click();expect(await bidder.page.evaluate(id=>localStorage.getItem('veil:auction-key:'+id),auction.id)).toBeNull();
+ await bidder.page.reload();await bidder.page.getByRole('button',{name:'Digital Items',exact:true}).click();await expect(bidder.page.getByRole('button',{name:new RegExp(title)})).toHaveCount(0);await bidder.page.getByRole('button',{name:'Digital Art',exact:true}).click();await bidder.page.getByRole('button',{name:new RegExp(title)}).click();expect(await bidder.page.evaluate(id=>localStorage.getItem('veil:auction-key:'+id),auction.id)).toBeNull();
  await bidder.page.getByLabel('Your offer in ZEC').fill('2.50');await bidder.page.getByRole('button',{name:'Seal my bid',exact:true}).click();await expect(bidder.page.getByText('Your offer is sealed.')).toBeVisible({timeout:30000});
  expect((await bidder.page.request.get(`/api/auctions/${auction.id}/envelopes`)).status()).toBe(403);
  expect((await page.request.get(`/api/auctions/${auction.id}/envelopes`)).status()).toBe(409);
@@ -70,7 +71,7 @@ try{
  try{
   const worker=new ScannerWorker({db:outbox,key:signer.privateKey,receiver,exchange,scan:async(invoice,txid,output)=>{const observedAt=Date.now();return {version:1,invoiceId:invoice.invoiceId,network:'testnet',txid,output,pool:'sapling',address:invoice.address,amount:invoice.amount,memo:invoice.memo,status:'confirmed',blockHash:'de'.repeat(32),blockHeight:98,tipHeight:100,confirmations:3,observedAt,expiresAt:observedAt+300000};}});
   expect(await worker.tick()).toBe('queued-delivery');const delivery=JSON.parse(outbox.prepare('SELECT payload FROM outbox').get().payload);expect(await worker.tick()).toBe('delivered');expect((await exchange(delivery)).accepted).toBe(true);
-  const payment=await (await bidder.page.request.get(paymentPath)).json();expect(payment.status).toBe('confirmed');expect(payment.report.output).toBe(4);
+  const payment=await (await bidder.page.request.get(paymentPath)).json();expect(payment.status).toBe('scanner-confirmed');expect(payment.report.output).toBe(4);
   console.log('PASS synthetic-payment transport: authenticated participant queue, scoped worker delivery, trusted signature, duplicate ACK, outsider rejection. No actual RPC or payment claim.');
  }finally{outbox.close();}
  await bidder.page.reload();await bidder.page.getByRole('button',{name:new RegExp(title)}).click();await bidder.page.getByRole('button',{name:'Result',exact:true}).click();
@@ -83,8 +84,9 @@ try{
  expect((await observer.page.request.get(protectedPath)).status()).toBe(403);
  const mine=await(await bidder.page.request.get('/api/digital/purchases')).json();expect(mine.purchases).toHaveLength(1);expect((await(await observer.page.request.get('/api/digital/purchases')).json()).purchases).toHaveLength(0);
  await bidder.page.screenshot({path:'digital-purchase-mobile.png'});expect(await bidder.page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
+ await bidder.page.getByRole('button',{name:'Close dialog',exact:true}).click();await bidder.page.getByRole('button',{name:'My purchases',exact:true}).click();await expect(bidder.page.getByRole('button',{name:'View purchase & license',exact:true})).toBeVisible();await bidder.page.screenshot({path:'digital-purchases-mobile.png'});
  console.log('PASS production-artifact digital purchase: actual sanitized preview and private-file upload, frozen terms, verified winner, explicitly SYNTHETIC signed payment, exact-byte authorized download, outsider denial. No real transfer claimed.');
  await page.getByRole('button',{name:'Close dialog',exact:true}).click();await expect(page.getByRole('dialog')).toHaveCount(0);
- await page.getByRole('link',{name:'Log out',exact:true}).click();await page.getByRole('button',{name:'Log out',exact:true}).click();expect(new URL(page.url()).pathname).toBe('/login');expect((await page.request.get('/api/auctions')).status()).toBe(401);expect((await page.request.get('/api/account')).status()).toBe(401);
+ await page.getByRole('link',{name:'Log out',exact:true}).click();await page.getByRole('button',{name:'Log out',exact:true}).click();expect(new URL(page.url()).pathname).toBe('/login');expect((await page.request.get('/api/auctions')).status()).toBe(401);expect((await page.request.get('/api/account')).status()).toBe(401);expect((await page.request.get(protectedPath)).status()).toBe(401);
  console.log('PASS production artifact: distinct real accounts, isolated contexts, persisted bid, key backup/restore, future live drand, cold/cached proof, publication and independent observer verification. No payment/device claim.');
 }finally{await browser?.close();if(child.exitCode===null){child.kill('SIGTERM');await new Promise(r=>child.once('exit',r));}}
