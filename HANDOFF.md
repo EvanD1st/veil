@@ -4,6 +4,8 @@
 
 Branch `digital-goods-delivery` preserves PR #16 head `b50b43f` and is stacked on `payment-runtime-validation`. Do not merge or deploy automatically. New private uploads, immutable digital terms, atomic payment entitlements and protected downloads are prepared with migration 0006. The ivory/gold redesign covers authentication and the auction workspace. Legacy listings, proof assets/context, account IDs and scanner checks are preserved; new escrow and execution remain disabled. Read [digital behavior/recovery](docs/DIGITAL_GOODS.md), [candidate release gates](docs/DIGITAL_RELEASE.md) and [judge walkthrough](docs/JUDGING.md) first. Earlier sections below are dated history.
 
+Implementation snapshot `65a8399` passed both CI jobs, including actual file uploads, two real bidder accounts, live future drand, synthetic signed-report delivery, exact-byte winning downloads, losing-bidder/outsider denial and an actual application process restart. The exact final candidate and private staging/migration-copy observations are recorded in PR #17; do not equate synthetic report acceptance with a new live payment.
+
 Observed live before changes: two legacy Design/direct listings, two results, one report, zero escrow orders. No production rows were modified. No legacy payment is reused for a digital grant. The current public website remains the previously approved 577c90d artifact. The new hosted payment/download and new phone upload/purchase flow remain pending; earlier phone and incoming-payment evidence must not be relabelled as digital-delivery validation. Node/wallet/scanner configuration and unrelated services stay untouched.
 
 Updated 26 October 2026. Repository: https://github.com/EvanD1st/veil.
