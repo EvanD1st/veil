@@ -1,6 +1,8 @@
 # VEIL — Implementation handoff
 
-Updated 25 October 2026. Repository: https://github.com/EvanD1st/veil.
+Updated 26 October 2026. Repository: https://github.com/EvanD1st/veil.
+
+26 October follow-up: the operator confirmed the actual Redmi phone workflow worked; versions and measured proof timings were not supplied. PR #16's first exact head passed both CI jobs. Fresh hosted authentication/assets and current automatic confirmation passed. The sender's longer batch-100 trial OOMed repeatedly; a bounded no-retry trial with reviewed memory headroom subsequently passed strict synchronization and read-only 1 TAZ balance checks. Stability/outgoing spending remain separate gates. See [dated observations and limitations](docs/PAYMENT_VALIDATION_2026-10-25.md). No new payment or website deployment occurred.
 
 25 October follow-up: see [actual payment evidence, sender memory recovery and physical-device status](docs/PAYMENT_VALIDATION_2026-10-25.md). An exact faucet-funded incoming invoice, automatic signed delivery, expiry and recovery passed. The independent sender is testing a smaller supported history-recovery batch without changing its binary or readiness. Redmi K30 Pro forms/bidding were reported by the operator; proof/device measurements remain pending. New application wording requires a reviewed release; historical deployment and readiness descriptions below are not current status.
 
