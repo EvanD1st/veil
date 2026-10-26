@@ -62,6 +62,22 @@ A later actual timeout investigation found the receiver's original `MemoryHigh=1
 
 The successful limits were persisted with `systemctl set-property veil-zallet@receiver-v2.service MemoryHigh=3G MemoryMax=3500M`; swap remains capped at 1 GiB and CPU at 100%. This instance-specific configuration leaves generic templates and the uninitialized sender unchanged. Recheck effective limits after reboot and monitor combined node/wallet memory; sampled host available RAM remained about 3.5 GiB, which is an observation rather than a future capacity guarantee. Do not run additional builds or initialize another wallet concurrently on this host without reassessing memory. Historical synchronization and strict readiness still remain pending.
 
+### 25 October: repeat cache-pressure timeout and in-place recovery
+
+The growing historical scan again exhausted the receiver's soft-limit cache allowance at `MemoryHigh=3G`. Live evidence: 3,213,897,728 bytes anonymous memory, 421,888 bytes file cache, 8,623,746 high-limit events, 552,383,116 file-cache refaults and zero OOM kills. Host sampling showed 70–89% I/O wait with approximately 128,000 KiB/s reads, but zero active swap-in/out and about 2 GiB available RAM. The highest scanned height remained 4,054,806 across observations; two bounded status probes timed out. A running service was not sufficient evidence of healthy scanning.
+
+Applied the smallest in-place resource adjustment within the existing hard cap:
+
+```sh
+sudo systemctl set-property veil-zallet@receiver-v2.service MemoryHigh=3400M
+```
+
+The effective high limit is 3,565,158,400 bytes; `MemoryMax=3500M` (3,670,016,000 bytes), 1 GiB swap allowance and CPU limit remain unchanged. The override exists under `/etc/systemd/system.control/veil-zallet@receiver-v2.service.d/50-MemoryHigh.conf` for reboot persistence. No daemon restart, source change, wallet initialization, database edit, state-directory rename or node configuration change occurred. Receiver PID 1012 and zero restart count were preserved.
+
+Actual status returned in 0.058 seconds after the adjustment; three follow-up calls took 0.029, 0.010 and 0.057 seconds. File cache recovered to about 180 MB; direct-reclaim and high-limit counters stopped increasing during the initial sample. Host I/O wait fell to 2–3%, and disk reads to tens of KiB/s. Scanning resumed through height 4,056,076. Available RAM was approximately 1.9 GiB during the follow-up. Private filtered before/after evidence and subsequent status timings are retained at `/opt/veil-testnet/ops/memory-pressure-20261025.json`; it contains no keys, addresses or payment metadata.
+
+This establishes recovery from the observed cgroup cache-thrashing episode, not a permanent capacity guarantee. Inspect effective limits, available RAM, high-limit/reclaim deltas and scan movement if the issue recurs; do not blindly add swap or increase hard caps. Do not run another build or wallet on this host without reassessment. The wallet still reports synchronization incomplete. Strict readiness, real payment validation and the failed upstream vetting/experimental status remain unchanged.
+
 ## Runtime isolation and recovery
 
 `/opt/veil-testnet` holds immutable application/tools and installed release binaries. `/var/lib/veil-build` contains disposable source/build material and preserved audit/resource evidence. `/var/lib/veil-testnet` contains the new state, separate receiver/sender directories, private signing key, service token, outbox and health records. The builder cannot read the runtime account's private directory. Co-located Zebra/Zallet/scanner services use one trusted dedicated runtime identity so private rotating RPC cookies and compatible state are accessible without publishing RPC or weakening file permissions.
