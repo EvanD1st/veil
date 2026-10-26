@@ -14,6 +14,18 @@ try{
  browser=await chromium.launch({headless:true,...(process.env.VEIL_BROWSER_CHANNEL?{channel:process.env.VEIL_BROWSER_CHANNEL}:{})});
  async function login(username){const context=await browser.newContext({baseURL:origin,acceptDownloads:true});const page=await context.newPage();page.on('pageerror',()=>console.log('Hosted browser script error in',username,'session.'));await page.goto('/signin-with-chatgpt');await page.getByLabel('Username').fill(credentials.accounts[username].username);await page.getByLabel('Password',{exact:true}).fill(credentials.accounts[username].password);await page.getByRole('button',{name:/^(Log in|Sign in)$/,exact:true}).click();await expect(page.locator('main[data-hydrated="true"]')).toBeVisible({timeout:90000});expect((await page.request.get('/api/auctions')).status()).toBe(200);return {page,context};}
  const seller=await login('seller'),bidder=await login('bidder'),observer=await login('observer');
+ if(credentials.verifyDigitalDeliveryOnly){
+  const id=credentials.resumeAuctionId;if(!/^[a-f0-9-]{36}$/.test(id??'')||!credentials.expectedDigitalLicense)throw Error('Use the exact NEW digital auction and frozen license.');
+  const detail=await(await bidder.page.request.get('/api/auctions/'+id)).json();expect(detail.auction.digital?.license).toBe(credentials.expectedDigitalLicense);expect(detail.auction.result.status).toBe('zk-verified');expect(detail.myBid).toBe(detail.auction.result.winnerId);
+  const paymentPath='/api/auctions/'+id+'/payment',payment=await(await bidder.page.request.get(paymentPath)).json(),savedInvoice=JSON.parse(await readFile(resolve(privateOutput,'invoice.json'),'utf8'));
+  expect(payment.invoice.invoiceId).toBe(savedInvoice.invoiceId);expect(payment.status).toBe('scanner-confirmed');expect(payment.report.network).toBe('testnet');expect(payment.report.confirmations).toBeGreaterThanOrEqual(3);
+  const expected=await readFile(resolve(privateOutput,'expected-deliverable.png'));if(expected.length>10485760)throw Error('Unexpected private comparison file size.');
+  const downloadPath='/api/digital/download/'+id,response=await bidder.page.request.get(downloadPath);expect(response.status()).toBe(200);expect(response.headers()['cache-control']).toContain('no-store');expect(await response.body()).toEqual(expected);
+  expect((await observer.page.request.get(downloadPath)).status()).toBe(403);expect((await observer.page.request.get(paymentPath)).status()).toBe(403);
+  await bidder.page.getByRole('button',{name:'My purchases',exact:true}).click();await bidder.page.getByRole('button',{name:'View purchase & license',exact:true}).first().waitFor();
+  await bidder.page.goto('/logout');await bidder.page.getByRole('button',{name:'Log out',exact:true}).click();expect((await bidder.page.request.get(downloadPath)).status()).toBe(401);
+  console.log('PASS hosted digital website checks: current trusted report for the NEW saved invoice, exact-byte winning download, outsider denial and logout revocation. Actual wallet/output execution evidence must be recorded separately; no transfer or scan was submitted by this check.');
+ }else{
  expect((await browser.newContext().then(async c=>{const r=await c.request.get(origin+'/api/auctions',{headers:{'oai-authenticated-user-id':'forged','oai-authenticated-user-email':'forged@invalid.example'}});await c.close();return r.status();}))).toBe(401);
  let auction,backup,title;const page=seller.page;
  if(credentials.resumeAuctionId){
@@ -56,6 +68,7 @@ try{
  const logout=page.getByRole('button',{name:/^(sign|log) out$/i});if(await logout.count())await logout.click();
  expect((await page.request.get('/api/auctions')).status()).toBe(401);
  console.log('PASS hosted accounts, persisted auction, bid, key restore, real future drand, proof publication, independent verification and payment privacy. No transfer performed.');
+ }
 }catch(error){
  await writeFile(resolve(privateOutput,'last-check-failure.txt'),String(error?.message??error),{mode:0o600});
  console.error('Hosted check did not complete; diagnostics saved privately. No payment performed.');process.exitCode=1;
