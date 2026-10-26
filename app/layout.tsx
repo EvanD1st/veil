@@ -2,8 +2,8 @@ import type { Metadata } from "next";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "VEIL — Good taste. Quiet bids.",
-  description: "A private auction house. Discover something extraordinary, seal your offer, and reveal the winning price.",
+  title: "VEIL — Digital discoveries. Private bids.",
+  description: "Digital goods, sealed bids and verifiable winners. Experimental Zcash testnet payments and protected downloads.",
   icons: {
     icon: "/favicon.svg",
     shortcut: "/favicon.svg",
