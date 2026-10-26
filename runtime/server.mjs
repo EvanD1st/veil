@@ -1,12 +1,14 @@
 import { nodeDatabase } from './database.mjs';
 import { authenticationHandler } from './http-auth.mjs';
 import {reviewMigrations} from './migrations.mjs';
+import {digitalHandler} from './digital-files.mjs';
 const origin=process.env.VEIL_PUBLIC_ORIGIN;
 if(!origin)throw Error('VEIL_PUBLIC_ORIGIN is required.');
 if(process.env.VEIL_LOCAL_TEST)throw Error('Test identities are forbidden on the standalone server.');
 const db=nodeDatabase();
 if(reviewMigrations(db,new URL('../drizzle/',import.meta.url).pathname).length)throw Error('Unapplied migration. Stop the service, back up and migrate explicitly.');
 const auth=authenticationHandler(db,origin,{allowLoopbackHttp:process.env.VEIL_ALLOW_LOOPBACK_HTTP==='1',adminAccountIds:(process.env.VEIL_ADMIN_ACCOUNT_IDS??'').split(',').map(s=>s.trim()).filter(Boolean)});
+const digital=digitalHandler(db,origin);
 process.env.VINEXT_TRUSTED_HOSTS=new URL(origin).host;
 const {startProdServer}=await import('vinext/server/prod-server');
 const port=Number(process.env.PORT??8092);
@@ -14,7 +16,7 @@ if(!Number.isInteger(port)||port<1024||port>65535)throw Error('Invalid loopback 
 const {server}=await startProdServer({host:'127.0.0.1',port,outDir:new URL('../dist/',import.meta.url).pathname,silent:true});
 const handlers=server.listeners('request');if(handlers.length!==1)throw Error('Unexpected framework HTTP handler.');
 server.removeAllListeners('request');
-server.on('request',(req,res)=>{auth(req,res,(r,s)=>handlers[0].call(server,r,s)).catch(()=>{if(!res.headersSent)res.writeHead(500);res.end('Request failed.');});});
+server.on('request',(req,res)=>{auth(req,res,(r,s)=>digital(r,s,()=>handlers[0].call(server,r,s))).catch(()=>{if(!res.headersSent)res.writeHead(500);res.end('Request failed.');});});
 server.requestTimeout=30000;server.headersTimeout=15000;
 console.log('VEIL standalone server listening on loopback port '+port+'.');
 for(const signal of ['SIGINT','SIGTERM'])process.on(signal,()=>{server.close(()=>{db.close();process.exit(0);});setTimeout(()=>process.exit(1),10000).unref();});

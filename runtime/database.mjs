@@ -2,6 +2,7 @@ import { DatabaseSync } from 'node:sqlite';
 import { openSync, closeSync, readFileSync, readdirSync, statSync } from 'node:fs';
 import { createHash } from 'node:crypto';
 import { resolve, isAbsolute } from 'node:path';
+import {digitalSellers} from './digital-config.mjs';
 export function initializeDatabase(path,migrations) {
  if(!isAbsolute(path))throw Error('Use an absolute database path.');
  closeSync(openSync(path,'wx',0o600));
@@ -33,4 +34,4 @@ export function nodeDatabase() {
 export function d1Adapter(db) {
  return {prepare(sql){const statement=db.prepare(sql);let values=[];const bound={bind(...args){values=args;return bound;},async first(column){const row=statement.get(...values);return column?(row?.[column]??null):(row??null);},async all(){return {results:statement.all(...values),success:true};},async run(){const r=statement.run(...values);return {meta:{changes:Number(r.changes),last_row_id:Number(r.lastInsertRowid)},success:true};}};return bound;}};
 }
-export const env={get VEIL_EXPERIMENTAL_TESTNET_ESCROW(){return process.env.VEIL_EXPERIMENTAL_TESTNET_ESCROW;},get VEIL_ESCROW_DEPOSIT_ADDRESS(){return process.env.VEIL_ESCROW_DEPOSIT_ADDRESS;},get VEIL_ESCROW_OPERATOR_IDS(){return process.env.VEIL_ESCROW_OPERATOR_IDS;},get VEIL_ESCROW_SETTLEMENTS_ENABLED(){return process.env.VEIL_ESCROW_SETTLEMENTS_ENABLED;},get DB(){return d1Adapter(nodeDatabase());},get VEIL_SCANNER_PUBLIC_KEY(){return process.env.VEIL_SCANNER_PUBLIC_KEY;},get VEIL_SCANNER_SERVICE_TOKEN_SHA256(){return process.env.VEIL_SCANNER_SERVICE_TOKEN_SHA256;}};
+export const env={get VEIL_DIGITAL_PUBLISHING_ENABLED(){return process.env.VEIL_DIGITAL_PUBLISHING_ENABLED;},get VEIL_DIGITAL_SELLERS(){return digitalSellers();},get VEIL_DIGITAL_VERIFY(){return async(id,user)=>(await import("./digital-files.mjs")).verifyDraftFiles(nodeDatabase(),id,user);},get VEIL_EXPERIMENTAL_TESTNET_ESCROW(){return process.env.VEIL_EXPERIMENTAL_TESTNET_ESCROW;},get VEIL_ESCROW_DEPOSIT_ADDRESS(){return process.env.VEIL_ESCROW_DEPOSIT_ADDRESS;},get VEIL_ESCROW_OPERATOR_IDS(){return process.env.VEIL_ESCROW_OPERATOR_IDS;},get VEIL_ESCROW_SETTLEMENTS_ENABLED(){return process.env.VEIL_ESCROW_SETTLEMENTS_ENABLED;},get DB(){return d1Adapter(nodeDatabase());},get VEIL_SCANNER_PUBLIC_KEY(){return process.env.VEIL_SCANNER_PUBLIC_KEY;},get VEIL_SCANNER_SERVICE_TOKEN_SHA256(){return process.env.VEIL_SCANNER_SERVICE_TOKEN_SHA256;}};

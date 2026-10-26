@@ -8,7 +8,7 @@ module.exports=({test,assert,db,env,server,core,auctionId,realNow})=>{
  test('escrow creation flag, immutable terms and no-winner gate preserve direct mode',async()=>{
   delete env.VEIL_EXPERIMENTAL_TESTNET_ESCROW;assert.equal(escrow.creationPolicy({},receiver).mode,'direct');assert.throws(()=>escrow.creationPolicy({paymentMode:'escrow-testnet'},receiver),/disabled/);
   env.VEIL_EXPERIMENTAL_TESTNET_ESCROW='1';env.VEIL_ESCROW_DEPOSIT_ADDRESS=receiver;const input={paymentMode:'escrow-testnet',reserve:'120000000',fulfillmentTerms:{itemType:'physical',deliveryMethod:'shipping-included',deliveryDays:7,eligibleLocations:'Local',shippingTerms:'All shipping included'}};
-  assert.equal(escrow.creationPolicy(input,receiver).address,receiver);assert.throws(()=>escrow.creationPolicy({...input,fulfillmentTerms:{...input.fulfillmentTerms,deliveryMethod:'shipping-extra'}},receiver));
+  assert.throws(()=>escrow.creationPolicy(input,receiver),/disabled/);assert.equal(escrow.escrowConfiguration().enabled,false);assert.throws(()=>escrow.creationPolicy({...input,fulfillmentTerms:{...input.fulfillmentTerms,deliveryMethod:'shipping-extra'}},receiver));
   const id=lot();assert.throws(()=>db.prepare("UPDATE auctions SET payment_address='changed' WHERE id=?").run(id),/Immutable/);
   const noWinner=lot();db.prepare('UPDATE auctions SET result=? WHERE id=?').run(JSON.stringify({winnerId:null,amount:null,status:'zk-verified'}),noWinner);assert.equal(await escrow.ensureEscrowOrder(noWinner),null);
   delete env.VEIL_EXPERIMENTAL_TESTNET_ESCROW;delete env.VEIL_ESCROW_DEPOSIT_ADDRESS;

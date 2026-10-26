@@ -45,7 +45,11 @@ function publicAuction(row: AuctionRow, userId: string): Auction {
 }
 export async function listAuctions(userId: string) {
   const rows = await database().prepare('SELECT a.*, (SELECT COUNT(*) FROM bids b WHERE b.auction_id=a.id) AS bid_count FROM auctions a ORDER BY a.created_at DESC LIMIT 100').all<AuctionRow>();
-  return rows.results.map(row => publicAuction(row, userId));
+  return Promise.all(rows.results.map(async row=>attachDigital({...publicAuction(row,userId),paymentAddress:row.owner_id===userId?row.payment_address:null})));
+}
+async function attachDigital(auction:Auction){
+ const d=await database().prepare('SELECT category,license,edition,provenance,bytes,format FROM digital_listings WHERE auction_id=?').bind(auction.id).first<{category:string;license:string;edition:string;provenance:string;bytes:number;format:string}>();
+ return {...auction,digital:d?{...d,previewUrl:'/api/digital/preview/'+auction.id}:null};
 }
 export async function myAuctionIds(userId: string) {
   const rows = await database().prepare('SELECT auction_id FROM bids WHERE bidder_id=? ORDER BY accepted_at DESC LIMIT 100').bind(userId).all<{ auction_id: string }>();
@@ -54,12 +58,24 @@ export async function myAuctionIds(userId: string) {
 export async function details(id: string, userId: string) {
   const row = await auctionRow(id);
   const bids = await database().prepare('SELECT * FROM bids WHERE auction_id=? ORDER BY sequence').bind(id).all<BidRow>();
-  return { auction: publicAuction(row, userId), bids: bids.results.map(publicBid), myBid: bids.results.find(b => b.bidder_id === userId)?.id ?? null, snapshotHash: await snapshotHash(id, bids.results.map(publicBid)), serverTime: Date.now() };
+  const auction=publicAuction(row,userId),myBid=bids.results.find(b=>b.bidder_id===userId)?.id??null;
+  if(!auction.isOwner&&(!auction.result?.winnerId||myBid!==auction.result.winnerId))auction.paymentAddress=null;
+  return { auction: await attachDigital(auction), bids: bids.results.map(publicBid), myBid, snapshotHash: await snapshotHash(id, bids.results.map(publicBid)), serverTime: Date.now() };
 }
 export async function createAuction(input: Record<string, unknown>, userId: string) {
+  if((env as unknown as Record<string,unknown>).VEIL_DIGITAL_PUBLISHING_ENABLED!=='1')throw new ApiError('New digital publishing is paused. Existing purchases and auctions remain available.',503);
+  if(Object.keys(input).some(k=>!['id','title','description','sellerName','category','artwork','reserve','closesAt','publicKey','paymentAddress','paymentWindowHours','digitalDraftId','paymentMode'].includes(k)))throw new ApiError('Unsupported listing fields. Physical fulfillment, escrow and NFT transfers are unavailable.');
   const id = uuid(input.id), title = text(input.title, 3, 80, 'Title'), description = text(input.description, 15, 1500, 'Description'), sellerName = text(input.sellerName, 2, 40, 'Seller name');
   const category = text(input.category, 2, 30, 'Category'), artwork = text(input.artwork, 2, 30, 'Cover');
-  if (!['Design', 'Art', 'Collectibles'].includes(category) || !['sneaker', 'orbit', 'sculpture'].includes(artwork)) throw new ApiError('Choose an available category and cover.');
+  if (!['Digital Art', 'Digital Items', 'Digital Collectibles'].includes(category) || !['sneaker', 'orbit', 'sculpture'].includes(artwork)) throw new ApiError('Choose a digital category. Physical listings and NFT transfers are unsupported.');
+  if(input.paymentMode&&input.paymentMode!=='direct')throw new ApiError('New escrow listings are disabled.',403);
+  const digitalDraft=uuid(input.digitalDraftId);
+  const draft=await database().prepare('SELECT owner_id,category,receiver FROM digital_drafts WHERE id=?').bind(digitalDraft).first<{owner_id:string;category:string;receiver:string}>();
+  const settings=env as unknown as {VEIL_DIGITAL_SELLERS?:string;VEIL_DIGITAL_VERIFY?:(id:string,user:string)=>Promise<boolean>};
+  let eligible:string|undefined;try{eligible=JSON.parse(settings.VEIL_DIGITAL_SELLERS??'{}')[userId];}catch{/* Fail closed. */}
+  if(!draft||draft.owner_id!==userId||draft.category!==category||!isSaplingTestnet(eligible??'')||draft.receiver!==eligible||input.paymentAddress!==eligible)throw new ApiError('Complete your own digital draft with an approved, scanner-observed receiver. Funds are never redirected.',403);
+  if(typeof settings.VEIL_DIGITAL_VERIFY!=='function')throw new ApiError('Private file storage is unavailable on this hosting target.',503);
+  try{if(!await settings.VEIL_DIGITAL_VERIFY(digitalDraft,userId))throw Error();}catch{throw new ApiError('Your frozen files are unavailable or changed. Upload and validate them before publishing.',503);}
   if (!validZatoshis(input.reserve)) throw new ApiError('Invalid reserve price.');
   const closesAt = Number(input.closesAt), now = Date.now();
   if (!Number.isSafeInteger(closesAt) || closesAt < now + 60000 || closesAt > now + 30 * 86400000) throw new ApiError('Choose a closing time between one minute and 30 days from now.');
@@ -69,15 +85,15 @@ export async function createAuction(input: Record<string, unknown>, userId: stri
   const publicKey = { kty: key.kty, n: key.n, e: key.e, alg: 'RSA-OAEP-256', key_ops: ['encrypt'], ext: true };
   let address = input.paymentAddress ? text(input.paymentAddress, 20, 200, 'Payment address') : null;
   if (address && !isSaplingTestnet(address)) throw new ApiError('Use a checksum-valid Sapling testnet address beginning ztestsapling1.');
-  const {creationPolicy}=await import('./escrow');const policy=creationPolicy(input,address);address=policy.address;
+  const policy={mode:'direct',terms:null,payout:null,fee:null};
   const count = await database().prepare('SELECT COUNT(*) AS total FROM auctions WHERE owner_id=?').bind(userId).first<{ total: number }>();
   if ((count?.total ?? 0) >= 100) throw new ApiError('This review workspace has reached its 100-auction limit.');
   const paymentWindow=input.paymentWindowHours===undefined?24:input.paymentWindowHours;
   if(paymentWindow!==null&&![24,48,72].includes(paymentWindow as number))throw new ApiError('Choose a payment follow-up window of 24, 48 or 72 hours, or none.');
   const round = unlockRoundFor(closesAt);
   const proofContext = await auctionProofContext({id,reserve:input.reserve,closesAt,unlockRound:round,publicKey,paymentAddress:address});
-  await database().prepare('INSERT INTO auctions (id,owner_id,title,description,category,artwork,seller_name,reserve,closes_at,unlock_round,public_key,created_at,payment_address,protocol_version,proof_context,payment_window_hours,payment_mode,fulfillment_terms,escrow_payout_address,escrow_fee_cap) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)').bind(id, userId, title, description, category, artwork, sellerName, input.reserve, closesAt, round, JSON.stringify(publicKey), now, address, 2, proofContext,paymentWindow,policy.mode,policy.terms,policy.payout,policy.fee).run();
-  return publicAuction(await auctionRow(id), userId);
+  try{await database().prepare('INSERT INTO auctions (id,owner_id,title,description,category,artwork,seller_name,reserve,closes_at,unlock_round,public_key,created_at,payment_address,protocol_version,proof_context,payment_window_hours,payment_mode,fulfillment_terms,escrow_payout_address,escrow_fee_cap,digital_draft_id) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)').bind(id, userId, title, description, category, artwork, sellerName, input.reserve, closesAt, round, JSON.stringify(publicKey), now, address, 2, proofContext,paymentWindow,policy.mode,policy.terms,policy.payout,policy.fee,digitalDraft).run();}catch{throw new ApiError('Digital publication conflicted. Check the saved listing before retrying.',409);}
+  return attachDigital(publicAuction(await auctionRow(id), userId));
 }
 export async function acceptBid(id: string, input: Record<string, unknown>, userId: string) {
   const row = await auctionRow(id), bidId = uuid(input.id), commitment = hex(input.commitment);

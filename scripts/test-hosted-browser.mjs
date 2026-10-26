@@ -14,12 +14,29 @@ try{
  browser=await chromium.launch({headless:true,...(process.env.VEIL_BROWSER_CHANNEL?{channel:process.env.VEIL_BROWSER_CHANNEL}:{})});
  async function login(username){const context=await browser.newContext({baseURL:origin,acceptDownloads:true});const page=await context.newPage();page.on('pageerror',()=>console.log('Hosted browser script error in',username,'session.'));await page.goto('/signin-with-chatgpt');await page.getByLabel('Username').fill(credentials.accounts[username].username);await page.getByLabel('Password',{exact:true}).fill(credentials.accounts[username].password);await page.getByRole('button',{name:/^(Log in|Sign in)$/,exact:true}).click();await expect(page.locator('main[data-hydrated="true"]')).toBeVisible({timeout:90000});expect((await page.request.get('/api/auctions')).status()).toBe(200);return {page,context};}
  const seller=await login('seller'),bidder=await login('bidder'),observer=await login('observer');
+ if(credentials.verifyDigitalDeliveryOnly){
+  const id=credentials.resumeAuctionId;if(!/^[a-f0-9-]{36}$/.test(id??'')||!credentials.expectedDigitalLicense)throw Error('Use the exact NEW digital auction and frozen license.');
+  const detail=await(await bidder.page.request.get('/api/auctions/'+id)).json();expect(detail.auction.digital?.license).toBe(credentials.expectedDigitalLicense);expect(detail.auction.result.status).toBe('zk-verified');expect(detail.myBid).toBe(detail.auction.result.winnerId);
+  const paymentPath='/api/auctions/'+id+'/payment',payment=await(await bidder.page.request.get(paymentPath)).json(),savedInvoice=JSON.parse(await readFile(resolve(privateOutput,'invoice.json'),'utf8'));
+  expect(payment.invoice.invoiceId).toBe(savedInvoice.invoiceId);expect(payment.status).toBe('scanner-confirmed');expect(payment.report.network).toBe('testnet');expect(payment.report.confirmations).toBeGreaterThanOrEqual(3);
+  const expected=await readFile(resolve(privateOutput,'expected-deliverable.png'));if(expected.length>10485760)throw Error('Unexpected private comparison file size.');
+  const downloadPath='/api/digital/download/'+id,response=await bidder.page.request.get(downloadPath);expect(response.status()).toBe(200);expect(response.headers()['cache-control']).toContain('no-store');expect(await response.body()).toEqual(expected);
+  expect((await observer.page.request.get(downloadPath)).status()).toBe(403);expect((await observer.page.request.get(paymentPath)).status()).toBe(403);
+  await bidder.page.getByRole('button',{name:'My purchases',exact:true}).click();await bidder.page.getByRole('button',{name:'View purchase & license',exact:true}).first().waitFor();
+  await bidder.page.goto('/logout');await bidder.page.getByRole('button',{name:'Log out',exact:true}).click();expect((await bidder.page.request.get(downloadPath)).status()).toBe(401);
+  console.log('PASS hosted digital website checks: current trusted report for the NEW saved invoice, exact-byte winning download, outsider denial and logout revocation. Actual wallet/output execution evidence must be recorded separately; no transfer or scan was submitted by this check.');
+ }else{
  expect((await browser.newContext().then(async c=>{const r=await c.request.get(origin+'/api/auctions',{headers:{'oai-authenticated-user-id':'forged','oai-authenticated-user-email':'forged@invalid.example'}});await c.close();return r.status();}))).toBe(401);
  let auction,backup,title;const page=seller.page;
  if(credentials.resumeAuctionId){
-  const saved=await (await page.request.get('/api/auctions/'+credentials.resumeAuctionId)).json();auction=saved.auction;title=auction.title;backup=await readFile(resolve(privateOutput,'seller-key-backup-'+auction.id+'.json'),'utf8');await page.getByRole('button',{name:new RegExp(title.replace(/[.*+?^${}()|[\]\\]/g,'\\$&'))}).click();console.log('Resuming existing hosted auction; no replacement listing or bid.');
+  if(!credentials.expectedDigitalLicense)throw Error('Resume requires the exact NEW digital listing version. Never reuse the earlier paid legacy invoice.');
+  const saved=await (await page.request.get('/api/auctions/'+credentials.resumeAuctionId)).json();auction=saved.auction;if(!auction.digital||auction.digital.license!==credentials.expectedDigitalLicense)throw Error('Legacy auction cannot be reused for digital payment validation.');title=auction.title;backup=await readFile(resolve(privateOutput,'seller-key-backup-'+auction.id+'.json'),'utf8');await page.getByRole('button',{name:new RegExp(title.replace(/[.*+?^${}()|[\]\\]/g,'\\$&'))}).click();console.log('Resuming existing hosted auction; no replacement listing or bid.');
  }else{title='Hosted testnet validation '+new Date().toISOString();
- await page.getByRole('button',{name:'Create auction',exact:true}).click();await page.getByLabel('Lot title').fill(title);await page.getByLabel('Public seller name').fill('VEIL testnet validation');await page.getByLabel('The story').fill('Disposable separate-account integration check; no item or funds are exchanged.');await page.getByLabel('Reserve · test ZEC').fill('0.0001');await page.getByLabel('Closes in').selectOption('2');await page.getByLabel(/Sapling testnet address/).fill(receiver);await page.getByRole('checkbox').check();
+ await page.getByRole('button',{name:'Create auction',exact:true}).click();await page.getByLabel('Lot title').fill(title);await page.getByLabel('Public seller name').fill('VEIL testnet validation');await page.getByLabel('The story').fill('Disposable separate-account integration check; no item or funds are exchanged.');await page.getByLabel('Reserve · test ZEC').fill('0.0001');await page.getByLabel('Closes in').selectOption('2');await expect(page.getByLabel(/Sapling testnet address/)).toHaveValue(receiver);
+ const bytes=await (await import('sharp')).default({create:{width:320,height:200,channels:3,background:'#f4d462'}}).png().toBuffer();await writeFile(resolve(privateOutput,'expected-deliverable.png'),bytes,{mode:0o600,flag:'wx'});
+ await page.getByLabel('Public preview (PNG or JPEG)').setInputFiles({name:'preview.png',mimeType:'image/png',buffer:bytes});await expect(page.getByRole('status')).toContainText('Sanitized preview ready.');
+ await page.getByLabel('Protected deliverable',{exact:true}).setInputFiles({name:'original.png',mimeType:'image/png',buffer:bytes});await expect(page.getByRole('status')).toContainText('Protected deliverable validated.');
+ await page.getByLabel('License / usage terms').fill('Demonstration image; personal test use only. Copyright retained by seller.');await page.getByLabel('Provenance (seller-declared)').fill('Locally generated for this hosted testnet digital delivery check.');await page.getByRole('checkbox').check();
  const downloadPromise=page.waitForEvent('download'),createdPromise=page.waitForResponse(r=>r.url().endsWith('/api/auctions')&&r.request().method()==='POST');await page.getByRole('button',{name:'Open the auction'}).click();
  const created=await createdPromise;expect(created.status()).toBe(201);({auction}=await created.json());backup=await readFile(await (await downloadPromise).path(),'utf8');expect(JSON.parse(backup).auctionId).toBe(auction.id);
  await writeFile(resolve(privateOutput,'seller-key-backup-'+auction.id+'.json'),backup,{mode:0o600,flag:'wx'});
@@ -51,6 +68,7 @@ try{
  const logout=page.getByRole('button',{name:/^(sign|log) out$/i});if(await logout.count())await logout.click();
  expect((await page.request.get('/api/auctions')).status()).toBe(401);
  console.log('PASS hosted accounts, persisted auction, bid, key restore, real future drand, proof publication, independent verification and payment privacy. No transfer performed.');
+ }
 }catch(error){
  await writeFile(resolve(privateOutput,'last-check-failure.txt'),String(error?.message??error),{mode:0o600});
  console.error('Hosted check did not complete; diagnostics saved privately. No payment performed.');process.exitCode=1;

@@ -4,8 +4,9 @@ import {paymentInvoice,validatePaymentReport} from './payment';
 import {ApiError,auctionRow,details,paymentStatus} from './server';
 const db=()=>env.DB as D1Database;
 const setting=(key:string)=>String((env as unknown as Record<string,unknown>)[key]??'');
-export const escrowEnabled=()=>setting('VEIL_EXPERIMENTAL_TESTNET_ESCROW')==='1';
-export const settlementsStopped=()=>setting('VEIL_ESCROW_SETTLEMENTS_ENABLED')!=='1';
+// Legacy records remain readable; no configuration flag enables new escrow listings.
+export const escrowEnabled=()=>false;
+export const settlementsStopped=()=>true;
 export function escrowConfiguration(){return {enabled:escrowEnabled(),executorEnabled:false,custody:'operator-custodied',network:'testnet',maxFee:'10000'};}
 function str(value:unknown,min:number,max:number,label:string){if(typeof value!=='string'||value.trim().length<min||value.length>max||/[\u0000-\u0008\u000b-\u001f]/.test(value))throw new ApiError('Invalid '+label+'.');return value.trim();}
 export function creationPolicy(input:Record<string,unknown>,sellerAddress:string|null){
