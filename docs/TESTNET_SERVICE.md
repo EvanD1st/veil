@@ -1,5 +1,7 @@
 # Supervised testnet verification
 
+Latest operational evidence: [25 October actual incoming payment, scanner recovery and sender memory trial](PAYMENT_VALIDATION_2026-10-25.md). Historical setup observations below must not be interpreted as current readiness or delivery state.
+
 This work starts at merged main `dfef40e03798129c3041e7b298fbb46db3b4df97` on branch `testnet-payment-service`. The website remains at its previously deployed source until separate final release approval. A wallet build, an application test and an actual shielded payment are separate evidence categories.
 
 ## Exact experimental source and observed setup

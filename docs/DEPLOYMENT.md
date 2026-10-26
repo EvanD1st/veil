@@ -1,5 +1,7 @@
 # Deployment targets
 
+Current Ubuntu release (26 October 2026): the operator approved and deployed PR #16's tested merge-tree artifact `577c90dfe566de35aaff7a8d8e4ab99da3233123`; archive SHA-256 `ddfcce428e7d420f91deb438aeed3c9a56be7425a2343624a69c2f8b55bd4f8f`. [CI 40277354217](https://github.com/EvanD1st/veil/actions/runs/40277354217), isolated artifact smoke testing and post-release public HTTPS authentication/assets checks passed. No migration; all accounts, auctions, bids and reports were preserved. Only VEIL restarted. Fresh backup/integrity, compatible code rollback and remaining experimental/payment/device limits are recorded in [the dated execution record](PAYMENT_VALIDATION_2026-10-25.md). PR #16 remains unmerged. Deployment descriptions below are historical.
+
 Pending native public-signup release: [accounts and rollback](ACCOUNTS.md) describes the no-migration upgrade, optional private `VEIL_ADMIN_ACCOUNT_IDS` allowlist and code/config rollback that retains newly created records. No deployment or merge is performed by that implementation task.
 
 Current Ubuntu release: operator-approved `59c35c5e2bd8ed6c2cb68caa9ace2be23b937200` with queue migration 0004 is deployed. See [fresh backup, rollback and hosted checks](HOSTED_VALIDATION.md). Existing Sites and unrelated services remain unchanged; older identifiers below record historical deployments.

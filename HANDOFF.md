@@ -1,6 +1,12 @@
 # VEIL — Implementation handoff
 
-Updated 23 October 2026. Repository: https://github.com/EvanD1st/veil.
+Updated 26 October 2026. Repository: https://github.com/EvanD1st/veil.
+
+Latest approved website release: PR #16's tested merge-tree artifact `577c90dfe566de35aaff7a8d8e4ab99da3233123` is deployed at https://ve-il.duckdns.org. Restart/health took 1.91 seconds; no migration, counts preserved, fresh backup/integrity passed. Public authentication, six proof assets and current automatic confirmation passed afterward. The sender's corrected limits survived reload/stop/start; strict readiness and read-only balance passed. Its bounded trial is complete and the optional sender is intentionally stopped/boot-disabled, with successful integrity and a protected off-host backup. The receiving wallet/node/scanner remain active. No new payment or PR merge occurred. See the dated execution record below; older release descriptions are historical.
+
+26 October follow-up: the operator confirmed the actual Redmi phone workflow worked; versions and measured proof timings were not supplied. PR #16's first exact head passed both CI jobs. Fresh hosted authentication/assets and current automatic confirmation passed. The sender's longer batch-100 trial OOMed repeatedly; a bounded no-retry trial with reviewed memory headroom subsequently passed strict synchronization and read-only 1 TAZ balance checks. Stability/outgoing spending remain separate gates. See [dated observations and limitations](docs/PAYMENT_VALIDATION_2026-10-25.md). No new payment or website deployment occurred.
+
+25 October follow-up: see [actual payment evidence, sender memory recovery and physical-device status](docs/PAYMENT_VALIDATION_2026-10-25.md). An exact faucet-funded incoming invoice, automatic signed delivery, expiry and recovery passed. The independent sender is testing a smaller supported history-recovery batch without changing its binary or readiness. Redmi K30 Pro forms/bidding were reported by the operator; proof/device measurements remain pending. New application wording requires a reviewed release; historical deployment and readiness descriptions below are not current status.
 
 24 October code review: `review-auth-payment-escrow` fixes full-origin comparison for supplied API Origin headers, publication-anchored delivery deadlines for new escrow orders, the frozen refund control after disputes/cancelled intents and unauthorized lazy order creation by rejected viewers. No migration or live changes. See [findings, regressions and workstation validation limits](docs/CODE_REVIEW_2026-10-24.md). Escrow creation/spending remain disabled; release and wallet readiness are independent gates.
 
