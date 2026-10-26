@@ -4,7 +4,7 @@ This implementation requires the native Ubuntu runtime and additive migration `0
 
 ## Product and eligibility
 
-New listings require validated files, license and seller-declared provenance. Categories are Digital Art, Digital Items and Digital Collectibles; Collectibles also require seller-declared edition information. Files/editions are not NFTs. No minting, blockchain asset transfer, exclusive-copy enforcement or copyright verification exists. New physical/escrow listings and unknown privilege/fulfillment fields are rejected. Historical NULL-draft auctions retain category, context, terms, result and payment data. No legacy entitlement is manufactured.
+New listings require validated files, license and seller-declared provenance. Categories are Digital Art, Digital Items and Digital Collectibles; edition information is optional and seller-declared. Files/editions are not NFTs. No minting, blockchain asset transfer, exclusive-copy enforcement or copyright verification exists. New physical/escrow listings and unknown privilege/fulfillment fields are rejected. Historical NULL-draft auctions retain category, context, terms, result and payment data. No legacy entitlement is manufactured.
 
 `VEIL_DIGITAL_PUBLISHING_ENABLED=1` opts into new uploads/publication. Default is paused. Earned downloads and existing auctions remain usable when publishing is paused. `VEIL_DIGITAL_ROOT` must be an absolute canonical native path outside releases/static directories, proposed `/srv/veil/shared/digital-store`. Use a dedicated service-owned mode-0700 directory and mode-0600 files. Never configure a public Caddy alias to this directory. Persistent storage is a requirement; releases must not own the originals.
 
