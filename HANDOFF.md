@@ -1,5 +1,9 @@
 # VEIL — Implementation handoff
 
+## Genesis judging candidate — 26 October 2026
+
+Branch `self-service-judging` starts from merged/deployed main `cb5ab9f` (CI 40368462337 passed). The website inspection confirms this source is live with migration 0006; older release descriptions below are historical. This follow-up prepares selected Genesis previews/private import, bounded normal auctions/editions, a separate supervised automatic-reveal worker and private wallet request/treasury recovery contracts. **Managed wallet provisioning, starter funding and managed checkout remain disabled**, with the exact installed standalone-key/PCZT recovery blocker documented in [self-service judging](docs/SELF_SERVICE_JUDGING.md). Additive migration 0007 is required. No new deployment, wallet/sync/service change or payment occurs. Originals stay outside Git; no synthetic balance or result is a live payment. Exact final CI and candidate hashes belong in the PR.
+
 ## Supplied UI references — 26 October 2026
 
 `ui-reference-refresh` starts from merged PR #17 / main `abc2986` and adapts the two supplied HTML designs to the real native authentication and auction workspace. See [visual scope, security and validation](docs/UI_REFERENCE_REFRESH.md). No deployment, database change, payment or wallet/node/scanner change occurs. Existing digital release requirements remain in force; earlier candidate descriptions below are dated observations.
