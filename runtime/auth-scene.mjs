@@ -1,198 +1,186 @@
+import{paintAuthBackdrop}from'./auth-backdrop.mjs';
 /* Adapted from the operator-supplied VEIL design. Decorative only; authentication stays server-side. */
-export const sceneStyles=`
-.auth-layout{min-height:100svh;display:grid;grid-template-columns:minmax(0,1fr) minmax(360px,510px);align-items:center;gap:6vw;padding:100px 8vw 44px;isolation:isolate;overflow-x:hidden;background:#f2e9d8;color:#211b13}
-.auth-layout:before{content:"";position:fixed;inset:0;z-index:-3;background:radial-gradient(ellipse at 14% 12%,#fffdf5d9,transparent 68%),linear-gradient(135deg,#f5f3eb 0%,#f8edda 38%,#eee1c7 75%,#ddcaa0)}
-.auth-scene{position:fixed;inset:0;z-index:-2;pointer-events:none;overflow:hidden}.auth-scene svg{width:100%;height:100%;display:block}
-.auth-brand{position:absolute;top:30px;left:4vw;color:#2a2113;letter-spacing:.3em;font:30px Georgia;text-decoration:none}.testnet{font:10px system-ui;letter-spacing:.14em;border-radius:20px;padding:7px 12px;background:#dfdfd2d9;margin-left:12px;vertical-align:middle}
-.auth-story{align-self:start;margin-top:6vh;max-width:600px}.eyebrow{font-size:11px;letter-spacing:.35em;text-transform:uppercase;color:#7c725e}.auth-story h2{font:clamp(58px,7.5vw,112px)/.97 Georgia;letter-spacing:-.05em;margin:22px 0;color:#211b13}.auth-story p:last-child{font-size:20px;color:#7c725e;max-width:420px}
-.auth-layout main{width:100%;max-width:510px;margin:0;background:linear-gradient(155deg,#eff0eabd,#e1e4dc9e 48%,#d6dbd2a8);border:1.5px solid #ffffffc2;border-radius:18px;padding:34px 38px;box-shadow:0 28px 68px -12px #0c181038,0 4px 16px #0c181014,inset 0 1px 1px #ffffffe6;backdrop-filter:blur(24px) saturate(112%);-webkit-backdrop-filter:blur(24px) saturate(112%)}
-.auth-layout main>.brand{display:none}.auth-layout h1{text-align:center;font:42px Georgia;letter-spacing:-.035em;margin:0 0 12px}.auth-subtitle{text-align:center;color:#7c725e;margin:0 0 16px}.auth-intro{text-align:center;font-size:12px;color:#7c725e;margin:0 0 22px}.auth-layout label{font-size:14px;margin-top:15px}.auth-layout input{background:#f6f6f2e0;border-color:#d4d7cfe6;height:49px;box-shadow:inset 0 1px 2px #211b1308}.auth-layout input:focus{background:#fcfcf9f5}.auth-layout small{font-size:11px;margin-top:4px}.auth-layout .toggle{font-size:12px;padding:5px 0;display:block;text-align:right;width:100%}.auth-layout button[type=submit]{background:#302517;min-height:49px;margin-top:20px;box-shadow:0 4px 14px #211b1338}.auth-layout button[type=submit]:hover{background:#594222}.auth-layout .button{background:#ebede77a;border-color:#6e6250;margin:18px 0;text-decoration:none}.auth-layout .recovery{text-align:center;margin-top:18px}.auth-layout .error{font-size:14px}.auth-divider{display:flex;align-items:center;gap:16px;font-size:12px;color:#7c725e;margin-top:24px}.auth-divider:before,.auth-divider:after{content:"";height:1px;background:#8b948b4d;flex:1}.auth-layout input:focus-visible,.auth-layout button:focus-visible,.auth-layout a:focus-visible{outline-color:#aa8b3b}
-/* Compact login preserves usable controls rather than hiding overflow. */
-:is(.auth-login,.auth-signup){padding-top:76px;padding-bottom:24px}:is(.auth-login,.auth-signup) main{padding:24px 32px}:is(.auth-login,.auth-signup) h1{font-size:36px;margin-bottom:8px}:is(.auth-login,.auth-signup) .auth-subtitle{font-size:15px;margin-bottom:10px}:is(.auth-login,.auth-signup) .auth-intro{margin-bottom:12px}:is(.auth-login,.auth-signup) label{margin-top:10px}:is(.auth-login,.auth-signup) input{height:44px}:is(.auth-login,.auth-signup) .toggle{padding:3px 0}:is(.auth-login,.auth-signup) button[type=submit]{margin-top:12px;min-height:44px;padding:10px}:is(.auth-login,.auth-signup) .auth-divider{margin-top:16px}:is(.auth-login,.auth-signup) .button{margin:12px 0;padding:10px}:is(.auth-login,.auth-signup) .recovery{margin-top:10px}
-@media(min-width:801px) and (max-height:700px){:is(.auth-login,.auth-signup){padding-top:66px;padding-bottom:16px;gap:4vw}:is(.auth-login,.auth-signup) main{padding:18px 26px}:is(.auth-login,.auth-signup) h1{font-size:32px;margin-bottom:6px}:is(.auth-login,.auth-signup) .auth-intro{font-size:11px;margin-bottom:8px}:is(.auth-login,.auth-signup) .auth-subtitle{margin-bottom:8px}:is(.auth-login,.auth-signup) label{margin-top:7px}:is(.auth-login,.auth-signup) input{height:40px;padding:8px 12px}:is(.auth-login,.auth-signup) button[type=submit]{min-height:40px;margin-top:8px}:is(.auth-login,.auth-signup) .auth-divider{margin-top:10px}:is(.auth-login,.auth-signup) .button{margin:9px 0;padding:8px}:is(.auth-login,.auth-signup) .recovery{font-size:10px;margin-top:8px}:is(.auth-login,.auth-signup) .auth-story{margin-top:3vh}:is(.auth-login,.auth-signup) .auth-story h2{font-size:clamp(54px,7vw,86px)}}
-@media(min-width:801px) and (max-height:760px){.auth-signup{padding-top:62px;padding-bottom:14px}.auth-signup main{padding:16px 26px}.auth-signup h1{font-size:30px;margin-bottom:5px}.auth-signup .auth-subtitle{font-size:14px;margin-bottom:6px}.auth-signup .auth-intro{font-size:11px;margin-bottom:7px}.auth-signup label{margin-top:6px;margin-bottom:4px}.auth-signup input{height:38px;padding:7px 12px}.auth-signup small{font-size:10px;line-height:1.35;margin-top:3px}.auth-signup .toggle{font-size:11px;padding:2px 0;line-height:1.4}.auth-signup button[type=submit]{min-height:40px;margin-top:9px;padding:8px}.auth-signup form+p{font-size:13px;margin:10px 0}.auth-signup .recovery{margin-top:8px}}
-@supports not (backdrop-filter:blur(1px)){.auth-layout main{background:#eff0eaeb}}
-@media(max-width:800px){.auth-layout{grid-template-columns:1fr;padding:100px 20px 35px;gap:22px}.auth-brand{top:25px;left:24px}.auth-story{margin:0 auto;width:100%;max-width:510px}.auth-story h2{font-size:52px;margin:12px 0}.auth-story h2 br{display:none}.auth-story p:last-child{font-size:16px;margin:12px 0}.auth-layout main{margin:0 auto;padding:26px 24px;background:#eff0eabf;backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px)}.auth-layout h1{font-size:36px}}
-`;
-export const sceneMarkup=`<div id="svgSceneLayer" class="auth-scene" aria-hidden="true"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1280 800" preserveAspectRatio="xMidYMid slice"><defs>
-        <!-- Blur Filters for Depth of Field -->
-        <filter id="dof-far" x="-20%" y="-20%" width="140%" height="140%">
-          <feGaussianBlur stdDeviation="4.5" />
+export{sceneStyles}from'./auth-styles.mjs';
+export const sceneMarkup=`<canvas id="authScenery" class="auth-backdrop" aria-hidden="true"></canvas><div id="svgSceneLayer" class="auth-scene" aria-hidden="true"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1280 800" preserveAspectRatio="xMidYMid slice"><defs>
+        <!-- Depth of Field Blur Filters -->
+        <filter id="dof-far" x="-25%" y="-25%" width="150%" height="150%">
+          <feGaussianBlur stdDeviation="3.8" />
         </filter>
         <filter id="dof-mid" x="-20%" y="-20%" width="140%" height="140%">
-          <feGaussianBlur stdDeviation="2.2" />
+          <feGaussianBlur stdDeviation="1.8" />
         </filter>
         <filter id="dof-top-right" x="-20%" y="-20%" width="140%" height="140%">
-          <feGaussianBlur stdDeviation="1.4" />
+          <feGaussianBlur stdDeviation="1.1" />
         </filter>
         <filter id="dof-foreground" x="-25%" y="-25%" width="150%" height="150%">
-          <feGaussianBlur stdDeviation="6.5" />
+          <feGaussianBlur stdDeviation="5.5" />
         </filter>
-        <filter id="glow-gold" x="-50%" y="-50%" width="200%" height="200%">
-          <feGaussianBlur stdDeviation="3.5" result="blur" />
-          <feMerge>
-            <feMergeNode in="blur" />
-            <feMergeNode in="SourceGraphic" />
-          </feMerge>
-        </filter>
-        <filter id="seal-shadow" x="-30%" y="-30%" width="160%" height="160%">
-          <feDropShadow dx="2" dy="6" stdDeviation="5" flood-color="#221b12" flood-opacity="0.55" />
+        <filter id="seal-shadow" x="-35%" y="-35%" width="170%" height="170%">
+          <feDropShadow dx="2" dy="7" stdDeviation="5" flood-color="#3a2504" flood-opacity="0.45" />
         </filter>
 
-        <!-- Frosted Glass Gradients -->
+        <!-- Frosted Champagne Crystal Gradients -->
         <linearGradient id="glassBodyGrad" x1="0%" y1="0%" x2="100%" y2="100%">
-          <stop offset="0%" stop-color="#ffffff" stop-opacity="0.62" />
-          <stop offset="35%" stop-color="#f5eddc" stop-opacity="0.38" />
-          <stop offset="70%" stop-color="#e9ddc3" stop-opacity="0.28" />
-          <stop offset="100%" stop-color="#fff8e9" stop-opacity="0.52" />
+          <stop offset="0%" stop-color="#ffffff" stop-opacity="0.82" />
+          <stop offset="28%" stop-color="#fdf6e7" stop-opacity="0.62" />
+          <stop offset="65%" stop-color="#ecd8ad" stop-opacity="0.46" />
+          <stop offset="100%" stop-color="#fffdf8" stop-opacity="0.76" />
         </linearGradient>
 
         <linearGradient id="glassFlapTop" x1="0%" y1="0%" x2="50%" y2="100%">
-          <stop offset="0%" stop-color="#ffffff" stop-opacity="0.72" />
-          <stop offset="55%" stop-color="#f4ead8" stop-opacity="0.42" />
-          <stop offset="100%" stop-color="#e8d8b3" stop-opacity="0.22" />
+          <stop offset="0%" stop-color="#ffffff" stop-opacity="0.90" />
+          <stop offset="52%" stop-color="#faefd9" stop-opacity="0.62" />
+          <stop offset="100%" stop-color="#e5ca90" stop-opacity="0.42" />
         </linearGradient>
 
         <linearGradient id="glassFlapBottom" x1="50%" y1="0%" x2="50%" y2="100%">
-          <stop offset="0%" stop-color="#ffffff" stop-opacity="0.48" />
-          <stop offset="100%" stop-color="#e4d4b0" stop-opacity="0.32" />
+          <stop offset="0%" stop-color="#fffdf8" stop-opacity="0.74" />
+          <stop offset="100%" stop-color="#e6cc96" stop-opacity="0.48" />
         </linearGradient>
 
+        <!-- Luminous 24K Gold Seam & Rim Gradient -->
         <linearGradient id="goldEdgeGrad" x1="0%" y1="0%" x2="100%" y2="100%">
-          <stop offset="0%" stop-color="#fff3c4" stop-opacity="0.95" />
-          <stop offset="40%" stop-color="#d4b263" stop-opacity="0.85" />
-          <stop offset="75%" stop-color="#8d7232" stop-opacity="0.65" />
-          <stop offset="100%" stop-color="#f7e39c" stop-opacity="0.9" />
+          <stop offset="0%" stop-color="#fff9e2" stop-opacity="1" />
+          <stop offset="26%" stop-color="#f3cb62" stop-opacity="0.96" />
+          <stop offset="55%" stop-color="#b8821c" stop-opacity="0.90" />
+          <stop offset="80%" stop-color="#f8d878" stop-opacity="0.96" />
+          <stop offset="100%" stop-color="#fff6cc" stop-opacity="1" />
         </linearGradient>
 
-        <!-- Glass Ribbon Gradients -->
-        <linearGradient id="ribbonGlass1" x1="0%" y1="0%" x2="100%" y2="100%">
-          <stop offset="0%" stop-color="#ffffff" stop-opacity="0.55" />
-          <stop offset="30%" stop-color="#f4e8cd" stop-opacity="0.22" />
-          <stop offset="75%" stop-color="#c8b991" stop-opacity="0.15" />
-          <stop offset="100%" stop-color="#ffffff" stop-opacity="0.48" />
-        </linearGradient>
-
-        <linearGradient id="ribbonGlass2" x1="100%" y1="0%" x2="0%" y2="100%">
-          <stop offset="0%" stop-color="#ffffff" stop-opacity="0.6" />
-          <stop offset="50%" stop-color="#eee0c5" stop-opacity="0.18" />
-          <stop offset="100%" stop-color="#fff9ed" stop-opacity="0.46" />
-        </linearGradient>
-
-        <!-- Emerald Wax Seal Gradients -->
-        <radialGradient id="waxSealOuter" cx="35%" cy="30%" r="70%">
-          <stop offset="0%" stop-color="#ad9461" />
-          <stop offset="45%" stop-color="#483821" />
-          <stop offset="85%" stop-color="#2b2215" />
-          <stop offset="100%" stop-color="#887044" />
+        <!-- Burnished 24K Gold Wax Seal Gradients -->
+        <radialGradient id="waxSealOuter" cx="32%" cy="28%" r="72%">
+          <stop offset="0%" stop-color="#fff5bf" />
+          <stop offset="26%" stop-color="#f0c44e" />
+          <stop offset="60%" stop-color="#b87e17" />
+          <stop offset="86%" stop-color="#7c4f06" />
+          <stop offset="100%" stop-color="#d8a22b" />
         </radialGradient>
 
-        <radialGradient id="waxSealInner" cx="65%" cy="70%" r="65%">
-          <stop offset="0%" stop-color="#261e12" />
-          <stop offset="60%" stop-color="#3b2e1c" />
-          <stop offset="100%" stop-color="#9d8453" />
+        <radialGradient id="waxSealInner" cx="62%" cy="68%" r="68%">
+          <stop offset="0%" stop-color="#8b5908" />
+          <stop offset="45%" stop-color="#c68d1f" />
+          <stop offset="82%" stop-color="#ebbf4b" />
+          <stop offset="100%" stop-color="#fff1b0" />
         </radialGradient>
 
-        <!-- Reusable Wax Seal Component -->
-        <g id="veilWaxSeal">
-          <!-- Outer wax rim with gold highlight -->
-          <circle cx="0" cy="0" r="34" fill="url(#waxSealOuter)" stroke="url(#goldEdgeGrad)" stroke-width="1.6" filter="url(#seal-shadow)" />
-          <!-- Organic wax ring ridge -->
-          <circle cx="0" cy="0" r="29.5" fill="none" stroke="#6d5d30" stroke-width="0.9" stroke-opacity="0.7" />
-          <circle cx="0" cy="0" r="26.5" fill="url(#waxSealInner)" stroke="url(#goldEdgeGrad)" stroke-width="1.1" />
-          <!-- Specular wax sheen -->
-          <path d="M -20 -16 A 26 26 0 0 1 18 -18" fill="none" stroke="rgba(255,255,255,0.28)" stroke-width="2" stroke-linecap="round" />
-          <path d="M -18 19 A 26 26 0 0 0 21 14" fill="none" stroke="rgba(255,230,155,0.25)" stroke-width="1.5" stroke-linecap="round" />
+        <!-- ===============================================================
+             SEAL 1: 24K GOLD 'V' (VEIL) WAX SEAL
+             =============================================================== -->
+        <g id="veilSealV">
+          <circle cx="0" cy="0" r="37" fill="url(#waxSealOuter)" stroke="url(#goldEdgeGrad)" stroke-width="1.8" filter="url(#seal-shadow)" />
+          <circle cx="0" cy="0" r="31" fill="none" stroke="#6b4204" stroke-width="1.3" stroke-opacity="0.72" />
+          <circle cx="0" cy="0" r="28" fill="url(#waxSealInner)" stroke="url(#goldEdgeGrad)" stroke-width="1.4" />
+          <!-- Specular metallic sheen arcs -->
+          <path d="M -22 -17 A 27 27 0 0 1 20 -19" fill="none" stroke="rgba(255,252,232,0.72)" stroke-width="2.2" stroke-linecap="round" />
+          <path d="M -19 20 A 27 27 0 0 0 22 15" fill="none" stroke="rgba(255,236,165,0.48)" stroke-width="1.6" stroke-linecap="round" />
           <!-- Embossed Golden Serif 'V' -->
           <g transform="translate(0, 2)">
-            <!-- Serif tops -->
-            <line x1="-13.5" y1="-13" x2="-6.5" y2="-13" stroke="url(#goldEdgeGrad)" stroke-width="1.8" stroke-linecap="round" />
-            <line x1="6.5" y1="-13" x2="13.5" y2="-13" stroke="url(#goldEdgeGrad)" stroke-width="1.8" stroke-linecap="round" />
-            <!-- Left thick stroke of V -->
-            <path d="M -10.5 -13 L -0.5 12 L 1.2 12 L -8.2 -13 Z" fill="url(#goldEdgeGrad)" />
-            <!-- Right thin stroke of V -->
-            <line x1="10.2" y1="-13" x2="0.4" y2="12" stroke="url(#goldEdgeGrad)" stroke-width="1.7" stroke-linecap="round" />
+            <line x1="-14" y1="-13.5" x2="-6.5" y2="-13.5" stroke="#fff7d1" stroke-width="2.2" stroke-linecap="round" />
+            <line x1="6.5" y1="-13.5" x2="14" y2="-13.5" stroke="#fff7d1" stroke-width="2.2" stroke-linecap="round" />
+            <path d="M -11.2 -13.5 L -0.5 13 L 1.6 13 L -8.2 -13.5 Z" fill="#fff7d1" stroke="#7c4f06" stroke-width="0.5" />
+            <line x1="10.6" y1="-13.5" x2="0.6" y2="13" stroke="#fff7d1" stroke-width="2.1" stroke-linecap="round" />
           </g>
         </g>
 
-        <!-- Reusable Glass Envelope FRONT Template (320 x 210 centered at 0,0) -->
-        <g id="glassEnvelopeFront">
-          <!-- Back shadow & glow -->
-          <rect x="-160" y="-105" width="320" height="210" rx="10" fill="rgba(18, 32, 22, 0.18)" transform="translate(4, 10)" />
-          <!-- Main translucent body -->
-          <rect x="-160" y="-105" width="320" height="210" rx="9" fill="url(#glassBodyGrad)" stroke="rgba(255,255,255,0.78)" stroke-width="2" />
-          <!-- Inner subtle glass bevel -->
-          <rect x="-155" y="-100" width="310" height="200" rx="6" fill="none" stroke="url(#goldEdgeGrad)" stroke-width="0.9" stroke-opacity="0.65" />
-          <!-- Left & Right side folds -->
-          <path d="M -158 -102 L 0 8 L -158 102 Z" fill="rgba(255,255,255,0.16)" stroke="url(#goldEdgeGrad)" stroke-width="1.1" />
-          <path d="M 158 -102 L 0 8 L 158 102 Z" fill="rgba(210,218,205,0.18)" stroke="url(#goldEdgeGrad)" stroke-width="1.1" />
+        <!-- ===============================================================
+             SEAL 2: 24K GOLD 'Z' (ZCASH 'Ƶ') WAX SEAL
+             =============================================================== -->
+        <g id="veilSealZ">
+          <circle cx="0" cy="0" r="37" fill="url(#waxSealOuter)" stroke="url(#goldEdgeGrad)" stroke-width="1.8" filter="url(#seal-shadow)" />
+          <circle cx="0" cy="0" r="31" fill="none" stroke="#6b4204" stroke-width="1.3" stroke-opacity="0.75" />
+          <circle cx="0" cy="0" r="28" fill="url(#waxSealInner)" stroke="url(#goldEdgeGrad)" stroke-width="1.4" />
+          <!-- Specular metallic sheen arcs -->
+          <path d="M -22 -17 A 27 27 0 0 1 20 -19" fill="none" stroke="rgba(255,252,232,0.75)" stroke-width="2.2" stroke-linecap="round" />
+          <path d="M -19 20 A 27 27 0 0 0 22 15" fill="none" stroke="rgba(255,236,165,0.5)" stroke-width="1.6" stroke-linecap="round" />
+          <!-- Embossed Zcash 'Z' with vertical currency bar -->
+          <g transform="translate(0, 0)">
+            <!-- Shadow for 3D relief -->
+            <g transform="translate(0.8, 1.2)" opacity="0.55">
+              <line x1="0" y1="-17.5" x2="0" y2="17.5" stroke="#4f3002" stroke-width="3.4" stroke-linecap="round" />
+              <path d="M -11 -11.5 L 11 -11.5 L -11 11.5 L 11 11.5" fill="none" stroke="#4f3002" stroke-width="3.6" stroke-linecap="round" stroke-linejoin="round" />
+            </g>
+            <!-- Vertical strike-through bar (top & bottom caps) -->
+            <line x1="0" y1="-17.5" x2="0" y2="-11.5" stroke="#fff6cc" stroke-width="3.2" stroke-linecap="round" />
+            <line x1="0" y1="11.5" x2="0" y2="17.5" stroke="#fff6cc" stroke-width="3.2" stroke-linecap="round" />
+            <line x1="0" y1="-4.5" x2="0" y2="4.5" stroke="#f5d169" stroke-width="2.6" stroke-linecap="round" />
+            <!-- Bold Embossed Z -->
+            <path d="M -11 -11.5 L 11 -11.5 L -11 11.5 L 11 11.5" fill="none" stroke="#fff7d4" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round" />
+            <!-- Inner bevel highlight -->
+            <path d="M -10 -11.5 L 10 -11.5 L -10 11.5 L 10 11.5" fill="none" stroke="#c88d19" stroke-width="1.0" stroke-linecap="round" stroke-linejoin="round" />
+          </g>
+        </g>
+
+        <!-- ===============================================================
+             BASE ENVELOPE FRONT GEOMETRY (Without Seal, so V or Z attaches)
+             =============================================================== -->
+        <g id="envelopeBodyFront">
+          <!-- Soft warm ambient drop shadow -->
+          <rect x="-160" y="-105" width="320" height="210" rx="12" fill="rgba(82, 54, 12, 0.15)" transform="translate(3, 12)" />
+          <!-- Main frosted champagne crystal body -->
+          <rect x="-160" y="-105" width="320" height="210" rx="11" fill="url(#glassBodyGrad)" stroke="url(#goldEdgeGrad)" stroke-width="2.6" />
+          <!-- Subtle inner crystalline rim highlight -->
+          <rect x="-153" y="-98" width="306" height="196" rx="8" fill="none" stroke="#ffffff" stroke-width="1.2" stroke-opacity="0.82" />
+          <!-- Left & Right crystal folds -->
+          <path d="M -157 -101 L 0 8 L -157 101 Z" fill="rgba(255,253,245,0.28)" stroke="url(#goldEdgeGrad)" stroke-width="1.5" />
+          <path d="M 157 -101 L 0 8 L 157 101 Z" fill="rgba(242,222,178,0.25)" stroke="url(#goldEdgeGrad)" stroke-width="1.5" />
           <!-- Bottom Flap -->
-          <path d="M -158 103 L -12 -8 Q 0 -17 12 -8 L 158 103 Z" fill="url(#glassFlapBottom)" stroke="url(#goldEdgeGrad)" stroke-width="1.4" />
+          <path d="M -157 102 L -12 -8 Q 0 -17 12 -8 L 157 102 Z" fill="url(#glassFlapBottom)" stroke="url(#goldEdgeGrad)" stroke-width="1.9" />
           <!-- Top Sealing Flap -->
-          <path d="M -158 -103 L -10 12 Q 0 21 10 12 L 158 -103 Z" fill="url(#glassFlapTop)" stroke="url(#goldEdgeGrad)" stroke-width="1.6" />
+          <path d="M -157 -102 L -10 12 Q 0 21 10 12 L 157 -102 Z" fill="url(#glassFlapTop)" stroke="url(#goldEdgeGrad)" stroke-width="2.2" />
           <!-- Specular crystalline edge streaks -->
-          <line x1="-145" y1="-103" x2="120" y2="-103" stroke="#ffffff" stroke-width="2.4" stroke-opacity="0.85" stroke-linecap="round" />
-          <line x1="-159" y1="-90" x2="-159" y2="85" stroke="#ffffff" stroke-width="2" stroke-opacity="0.7" stroke-linecap="round" />
-          <!-- Central Wax Seal -->
-          <use href="#veilWaxSeal" x="0" y="2" />
+          <line x1="-145" y1="-103" x2="125" y2="-103" stroke="#ffffff" stroke-width="2.8" stroke-opacity="0.94" stroke-linecap="round" />
+          <line x1="-159" y1="-88" x2="-159" y2="85" stroke="#fff9e2" stroke-width="2.4" stroke-opacity="0.88" stroke-linecap="round" />
         </g>
 
-        <!-- Reusable Glass Envelope BACK Template (Revealed when flipped 180 deg) -->
-        <g id="glassEnvelopeBack">
-          <!-- Back shadow & glow -->
-          <rect x="-160" y="-105" width="320" height="210" rx="10" fill="rgba(18, 32, 22, 0.22)" transform="translate(-4, 10)" />
-          <!-- Frosted glass rear body -->
-          <rect x="-160" y="-105" width="320" height="210" rx="9" fill="url(#glassBodyGrad)" stroke="rgba(255,255,255,0.82)" stroke-width="2" />
-          <!-- Inner golden cryptographic frame -->
-          <rect x="-148" y="-93" width="296" height="186" rx="5" fill="rgba(244, 246, 240, 0.22)" stroke="url(#goldEdgeGrad)" stroke-width="1.1" stroke-opacity="0.8" />
-          <rect x="-140" y="-85" width="280" height="170" rx="3" fill="none" stroke="rgba(255,255,255,0.45)" stroke-width="0.8" stroke-dasharray="6 4" />
-
-          <!-- Faint refracted X-seams visible through the frosted glass from the front -->
-          <line x1="-148" y1="-93" x2="148" y2="93" stroke="url(#goldEdgeGrad)" stroke-width="0.7" stroke-opacity="0.35" />
-          <line x1="148" y1="-93" x2="-148" y2="93" stroke="url(#goldEdgeGrad)" stroke-width="0.7" stroke-opacity="0.35" />
-
-          <!-- Sealed Bid Document Card visible inside the translucent envelope -->
-          <rect x="-112" y="-64" width="224" height="128" rx="4" fill="rgba(255, 255, 252, 0.34)" stroke="url(#goldEdgeGrad)" stroke-width="0.9" />
-
-          <!-- Sacred Geometry / Zero-Knowledge Proof Rings on the back -->
-          <circle cx="0" cy="0" r="46" fill="none" stroke="url(#goldEdgeGrad)" stroke-width="1.1" stroke-opacity="0.85" />
-          <circle cx="0" cy="0" r="38" fill="none" stroke="url(#goldEdgeGrad)" stroke-width="0.8" stroke-dasharray="3 3" stroke-opacity="0.75" />
-          <polygon points="0,-44 38,22 -38,22" fill="none" stroke="url(#goldEdgeGrad)" stroke-width="0.8" stroke-opacity="0.55" />
-          <polygon points="0,44 38,-22 -38,-22" fill="none" stroke="url(#goldEdgeGrad)" stroke-width="0.8" stroke-opacity="0.55" />
-
-          <!-- Horizontal golden cipher inscription lines -->
-          <line x1="-92" y1="-42" x2="-48" y2="-42" stroke="url(#goldEdgeGrad)" stroke-width="1.5" stroke-linecap="round" />
-          <line x1="-92" y1="-32" x2="-62" y2="-32" stroke="url(#goldEdgeGrad)" stroke-width="1" stroke-opacity="0.7" stroke-linecap="round" />
-          <line x1="48" y1="-42" x2="92" y2="-42" stroke="url(#goldEdgeGrad)" stroke-width="1.5" stroke-linecap="round" />
-          <line x1="62" y1="-32" x2="92" y2="-32" stroke="url(#goldEdgeGrad)" stroke-width="1" stroke-opacity="0.7" stroke-linecap="round" />
-
-          <line x1="-88" y1="42" x2="88" y2="42" stroke="url(#goldEdgeGrad)" stroke-width="1.1" stroke-opacity="0.75" stroke-linecap="round" />
-          <line x1="-55" y1="50" x2="55" y2="50" stroke="url(#goldEdgeGrad)" stroke-width="0.9" stroke-opacity="0.55" stroke-linecap="round" />
-
-          <!-- Glowing constellation nodes at corners of inner cipher card -->
-          <circle cx="-112" cy="-64" r="2.5" fill="#fff6cc" />
-          <circle cx="112" cy="-64" r="2.5" fill="#fff6cc" />
-          <circle cx="-112" cy="64" r="2.5" fill="#fff6cc" />
-          <circle cx="112" cy="64" r="2.5" fill="#fff6cc" />
-
-          <!-- Rear Emerald Wax Seal Medallion with Sealed Keyhole/Crest -->
-          <circle cx="0" cy="0" r="24" fill="url(#waxSealInner)" stroke="url(#goldEdgeGrad)" stroke-width="1.5" filter="url(#seal-shadow)" />
-          <circle cx="0" cy="0" r="18" fill="none" stroke="url(#goldEdgeGrad)" stroke-width="0.8" stroke-opacity="0.7" />
-          <!-- Diamond & ZK Key emblem on the back of the seal -->
-          <polygon points="0,-11 9,0 0,11 -9,0" fill="none" stroke="url(#goldEdgeGrad)" stroke-width="1.4" />
-          <circle cx="0" cy="0" r="3" fill="#f7e39c" />
-
-          <!-- Specular crystalline edge streaks -->
-          <line x1="-135" y1="-103" x2="140" y2="-103" stroke="#ffffff" stroke-width="2.4" stroke-opacity="0.85" stroke-linecap="round" />
-          <line x1="159" y1="-85" x2="159" y2="85" stroke="#ffffff" stroke-width="2" stroke-opacity="0.7" stroke-linecap="round" />
+        <!-- ===============================================================
+             BASE ENVELOPE BACK GEOMETRY (Zero-Knowledge Proof Cipher Card)
+             =============================================================== -->
+        <g id="envelopeBodyBack">
+          <rect x="-160" y="-105" width="320" height="210" rx="12" fill="rgba(82, 54, 12, 0.18)" transform="translate(-3, 12)" />
+          <rect x="-160" y="-105" width="320" height="210" rx="11" fill="url(#glassBodyGrad)" stroke="url(#goldEdgeGrad)" stroke-width="2.6" />
+          <rect x="-148" y="-93" width="296" height="186" rx="6" fill="rgba(255, 251, 240, 0.34)" stroke="url(#goldEdgeGrad)" stroke-width="1.3" stroke-opacity="0.9" />
+          <rect x="-140" y="-85" width="280" height="170" rx="4" fill="none" stroke="rgba(255,255,255,0.72)" stroke-width="1" stroke-dasharray="6 4" />
+          <!-- Refracted X-seams visible through the frosted crystal -->
+          <line x1="-148" y1="-93" x2="148" y2="93" stroke="url(#goldEdgeGrad)" stroke-width="0.9" stroke-opacity="0.4" />
+          <line x1="148" y1="-93" x2="-148" y2="93" stroke="url(#goldEdgeGrad)" stroke-width="0.9" stroke-opacity="0.4" />
+          <!-- Sealed Bid Document Card inside -->
+          <rect x="-112" y="-64" width="224" height="128" rx="4" fill="rgba(255, 253, 247, 0.52)" stroke="url(#goldEdgeGrad)" stroke-width="1.2" />
+          <!-- Zero-Knowledge Proof Sacred Geometry Rings -->
+          <circle cx="0" cy="0" r="48" fill="none" stroke="url(#goldEdgeGrad)" stroke-width="1.4" stroke-opacity="0.9" />
+          <circle cx="0" cy="0" r="40" fill="none" stroke="url(#goldEdgeGrad)" stroke-width="1.0" stroke-dasharray="3 3" stroke-opacity="0.8" />
+          <!-- Cipher inscription lines -->
+          <line x1="-94" y1="-42" x2="-52" y2="-42" stroke="url(#goldEdgeGrad)" stroke-width="1.8" stroke-linecap="round" />
+          <line x1="-94" y1="-32" x2="-64" y2="-32" stroke="url(#goldEdgeGrad)" stroke-width="1.2" stroke-opacity="0.75" stroke-linecap="round" />
+          <line x1="52" y1="-42" x2="94" y2="-42" stroke="url(#goldEdgeGrad)" stroke-width="1.8" stroke-linecap="round" />
+          <line x1="64" y1="-32" x2="94" y2="-32" stroke="url(#goldEdgeGrad)" stroke-width="1.2" stroke-opacity="0.75" stroke-linecap="round" />
+          <line x1="-88" y1="46" x2="88" y2="46" stroke="url(#goldEdgeGrad)" stroke-width="1.3" stroke-opacity="0.8" stroke-linecap="round" />
         </g>
 
-        <!-- Legacy alias so any static reference still works -->
-        <g id="glassEnvelope">
-          <use href="#glassEnvelopeFront" />
+        <!-- ===============================================================
+             COMPLETE 3D ENVELOPE VARIANTS WITH 'V' AND 'Z' SEALS
+             =============================================================== -->
+        <g id="glassEnvelopeFrontZ">
+          <use href="#envelopeBodyFront" />
+          <use href="#veilSealZ" x="0" y="2" />
+        </g>
+        <g id="glassEnvelopeFrontV">
+          <use href="#envelopeBodyFront" />
+          <use href="#veilSealV" x="0" y="2" />
+        </g>
+        <g id="glassEnvelopeBackV">
+          <use href="#envelopeBodyBack" />
+          <g transform="scale(0.96)">
+            <use href="#veilSealV" x="0" y="0" />
+          </g>
+        </g>
+        <g id="glassEnvelopeBackZ">
+          <use href="#envelopeBodyBack" />
+          <g transform="scale(0.96)">
+            <use href="#veilSealZ" x="0" y="0" />
+          </g>
         </g>
       </defs><g id="interactiveEnvelopesLayer"></g></svg></div><a class="auth-brand" href="/">VEIL<span class="testnet">TESTNET</span></a><aside class="auth-story"><p class="eyebrow">Private auctions</p><h2>Your bid.<br> Your secret.</h2><p>Sealed until the moment that matters.</p></aside>`;
-export const sceneScript=`
+export const sceneScript=`(${paintAuthBackdrop.toString()})(document.getElementById('authScenery'));
 (()=>{
  const svg=document.querySelector('#svgSceneLayer svg');if(!svg)return;
  const layer=svg.querySelector('#interactiveEnvelopesLayer'),NS='http://www.w3.org/2000/svg';
@@ -315,7 +303,7 @@ export const sceneScript=`
  const instances=configs.map((cfg,i)=>{
   const outer=document.createElementNS(NS,'g'),flip=document.createElementNS(NS,'g'),front=document.createElementNS(NS,'use'),back=document.createElementNS(NS,'use');
   outer.classList.add('scene-envelope');outer.dataset.envelope=cfg.id;outer.setAttribute('opacity',cfg.opacity);if(cfg.filter)outer.setAttribute('filter',cfg.filter);
-  front.setAttribute('href','#glassEnvelopeFront');back.setAttribute('href','#glassEnvelopeBack');back.setAttribute('transform','scale(-1 1)');back.style.display='none';flip.append(front,back);outer.append(flip);layer.append(outer);
+  front.setAttribute('href','#glassEnvelopeFront'+(i%2?'Z':'V'));back.setAttribute('href','#glassEnvelopeBack'+(i%2?'V':'Z'));back.setAttribute('transform','scale(-1 1)');back.style.display='none';flip.append(front,back);outer.append(flip);layer.append(outer);
   return {cfg,outer,flip,front,back,x:cfg.baseX,y:cfg.baseY,angle:0,index:i};
  });
  function draw(dt){

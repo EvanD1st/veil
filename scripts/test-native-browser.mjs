@@ -26,7 +26,7 @@ try{
  browser=await chromium.launch({headless:true});
  async function login(username){
   const registering=username!=='observer',context=await browser.newContext({baseURL:origin,acceptDownloads:true,...(username==='bidder'?{viewport:{width:390,height:844}}:{})}),page=await context.newPage();
-  await page.goto('/');expect(new URL(page.url()).pathname).toBe('/login');
+  await page.goto('/');expect(new URL(page.url()).pathname).toBe('/login');await page.evaluate(()=>document.fonts.ready);expect((await page.request.get('/fonts/inter-regular.ttf')).status()).toBe(200);expect(await page.evaluate(()=>document.fonts.check('14px Inter')&&document.fonts.check('32px "Playfair Display"'))).toBe(true);
   if(username==='seller')await page.screenshot({path:'auth-login-desktop.png'});
   if(registering){await page.getByRole('link',{name:'Create account',exact:true}).click();if(username==='bidder'){await page.screenshot({path:'auth-signup-mobile.png'});expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);}}
   await page.getByLabel('Username',{exact:true}).fill(username);await page.getByLabel('Password',{exact:true}).fill('ci-only-live-browser-password-'+username);
@@ -36,8 +36,8 @@ try{
  }
  const seller=await login('seller'),bidder=await login('bidder'),loser=await login('loser'),observer=await login('observer');
  const accounts=openDatabase(path),sellerId=accounts.prepare('SELECT id FROM veil_accounts WHERE username=?').get('seller').id;accounts.close();await writeFile(sellers,JSON.stringify({[sellerId]:receiver}),{mode:0o600});
- await seller.page.screenshot({path:'digital-explore-desktop.png'});
- expect(await seller.page.locator('.gold-envelope img').first().evaluate(e=>getComputedStyle(e).animationName)).toContain('gold-float');await seller.page.emulateMedia({reducedMotion:'reduce'});expect(await seller.page.locator('.gold-envelope img').first().evaluate(e=>getComputedStyle(e).animationName)).toBe('none');await seller.page.emulateMedia({reducedMotion:'no-preference'});
+ await seller.page.evaluate(()=>document.fonts.ready);await seller.page.screenshot({path:'digital-explore-desktop.png'});expect(await seller.page.getByRole('heading',{name:'A little mystery. A fair result.'}).count()).toBe(1);expect(await seller.page.locator('.reference-artwork').count()).toBe(3);
+ expect(await seller.page.locator('.reference-flight').first().evaluate(e=>getComputedStyle(e).animationName)).toContain('reference-float');await seller.page.emulateMedia({reducedMotion:'reduce'});expect(await seller.page.locator('.reference-flight').first().evaluate(e=>getComputedStyle(e).animationName)).toBe('none');await seller.page.emulateMedia({reducedMotion:'no-preference'});
  expect((await seller.page.request.get('/admin/accounts')).status()).toBe(403);expect((await bidder.page.request.get('/admin/accounts')).status()).toBe(403);
  await observer.page.goto('/admin/accounts');await expect(observer.page.getByRole('heading',{name:'Accounts',exact:true})).toBeVisible();await expect(observer.page.getByRole('cell',{name:'seller',exact:true})).toBeVisible();await expect(observer.page.getByRole('cell',{name:'bidder',exact:true})).toBeVisible();await observer.page.goto('/');
  expect((await browser.newContext().then(async c=>{const r=await c.request.get(origin+'/api/auctions',{headers:{'oai-authenticated-user-id':'forged','oai-authenticated-user-email':'forged@invalid.example'}});await c.close();return r.status();}))).toBe(401);
