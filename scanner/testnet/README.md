@@ -140,3 +140,12 @@ Back up a wallet with `zallet -d "$VEIL_LAB_ROOT/receiver" backup NEW_PRIVATE_BA
 | Disk full / RocksDB error | Cleanly stop services and expand native Linux storage; preserve wallet identity/backups and state. |
 
 Actual authenticated discovery, startup wallet status, account/address derivation and node status were captured privately on AWS. These establish partial RPC compatibility, not synchronized readiness or shielded-output/payment evidence. Source-derived synthetic test cases remain labeled as such; no sensitive actual captures are published.
+
+
+## Bounded recovery batches on constrained hosts
+
+The pinned experimental Zallet supports `[sync] recover_batch_size = 100`. Fresh-lab templates select this instead of its 1,000-block default because whole recovery batches are held in memory. It changes scheduling, not scan coverage, consensus or strict readiness. Do not override `lock_threshold` to make a partial wallet appear ready.
+
+For an existing wallet, stop only the affected optional sender, take an integrity-checked private backup, review its existing configuration and add the supported sync setting once. Preserve state, birthday and account identity; never rerun the initializer over it. Start it with existing resource caps and observe actual scan advancement, cgroup OOM/reclaim counters and reserve for the working node/receiver/scanner. A smaller batch is not proof that every host can run two wallets. Record a clean restart and soak; pause the sender if capacity or existing-service readiness degrades. See [the actual host trial and outstanding limits](../../docs/PAYMENT_VALIDATION_2026-10-25.md).
+
+The longer 25 October sender trial did OOM repeatedly. Subsequent diagnostics must use a bounded one-shot profile such as [sender-validation.conf](systemd/sender-validation.conf): no automatic restart, a finite runtime and no boot activation. Review headroom first, then read back actual `MemoryHigh`, `MemoryMax`, `MemorySwapMax`, CPU, restart and runtime properties after reload and after stop/start. Inspect `DropInPaths`: a later `resources.conf` can override persisted `50-*.conf` property files, even when a live `systemctl set-property` temporarily applied new values. Back up and reconcile the affected sender's settings; do not change receiver/template limits. The 26 October trial reached strict synchronization and a funded read-only balance and recovered readiness after a clean restart; this is not outgoing-payment or sustained-capacity evidence.

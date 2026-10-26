@@ -1,6 +1,6 @@
 # VEIL testnet payment scanner
 
-Read-only Node 24 bridge for a local Zallet receiving/viewing wallet and Zebra Testnet node. The [pinned Linux setup](testnet/README.md) records exact versions, source compatibility and the **unmerged NU7/audit blocker**. The [live runbook](../docs/LIVE_TESTNET.md) covers release, sending and evidence. No live wallet/node responses or transfer have been validated here.
+Read-only Node 24 bridge for a local Zallet receiving/viewing wallet and Zebra Testnet node. The [pinned Linux setup](testnet/README.md) records exact versions, source compatibility and the **unmerged NU7/audit blocker**. The [live runbook](../docs/LIVE_TESTNET.md) covers release, sending and evidence. One actual faucet-funded incoming invoice payment passed the installed scanner, signed delivery and recovery checks on 25 October 2026; see [execution evidence and remaining gates](../docs/PAYMENT_VALIDATION_2026-10-25.md). This does not validate our separate sender, escrow spending or upstream audit acceptance.
 
 ## Configuration
 
