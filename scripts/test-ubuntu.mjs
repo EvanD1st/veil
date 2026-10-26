@@ -1,10 +1,15 @@
 import assert from 'node:assert/strict';
 import{loopbackFetch as fetch}from'../tests/loopback-http.mjs';
-import {mkdtemp,readFile,writeFile} from 'node:fs/promises';import{tmpdir}from'node:os';import{resolve,join}from'node:path';import{spawn}from'node:child_process';import{createServer}from'node:net';
+import {mkdtemp,readFile,writeFile,cp} from 'node:fs/promises';import{tmpdir}from'node:os';import{resolve,join,relative,isAbsolute}from'node:path';import{spawn}from'node:child_process';import{createServer}from'node:net';
 import{pathToFileURL}from'node:url';import{createRequire}from'node:module';import{checkDeployedAssets}from'./check-deployed-assets.mjs';
-const root=resolve(process.env.VEIL_ARTIFACT_ROOT??'dist/standalone');
+// Copy the complete artifact outside the repository: Node must not resolve a
+// missing packaged dependency from the CI checkout's ancestor node_modules.
+const temp=await mkdtemp(join(tmpdir(),'veil-ubuntu-smoke-')),source=resolve(process.env.VEIL_ARTIFACT_ROOT??'dist/standalone'),root=join(temp,'app');
+await cp(source,root,{recursive:true});
 const {initializeDatabase,openDatabase}=await import(pathToFileURL(join(root,'runtime/database.mjs'))),{createAccount}=await import(pathToFileURL(join(root,'runtime/accounts.mjs'))),artifactRequire=createRequire(join(root,'package.json'));
-const temp=await mkdtemp(join(tmpdir(),'veil-ubuntu-smoke-')),database=join(temp,'veil.sqlite');
+const decoderPath=relative(root,artifactRequire.resolve('sharp'));assert.ok(!isAbsolute(decoderPath)&&decoderPath!=='..'&&!decoderPath.startsWith('..'+(process.platform==='win32'?'\\':'/')),'Decoder must resolve inside the artifact.');
+assert.equal(artifactRequire('sharp').versions.sharp,'0.35.4');
+const database=join(temp,'veil.sqlite');
 initializeDatabase(database,join(root,'drizzle'));const db=openDatabase(database);
 await createAccount(db,'seller','ci-only-password-seller','native-seller');await createAccount(db,'bidder','ci-only-password-bidder','native-bidder');db.close();
 const receiver=JSON.parse(await readFile(process.env.VEIL_TEST_RECEIVER_FILE??'tests/fixtures/synthetic-receiver.json','utf8')).address,sellers=join(temp,'sellers.json');await writeFile(sellers,JSON.stringify({'native-seller':receiver}),{mode:0o600});

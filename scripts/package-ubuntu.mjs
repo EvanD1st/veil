@@ -2,7 +2,9 @@
 import {cp,mkdir,readFile,writeFile} from 'node:fs/promises';
 import {createHash} from 'node:crypto';
 import {execFileSync} from 'node:child_process';
+import {packageNativeImages} from './package-native-images.mjs';
 const root='dist/standalone';
+await packageNativeImages(root);
 await cp('runtime',root+'/runtime',{recursive:true});await cp('drizzle',root+'/drizzle',{recursive:true});
 await mkdir(root+'/scanner',{recursive:true});await cp('scanner/invoice.mjs',root+'/scanner/invoice.mjs');
 await cp('lib/veil/zk/assets.json',root+'/proof-assets.json');
