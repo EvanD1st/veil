@@ -22,7 +22,13 @@ async function create(page:Page,reserve='1.20',paymentAddress?:string){
  await page.getByLabel('Lot title').fill(title);await page.getByLabel('Public seller name').fill('Test studio');
  await page.getByLabel('The story').fill('Fictional lot for deterministic browser testing.');
  await page.getByLabel('Reserve · test ZEC').fill(reserve);await page.getByLabel('Closes in').selectOption('2');
- if(paymentAddress)await page.getByLabel(/Sapling testnet address/).fill(paymentAddress);
+ // Receiver is assigned by the explicit fixture seller configuration, never a browser override.
+ const fixture={name:'synthetic.png',mimeType:'image/png',buffer:Buffer.from('fixture bytes; native file validation is covered separately')};
+ await expect(page.getByLabel(/Sapling testnet address/)).toHaveValue(receiver);
+ await page.getByLabel(/Public preview/).setInputFiles(fixture);await expect(page.getByText('Sanitized preview ready.',{exact:true})).toBeVisible();
+ await page.getByLabel(/Protected deliverable/).setInputFiles(fixture);await expect(page.getByText('Protected deliverable validated.',{exact:true})).toBeVisible();
+ await page.getByLabel('License / usage terms').fill('Synthetic fixture: personal testing only, no goods exchanged.');
+ await page.getByLabel('Provenance (seller-declared)').fill('Synthetic fixture by the test suite; no actual goods.');
  await page.getByRole('checkbox').check();
  const download=page.waitForEvent('download');const created=page.waitForResponse(r=>r.url().endsWith('/api/auctions')&&r.request().method()==='POST');
  await page.getByRole('button',{name:'Open the auction'}).click();

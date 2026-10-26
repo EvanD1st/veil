@@ -1,5 +1,7 @@
 # Deployment targets
 
+**Digital-goods candidate:** use [the new release/migration/private-storage plan](DIGITAL_RELEASE.md) and [paired file/database recovery](DIGITAL_GOODS.md). Migration 0006 is not applied on production. Default new publishing is paused; no original files belong in releases. No merge/deployment is authorized by the implementation request. The current public username/password signup and Ubuntu release are described in the dated record below; older Sites/audience/account statements are historical.
+
 Current Ubuntu release (26 October 2026): the operator approved and deployed PR #16's tested merge-tree artifact `577c90dfe566de35aaff7a8d8e4ab99da3233123`; archive SHA-256 `ddfcce428e7d420f91deb438aeed3c9a56be7425a2343624a69c2f8b55bd4f8f`. [CI 40277354217](https://github.com/EvanD1st/veil/actions/runs/40277354217), isolated artifact smoke testing and post-release public HTTPS authentication/assets checks passed. No migration; all accounts, auctions, bids and reports were preserved. Only VEIL restarted. Fresh backup/integrity, compatible code rollback and remaining experimental/payment/device limits are recorded in [the dated execution record](PAYMENT_VALIDATION_2026-10-25.md). PR #16 remains unmerged. Deployment descriptions below are historical.
 
 Pending native public-signup release: [accounts and rollback](ACCOUNTS.md) describes the no-migration upgrade, optional private `VEIL_ADMIN_ACCOUNT_IDS` allowlist and code/config rollback that retains newly created records. No deployment or merge is performed by that implementation task.

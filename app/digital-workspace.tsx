@@ -1,0 +1,64 @@
+'use client';
+import {useEffect,useRef,useState} from 'react';
+type Config={available:boolean;eligible:boolean;address:string|null;explanation:string;limits:{file:number;preview:number;account:number;total:number;reserve:number};fixture?:boolean};
+export type DigitalDraft={previewId:string;fileId:string;license:string;edition:string;provenance:string};
+export const fileSize=(n:number)=>n>=1048576?`${(n/1048576).toFixed(1)} MiB`:`${Math.ceil(n/1024)} KiB`;
+async function read<T>(path:string):Promise<T>{const r=await fetch(path,{cache:'no-store',signal:AbortSignal.timeout(15000)});const b:unknown=await r.json();if(!r.ok)throw Error(b&&typeof b==='object'&&'error'in b&&typeof b.error==='string'?b.error:'Digital delivery is unavailable.');return b as T;}
+export function DigitalFields({value,onChange,onEligibility}:{value:DigitalDraft;onChange:(v:DigitalDraft)=>void;onEligibility:(c:Config)=>void}){
+ const [config,setConfig]=useState<Config|null>(null),[progress,setProgress]=useState<number|null>(null),[message,setMessage]=useState(''),[error,setError]=useState(''),[uploaded,setUploaded]=useState<Record<string,{format:string;bytes:number}>>({});const current=useRef<XMLHttpRequest|null>(null),latest=useRef(value);latest.current=value;
+ useEffect(()=>{let live=true;read<Config>('/api/digital/config').then(c=>{if(live){setConfig(c);onEligibility(c);}}).catch(()=>{if(live)setError('Digital publishing is unavailable on this hosting target. Existing auctions remain available.');});return()=>{live=false;current.current?.abort();};},[]);
+ function upload(kind:'preview'|'deliverable',file?:File){
+  if(!file||!config?.eligible||current.current)return;const ext=file.name.split('.').at(-1)?.toLowerCase(),format=ext==='jpeg'?'jpg':ext;
+  if(!['png','jpg',...(kind==='deliverable'?['stl']:[])].includes(format??'')){setError('Choose PNG/JPEG, or binary STL for a deliverable.');return;}
+  if(file.size>(kind==='preview'?config.limits.preview:config.limits.file)){setError('This file exceeds the displayed upload limit.');return;}
+  const xhr=new XMLHttpRequest();current.current=xhr;setError('');setMessage('Uploading and validating…');setProgress(0);xhr.open('POST',`/api/digital/uploads?kind=${kind}&format=${format}`);xhr.setRequestHeader('Content-Type','application/octet-stream');xhr.timeout=35000;
+  xhr.upload.onprogress=e=>{if(e.lengthComputable)setProgress(Math.floor(100*e.loaded/e.total));};
+  const done=()=>{current.current=null;setProgress(null);};
+  xhr.onload=()=>{done();try{const body=JSON.parse(xhr.responseText);if(xhr.status!==201)throw Error(body.error??'Upload was not accepted.');onChange({...latest.current,[kind==='preview'?'previewId':'fileId']:body.asset.id});setUploaded(v=>({...v,[kind]:body.asset}));setMessage(kind==='preview'?'Sanitized preview ready.':'Protected deliverable validated.');}catch(e){setError((e as Error).message);setMessage('');}};
+  xhr.onerror=()=>{done();setMessage('');setError('Upload interrupted. No completed file is assumed; retry safely.');};xhr.ontimeout=xhr.onerror;xhr.onabort=()=>{done();setMessage('Upload cancelled. No listing was published.');};xhr.send(file);
+ }
+ return <section className="digital-fields"><h3>The file behind the bid.</h3><p className="field-hint">Originals stay in private server storage. Your preview is reprocessed to remove metadata. No malware scanning is claimed.</p>
+ {config&&!config.eligible&&<p className="inline-notice">{config.explanation} Your account is not enabled for publishing yet; you can still bid. Ask the operator to review coverage of your own receiver.</p>}
+ {config?.fixture&&<p className="inline-notice">Explicit local synthetic file fixture — no real storage or payment evidence.</p>}
+ <div className="upload-grid">{(['preview','deliverable'] as const).map(kind=><label className="upload-field" key={kind}><span>{kind==='preview'?'Public preview (PNG or JPEG)':'Protected deliverable'}</span><input type="file" accept={kind==='preview'?'.png,.jpg,.jpeg':'.png,.jpg,.jpeg,.stl'} disabled={!config?.eligible||progress!==null} onChange={e=>{upload(kind,e.target.files?.[0]);e.target.value='';}}/><small>{uploaded[kind]?`${uploaded[kind].format.toUpperCase()} · ${fileSize(uploaded[kind].bytes)} · validated`:kind==='preview'?'Up to 2 MiB; still images only.':'Up to 10 MiB; PNG, JPEG or uncolored binary STL.'}</small></label>)}</div>
+ {progress!==null&&<div className="upload-progress"><div role="progressbar" aria-label="File upload" aria-valuemin={0} aria-valuemax={100} aria-valuenow={progress}><span style={{width:progress+'%'}}/></div><span>{progress}% · validation follows upload</span><button type="button" className="text-button" onClick={()=>current.current?.abort()}>Cancel upload</button></div>}
+ <p role="status">{message}</p>{error&&<p className="inline-notice" role="alert">{error}</p>}
+ <label className="field">License / usage terms<textarea required minLength={10} maxLength={4000} value={value.license} onChange={e=>onChange({...value,license:e.target.value})} placeholder="State permitted uses, redistribution restrictions and whether copyright remains with you."/></label><p className="field-hint">These terms and the file version freeze when published. A download does not automatically transfer copyright or prevent copying.</p>
+ <label className="field">Provenance (seller-declared)<textarea required minLength={10} maxLength={1000} value={value.provenance} onChange={e=>onChange({...value,provenance:e.target.value})} placeholder="Who created this work, its source, and why you may offer it. VEIL does not verify authorship."/></label>
+ <label className="field">Edition information <span className="optional">optional, seller-declared</span><input maxLength={200} value={value.edition} onChange={e=>onChange({...value,edition:e.target.value})} placeholder="For example: declared edition 1 of 10. No NFT or uniqueness verification."/></label>
+ {config&&<p className="field-hint">Per-account storage: {fileSize(config.limits.account)}. Total private storage cap: {fileSize(config.limits.total)}. Uploads stop before the {fileSize(config.limits.reserve)} disk reserve. Unused drafts expire after 24 hours; attached and purchased files are retained.</p>}
+ </section>;
+}
+type Delivery={auctionId:string;category:string;license:string;edition:string;provenance:string;bytes:number;format:string;previewUrl:string;downloadUrl:string;downloadAvailable:boolean;accessState:'available'|'unavailable'|'suspended'|'pending';isSeller:boolean;entitlement:{state:string;grantedAt:number}|null};
+function DownloadButton({url,format}:{url:string;format:string}){
+ const [busy,setBusy]=useState(false),[error,setError]=useState(''),controller=useRef<AbortController|null>(null);
+ useEffect(()=>()=>controller.current?.abort(),[]);
+ async function download(){if(busy)return;setBusy(true);setError('');const abort=new AbortController();controller.current=abort;const timeout=setTimeout(()=>abort.abort(),30000);
+  try{const response=await fetch(url,{cache:'no-store',signal:abort.signal});if(!response.ok){const body:unknown=await response.json().catch(()=>null);throw Error(body&&typeof body==='object'&&'error'in body&&typeof body.error==='string'?body.error:'Download unavailable. Refresh and retry; access has not been removed.');}
+   const blob=await response.blob();if(blob.size>10*1048576)throw Error('Unexpected download size. Contact the operator.');const object=URL.createObjectURL(blob),link=document.createElement('a');link.href=object;link.download='veil-download.'+format;link.click();setTimeout(()=>URL.revokeObjectURL(object),1000);
+  }catch(e){setError(abort.signal.aborted?'Download interrupted. Refresh and retry safely.':(e as Error).message);}finally{clearTimeout(timeout);controller.current=null;setBusy(false);}}
+ return <div><button className="button button-dark" type="button" disabled={busy} onClick={download}>{busy?'Downloading…':'Download protected file'}</button>{busy&&<button className="text-button" type="button" onClick={()=>controller.current?.abort()}>Cancel download</button>}{error&&<p role="alert">{error}</p>}</div>;
+}
+export function DigitalDelivery({id}:{id:string}){
+ const [state,setState]=useState<Delivery|null>(null),[error,setError]=useState(''),[loading,setLoading]=useState(false);
+ async function refresh(){setLoading(true);try{setState(await read<Delivery>('/api/digital/listing/'+id));setError('');}catch(e){setError((e as Error).message);}finally{setLoading(false);}}
+ useEffect(()=>{void refresh();},[id]);
+ if(!state)return <div className="privacy-note"><p>{error||'Checking protected delivery…'}</p><button className="text-button" onClick={refresh} disabled={loading}>Refresh delivery</button></div>;
+ return <section className="digital-delivery"><div className="eyebrow">FROZEN DIGITAL PURCHASE</div><h3>{state.downloadAvailable?'Download available':state.accessState==='unavailable'?'Frozen file temporarily unavailable':state.accessState==='suspended'?'Download suspended':'Protected file · payment pending'}</h3><p>{state.format.toUpperCase()} · {fileSize(state.bytes)}{state.edition?' · '+state.edition+' (seller-declared)':''}</p><h4>License / usage terms</h4><p className="license-copy">{state.license}</p><p>Seller-declared provenance: {state.provenance}</p>
+ {state.downloadAvailable?<DownloadButton url={state.downloadUrl} format={state.format}/>:<p>{state.accessState==='unavailable'?'The operator must restore the exact frozen file. Your earned access is retained; do not pay again.':state.accessState==='suspended'?'New chain evidence requires operator review. Previously downloaded files cannot be recalled.':'Only the seller and an entitled winning buyer can download. A queued scan or payment-sent note does not grant access.'}</p>}
+ <button className="text-button" disabled={loading} onClick={refresh}>{loading?'Checking…':'Refresh delivery'}</button>{error&&<p role="alert">{error}</p>}<p className="field-hint">Access earned from validated payment survives ordinary report expiry. A served download is not proof that you opened or accepted the file. Authorization is server-enforced, not end-to-end encryption.</p></section>;
+}
+export function Purchases({open}:{open:(id:string)=>void}){
+ const [items,setItems]=useState<(Delivery&{title:string;state:string})[]>([]),[error,setError]=useState(''),[loading,setLoading]=useState(true);
+ useEffect(()=>{read<{purchases:typeof items}>('/api/digital/purchases').then(r=>setItems(r.purchases)).catch(e=>setError(e.message)).finally(()=>setLoading(false));},[]);
+ return <section className="purchases-view"><div className="section-heading"><div><div className="eyebrow">YOUR COLLECTION</div><h2>My purchases</h2></div></div>{loading?<p>Loading protected purchases…</p>:error?<p role="alert">{error}</p>:items.length?<div className="lot-grid">{items.map(p=><article className="lot-card" key={p.auctionId}><img src={p.previewUrl} alt="Sanitized seller preview"/><div className="lot-info"><span className="item-kicker">{p.state==='active'?'ACCESS GRANTED':'SUSPENDED · REVIEW REQUIRED'}</span><h3>{p.title}</h3><p>{p.format.toUpperCase()} · {fileSize(p.bytes)}</p><button className="button button-dark" onClick={()=>open(p.auctionId)}>View purchase & license</button>{p.state==='active'&&<DownloadButton url={p.downloadUrl} format={p.format}/>}</div></article>)}</div>:<div className="empty-state"><h3>Your next discovery is waiting.</h3><p>Verified paid purchases will appear here. Winning a bid alone does not grant a download.</p></div>}</section>;
+}
+export function GoldScene(){
+ const ref=useRef<HTMLDivElement>(null);
+ useEffect(()=>{const node=ref.current;if(!node)return;let frame=0;const motion=matchMedia('(prefers-reduced-motion: reduce)'),coarse=matchMedia('(pointer: coarse)');
+  const visibility=()=>{node.dataset.paused=String(document.hidden);};visibility();
+  const move=(event:PointerEvent)=>{if(document.hidden||motion.matches||coarse.matches||frame)return;frame=requestAnimationFrame(()=>{frame=0;node.style.setProperty('--mx',String(event.clientX/innerWidth-.5));node.style.setProperty('--my',String(event.clientY/innerHeight-.5));});};
+  window.addEventListener('pointermove',move,{passive:true});document.addEventListener('visibilitychange',visibility);return()=>{cancelAnimationFrame(frame);window.removeEventListener('pointermove',move);document.removeEventListener('visibilitychange',visibility);};
+ },[]);
+ return <div ref={ref} className="gold-scene" aria-hidden="true">{[0,1,2].map(i=><div className={'gold-envelope depth-'+i} key={i}><img src="/images/veil-envelope.svg" alt=""/></div>)}<div className="silk-ribbon"/></div>;
+}

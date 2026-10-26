@@ -1,0 +1,47 @@
+# Digital-goods release candidate — 26 October 2026
+
+No production deployment, migration, merge, scanner change or transfer has occurred in this task. The live website remains the approved PR #16 artifact `577c90dfe566de35aaff7a8d8e4ab99da3233123`. This branch preserves PR #16 head `b50b43f4013de0da3ad1a59a7c4a3c8ea341c0cc` and is stacked on `payment-runtime-validation`; PR #16 itself remains unmerged. Exact final CI/artifact provenance will be recorded after verification, before requesting deployment approval.
+
+## Implementation and observed baseline
+
+New listings are digital-only with private native files, frozen terms, scanner-coverage eligibility, durable atomic grants and authenticated downloads. No circuit/proof asset or cryptographic context changes. Existing scanner code/keys, wallet/node setup and unrelated applications are untouched. New escrow creation/execution stay disabled; old data/history stay readable.
+
+Read-only website inspection found two legacy Design/direct auctions, two published results, one report and zero escrow orders. These remain legacy: no category rewrite, old invoice reuse or retroactive download grant. Approximately 2.01 GiB free was observed on the website filesystem, making release/storage/backup reserve a material gate. Recheck immediately before approval; do not count free space on the separate AWS node as website capacity.
+
+## Validation record
+
+- Local native HTTP/SQLite/file/auth tests: 21 passing, including real temporary files, interrupted upload recovery, quota/reserve/type/traversal checks, frozen terms, synthetic signed payment rejection/grant/ACK recovery, exact-byte access, ordinary expiry, restart, explicit suspension/operator review, corruption and paired backup. Payment/result observations are synthetic and explicitly labelled.
+- Typecheck: passed locally.
+- Scanner/testnet/escrow targeted regression: 40 passed locally; one existing POSIX owner-only outbox permission test cannot pass on the Windows filesystem. Its guard remains intact for Linux CI.
+- The large local cryptographic suite exhausted workstation V8 memory after its negative constraint checks. This is not a proof pass. Full cryptographic regressions and production builds run in Linux CI; no production build ran on the workstation or shared host.
+- Pending at preparation time: exact-commit Linux CI, both production builds, portable browser suite and native production-artifact complete purchase/download/browser checks. Record actual results below when complete; do not substitute this list for evidence.
+- New hosted payment/download and new physical-phone upload/purchase validation remain pending. Earlier separately approved legacy payment and phone checks remain separate historical evidence.
+
+## Additive migration and storage review
+
+Only migration `0006_digital_delivery.sql` is new. SHA-256: `32822c08c2e6b4d6fdcb9dd326cfc65386b7586d290c828c29fc40c949a6285c`. It adds digital asset/draft/listing/entitlement/event tables, nullable auctions.digital_draft_id (legacy NULL), immutable metadata guards and atomic report/grant triggers. It does not rewrite old account/auction/bid/result/invoice/report rows. Startup refuses unapplied/hash-mismatched migrations. Prior migration bytes are unchanged.
+
+Proposed private persistent root: `/srv/veil/shared/digital-store` (veil-owned 0700; files 0600), outside `/srv/veil/releases` and web assets. Root-controlled `/etc/veil/digital-sellers.json` (0640 root:veil) maps only reviewed seller IDs to their **own** scanner-observed receivers. Configure the private root/map path and opt-in publishing flag in the existing protected VEIL environment only. No secrets go into an artifact or approval message. No arbitrary seller eligibility and no silent custody.
+
+Limits: 256 MiB store, 48 MiB/account, 10 MiB deliverable, 2 MiB preview, 1 GiB free-space reserve. Keep additional capacity for at least one complete matched private backup plus the current/rollback release. Abort staging/backup if the filesystem cannot retain reserve plus transient archive/extraction space. Only known unactivated VEIL candidates or duplicate archives may be considered for cleanup after verifying exact paths and current/rollback links. Never delete active originals, newer grants, unrelated services or their data. No new paid storage is authorized.
+
+## Concrete deployment procedure (approval required)
+
+1. Record the final CI commit, signed-in GitHub artifact ID/archive SHA-256, release.json and migration hash. Download only that artifact to a new isolated staging directory, verify checksum, inspect archive paths and package boundary. No build on either shared host or workstation.
+2. Run the artifact against a fresh isolated database/root and private synthetic seller configuration on an unused loopback port, including real uploads/downloads and native authentication. Stop this staging process afterward. Confirm intended production memory limit is adequate; do not change unrelated service limits.
+3. Reinspect current VEIL service/release/configuration, SQLite integrity, migration ledger and counts. Save current link and private config/map. Stop **only** VEIL to block new writes; take a fresh SQLite backup via the backup API and integrity-check it. For the first migration, back up the existing empty/absent digital root too; after any digital purchases exist use the matched DB/files command in DIGITAL_GOODS.md. Do not publish private backup hashes/contents or account/payment metadata.
+4. Use the staged `runtime/admin.mjs review` against the actual DB and compare only 0006/hash. Apply explicitly with `migrate ... --offline-service-stopped`, supplying another new private backup path. Check integrity, counts and legacy NULL draft values. No synthetic production rows, file grants or old-invoice reinterpretation.
+5. Install the reviewed private root/map configuration, default paused if coverage/capacity is unready. Select the exact new artifact and restart only veil.service. Expected interruption under two minutes, contingent on preflight/staging passing. No Caddy route or unrelated application change is needed.
+6. Check login/signup/logout/revocation, administrator account list authorization, JSON API/scanner boundaries, legacy result verification, all pinned proof hashes and storage audit/availability. Verify no public original/static alias. Recheck disk/memory and service recovery. Enable eligible publishing only as approved in the final release scope; do not use the existing payment as evidence for a new purchase.
+
+## Rollback rules
+
+Before reopening traffic or accepting new writes, a failed migration/startup can restore the fresh pre-change DB/config/release while VEIL is stopped. Verify the matching backup and remove/retain WAL sidecars according to the existing recovery procedure; never overwrite a running DB. This initial rollback is permitted only while there have been **no post-backup writes**.
+
+After traffic/new purchases, **do not restore an older database** or choose old code that cannot preserve delivery. Pause new publishing (`VEIL_DIGITAL_PUBLISHING_ENABLED=0`) while retaining compatible download routes, current DB and exact originals. Roll forward with a compatible fixed artifact or a retained digital-compatible release. Keep newer accounts, payment records, grants and files. A full storage incident restores the latest verified matched DB/files set with operator reconciliation of any later writes; missing files alone should be restored by exact hash rather than rolling back payment history. No rollback can recall already downloaded files.
+
+## Separate hosted validation and payment approval
+
+After release approval, use separate seller/winner/outsider accounts and a **new** digital listing. `scripts/test-hosted-browser.mjs` is prepared to upload a local demonstration image, use ordinary clocks/live future drand, publish/independently verify and save the NEW invoice privately. Its configuration/output must stay outside the repository. It performs no transfer. Resume requires the exact new digital auction ID and frozen license; never supply an earlier paid legacy auction.
+
+Before any transfer present that invoice's exact testnet receiver, amount, UTF-8 memo and fee allowance/purpose for separate approval. Then verify the actual incoming Sapling output and automatic trusted report, exact-byte winning download, outsider denial, refresh/expiry and safe restart. Never resend to repair delivery. Physical Redmi upload/download/cold-proof checks need new actual-device evidence. Readiness or synthetic CI does not complete those gates.

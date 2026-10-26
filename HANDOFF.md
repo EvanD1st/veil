@@ -1,5 +1,11 @@
 # VEIL — Implementation handoff
 
+## Digital-goods candidate — 26 October 2026
+
+Branch `digital-goods-delivery` preserves PR #16 head `b50b43f` and is stacked on `payment-runtime-validation`. Do not merge or deploy automatically. New private uploads, immutable digital terms, atomic payment entitlements and protected downloads are prepared with migration 0006. The ivory/gold redesign covers authentication and the auction workspace. Legacy listings, proof assets/context, account IDs and scanner checks are preserved; new escrow and execution remain disabled. Read [digital behavior/recovery](docs/DIGITAL_GOODS.md), [candidate release gates](docs/DIGITAL_RELEASE.md) and [judge walkthrough](docs/JUDGING.md) first. Earlier sections below are dated history.
+
+Observed live before changes: two legacy Design/direct listings, two results, one report, zero escrow orders. No production rows were modified. No legacy payment is reused for a digital grant. The current public website remains the previously approved 577c90d artifact. The new hosted payment/download and new phone upload/purchase flow remain pending; earlier phone and incoming-payment evidence must not be relabelled as digital-delivery validation. Node/wallet/scanner configuration and unrelated services stay untouched.
+
 Updated 26 October 2026. Repository: https://github.com/EvanD1st/veil.
 
 Latest approved website release: PR #16's tested merge-tree artifact `577c90dfe566de35aaff7a8d8e4ab99da3233123` is deployed at https://ve-il.duckdns.org. Restart/health took 1.91 seconds; no migration, counts preserved, fresh backup/integrity passed. Public authentication, six proof assets and current automatic confirmation passed afterward. The sender's corrected limits survived reload/stop/start; strict readiness and read-only balance passed. Its bounded trial is complete and the optional sender is intentionally stopped/boot-disabled, with successful integrity and a protected off-host backup. The receiving wallet/node/scanner remain active. No new payment or PR merge occurred. See the dated execution record below; older release descriptions are historical.

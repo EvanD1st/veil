@@ -1,12 +1,12 @@
 /* Adapted from the operator-supplied VEIL design. Decorative only; authentication stays server-side. */
 export const sceneStyles=`
-.auth-layout{min-height:100svh;display:grid;grid-template-columns:minmax(0,1fr) minmax(360px,510px);align-items:center;gap:6vw;padding:100px 8vw 44px;isolation:isolate;overflow-x:hidden;background:#d8dcd2;color:#0f2419}
-.auth-layout:before{content:"";position:fixed;inset:0;z-index:-3;background:radial-gradient(ellipse at 14% 12%,#fffdf5d9,transparent 68%),linear-gradient(135deg,#f5f3eb 0%,#e8eae0 38%,#cfd5c9 75%,#b8c1b4)}
+.auth-layout{min-height:100svh;display:grid;grid-template-columns:minmax(0,1fr) minmax(360px,510px);align-items:center;gap:6vw;padding:100px 8vw 44px;isolation:isolate;overflow-x:hidden;background:#f2e9d8;color:#211b13}
+.auth-layout:before{content:"";position:fixed;inset:0;z-index:-3;background:radial-gradient(ellipse at 14% 12%,#fffdf5d9,transparent 68%),linear-gradient(135deg,#f5f3eb 0%,#f8edda 38%,#eee1c7 75%,#ddcaa0)}
 .auth-scene{position:fixed;inset:0;z-index:-2;pointer-events:none;overflow:hidden}.auth-scene svg{width:100%;height:100%;display:block}
-.auth-brand{position:absolute;top:30px;left:4vw;color:#112319;letter-spacing:.3em;font:30px Georgia;text-decoration:none}.testnet{font:10px system-ui;letter-spacing:.14em;border-radius:20px;padding:7px 12px;background:#dfdfd2d9;margin-left:12px;vertical-align:middle}
-.auth-story{align-self:start;margin-top:6vh;max-width:600px}.eyebrow{font-size:11px;letter-spacing:.35em;text-transform:uppercase;color:#566158}.auth-story h2{font:clamp(58px,7.5vw,112px)/.97 Georgia;letter-spacing:-.05em;margin:22px 0;color:#0f2419}.auth-story p:last-child{font-size:20px;color:#566158;max-width:420px}
+.auth-brand{position:absolute;top:30px;left:4vw;color:#2a2113;letter-spacing:.3em;font:30px Georgia;text-decoration:none}.testnet{font:10px system-ui;letter-spacing:.14em;border-radius:20px;padding:7px 12px;background:#dfdfd2d9;margin-left:12px;vertical-align:middle}
+.auth-story{align-self:start;margin-top:6vh;max-width:600px}.eyebrow{font-size:11px;letter-spacing:.35em;text-transform:uppercase;color:#7c725e}.auth-story h2{font:clamp(58px,7.5vw,112px)/.97 Georgia;letter-spacing:-.05em;margin:22px 0;color:#211b13}.auth-story p:last-child{font-size:20px;color:#7c725e;max-width:420px}
 .auth-layout main{width:100%;max-width:510px;margin:0;background:linear-gradient(155deg,#eff0eabd,#e1e4dc9e 48%,#d6dbd2a8);border:1.5px solid #ffffffc2;border-radius:18px;padding:34px 38px;box-shadow:0 28px 68px -12px #0c181038,0 4px 16px #0c181014,inset 0 1px 1px #ffffffe6;backdrop-filter:blur(24px) saturate(112%);-webkit-backdrop-filter:blur(24px) saturate(112%)}
-.auth-layout main>.brand{display:none}.auth-layout h1{text-align:center;font:42px Georgia;letter-spacing:-.035em;margin:0 0 12px}.auth-subtitle{text-align:center;color:#566158;margin:0 0 16px}.auth-intro{text-align:center;font-size:12px;color:#566158;margin:0 0 22px}.auth-layout label{font-size:14px;margin-top:15px}.auth-layout input{background:#f6f6f2e0;border-color:#d4d7cfe6;height:49px;box-shadow:inset 0 1px 2px #0f241908}.auth-layout input:focus{background:#fcfcf9f5}.auth-layout small{font-size:11px;margin-top:4px}.auth-layout .toggle{font-size:12px;padding:5px 0;display:block;text-align:right;width:100%}.auth-layout button[type=submit]{background:#132a1e;min-height:49px;margin-top:20px;box-shadow:0 4px 14px #0f241938}.auth-layout button[type=submit]:hover{background:#1b3929}.auth-layout .button{background:#ebede77a;border-color:#455248;margin:18px 0;text-decoration:none}.auth-layout .recovery{text-align:center;margin-top:18px}.auth-layout .error{font-size:14px}.auth-divider{display:flex;align-items:center;gap:16px;font-size:12px;color:#566158;margin-top:24px}.auth-divider:before,.auth-divider:after{content:"";height:1px;background:#8b948b4d;flex:1}.auth-layout input:focus-visible,.auth-layout button:focus-visible,.auth-layout a:focus-visible{outline-color:#496c43}
+.auth-layout main>.brand{display:none}.auth-layout h1{text-align:center;font:42px Georgia;letter-spacing:-.035em;margin:0 0 12px}.auth-subtitle{text-align:center;color:#7c725e;margin:0 0 16px}.auth-intro{text-align:center;font-size:12px;color:#7c725e;margin:0 0 22px}.auth-layout label{font-size:14px;margin-top:15px}.auth-layout input{background:#f6f6f2e0;border-color:#d4d7cfe6;height:49px;box-shadow:inset 0 1px 2px #211b1308}.auth-layout input:focus{background:#fcfcf9f5}.auth-layout small{font-size:11px;margin-top:4px}.auth-layout .toggle{font-size:12px;padding:5px 0;display:block;text-align:right;width:100%}.auth-layout button[type=submit]{background:#302517;min-height:49px;margin-top:20px;box-shadow:0 4px 14px #211b1338}.auth-layout button[type=submit]:hover{background:#594222}.auth-layout .button{background:#ebede77a;border-color:#6e6250;margin:18px 0;text-decoration:none}.auth-layout .recovery{text-align:center;margin-top:18px}.auth-layout .error{font-size:14px}.auth-divider{display:flex;align-items:center;gap:16px;font-size:12px;color:#7c725e;margin-top:24px}.auth-divider:before,.auth-divider:after{content:"";height:1px;background:#8b948b4d;flex:1}.auth-layout input:focus-visible,.auth-layout button:focus-visible,.auth-layout a:focus-visible{outline-color:#aa8b3b}
 /* Compact login preserves usable controls rather than hiding overflow. */
 :is(.auth-login,.auth-signup){padding-top:76px;padding-bottom:24px}:is(.auth-login,.auth-signup) main{padding:24px 32px}:is(.auth-login,.auth-signup) h1{font-size:36px;margin-bottom:8px}:is(.auth-login,.auth-signup) .auth-subtitle{font-size:15px;margin-bottom:10px}:is(.auth-login,.auth-signup) .auth-intro{margin-bottom:12px}:is(.auth-login,.auth-signup) label{margin-top:10px}:is(.auth-login,.auth-signup) input{height:44px}:is(.auth-login,.auth-signup) .toggle{padding:3px 0}:is(.auth-login,.auth-signup) button[type=submit]{margin-top:12px;min-height:44px;padding:10px}:is(.auth-login,.auth-signup) .auth-divider{margin-top:16px}:is(.auth-login,.auth-signup) .button{margin:12px 0;padding:10px}:is(.auth-login,.auth-signup) .recovery{margin-top:10px}
 @media(min-width:801px) and (max-height:700px){:is(.auth-login,.auth-signup){padding-top:66px;padding-bottom:16px;gap:4vw}:is(.auth-login,.auth-signup) main{padding:18px 26px}:is(.auth-login,.auth-signup) h1{font-size:32px;margin-bottom:6px}:is(.auth-login,.auth-signup) .auth-intro{font-size:11px;margin-bottom:8px}:is(.auth-login,.auth-signup) .auth-subtitle{margin-bottom:8px}:is(.auth-login,.auth-signup) label{margin-top:7px}:is(.auth-login,.auth-signup) input{height:40px;padding:8px 12px}:is(.auth-login,.auth-signup) button[type=submit]{min-height:40px;margin-top:8px}:is(.auth-login,.auth-signup) .auth-divider{margin-top:10px}:is(.auth-login,.auth-signup) .button{margin:9px 0;padding:8px}:is(.auth-login,.auth-signup) .recovery{font-size:10px;margin-top:8px}:is(.auth-login,.auth-signup) .auth-story{margin-top:3vh}:is(.auth-login,.auth-signup) .auth-story h2{font-size:clamp(54px,7vw,86px)}}
@@ -36,26 +36,26 @@ export const sceneMarkup=`<div id="svgSceneLayer" class="auth-scene" aria-hidden
           </feMerge>
         </filter>
         <filter id="seal-shadow" x="-30%" y="-30%" width="160%" height="160%">
-          <feDropShadow dx="2" dy="6" stdDeviation="5" flood-color="#09140d" flood-opacity="0.55" />
+          <feDropShadow dx="2" dy="6" stdDeviation="5" flood-color="#221b12" flood-opacity="0.55" />
         </filter>
 
         <!-- Frosted Glass Gradients -->
         <linearGradient id="glassBodyGrad" x1="0%" y1="0%" x2="100%" y2="100%">
           <stop offset="0%" stop-color="#ffffff" stop-opacity="0.62" />
-          <stop offset="35%" stop-color="#e7eadf" stop-opacity="0.38" />
-          <stop offset="70%" stop-color="#c3cbbd" stop-opacity="0.28" />
-          <stop offset="100%" stop-color="#eff2e9" stop-opacity="0.52" />
+          <stop offset="35%" stop-color="#f5eddc" stop-opacity="0.38" />
+          <stop offset="70%" stop-color="#e9ddc3" stop-opacity="0.28" />
+          <stop offset="100%" stop-color="#fff8e9" stop-opacity="0.52" />
         </linearGradient>
 
         <linearGradient id="glassFlapTop" x1="0%" y1="0%" x2="50%" y2="100%">
           <stop offset="0%" stop-color="#ffffff" stop-opacity="0.72" />
-          <stop offset="55%" stop-color="#e3e6da" stop-opacity="0.42" />
-          <stop offset="100%" stop-color="#bfc6b6" stop-opacity="0.22" />
+          <stop offset="55%" stop-color="#f4ead8" stop-opacity="0.42" />
+          <stop offset="100%" stop-color="#e8d8b3" stop-opacity="0.22" />
         </linearGradient>
 
         <linearGradient id="glassFlapBottom" x1="50%" y1="0%" x2="50%" y2="100%">
           <stop offset="0%" stop-color="#ffffff" stop-opacity="0.48" />
-          <stop offset="100%" stop-color="#b8c0ae" stop-opacity="0.32" />
+          <stop offset="100%" stop-color="#e4d4b0" stop-opacity="0.32" />
         </linearGradient>
 
         <linearGradient id="goldEdgeGrad" x1="0%" y1="0%" x2="100%" y2="100%">
@@ -68,29 +68,29 @@ export const sceneMarkup=`<div id="svgSceneLayer" class="auth-scene" aria-hidden
         <!-- Glass Ribbon Gradients -->
         <linearGradient id="ribbonGlass1" x1="0%" y1="0%" x2="100%" y2="100%">
           <stop offset="0%" stop-color="#ffffff" stop-opacity="0.55" />
-          <stop offset="30%" stop-color="#e3e7dc" stop-opacity="0.22" />
-          <stop offset="75%" stop-color="#9ca899" stop-opacity="0.15" />
+          <stop offset="30%" stop-color="#f4e8cd" stop-opacity="0.22" />
+          <stop offset="75%" stop-color="#c8b991" stop-opacity="0.15" />
           <stop offset="100%" stop-color="#ffffff" stop-opacity="0.48" />
         </linearGradient>
 
         <linearGradient id="ribbonGlass2" x1="100%" y1="0%" x2="0%" y2="100%">
           <stop offset="0%" stop-color="#ffffff" stop-opacity="0.6" />
-          <stop offset="50%" stop-color="#cfd6c9" stop-opacity="0.18" />
-          <stop offset="100%" stop-color="#f5f7f0" stop-opacity="0.46" />
+          <stop offset="50%" stop-color="#eee0c5" stop-opacity="0.18" />
+          <stop offset="100%" stop-color="#fff9ed" stop-opacity="0.46" />
         </linearGradient>
 
         <!-- Emerald Wax Seal Gradients -->
         <radialGradient id="waxSealOuter" cx="35%" cy="30%" r="70%">
-          <stop offset="0%" stop-color="#3c543e" />
-          <stop offset="45%" stop-color="#1b3022" />
-          <stop offset="85%" stop-color="#0d1c12" />
-          <stop offset="100%" stop-color="#293d2b" />
+          <stop offset="0%" stop-color="#ad9461" />
+          <stop offset="45%" stop-color="#483821" />
+          <stop offset="85%" stop-color="#2b2215" />
+          <stop offset="100%" stop-color="#887044" />
         </radialGradient>
 
         <radialGradient id="waxSealInner" cx="65%" cy="70%" r="65%">
-          <stop offset="0%" stop-color="#0b180f" />
-          <stop offset="60%" stop-color="#192d1f" />
-          <stop offset="100%" stop-color="#334a36" />
+          <stop offset="0%" stop-color="#261e12" />
+          <stop offset="60%" stop-color="#3b2e1c" />
+          <stop offset="100%" stop-color="#9d8453" />
         </radialGradient>
 
         <!-- Reusable Wax Seal Component -->

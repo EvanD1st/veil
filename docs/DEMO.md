@@ -1,3 +1,7 @@
+# Current digital-goods demo
+
+Use [the judge walkthrough and recording script](JUDGING.md) for the new candidate and its live-payment approval boundary. The walkthrough below is historical and does not demonstrate new protected delivery.
+
 # Short hackathon demo script
 
 For the complete separate-account auction and actual payment leg, use [LIVE_TESTNET.md](LIVE_TESTNET.md). It records pinned setup, upstream blockers, exact operator actions and a physical-device checklist. The payment leg remains pending; no transfer was made here.

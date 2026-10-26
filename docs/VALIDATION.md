@@ -1,5 +1,7 @@
 # Validation evidence and completion checklist
 
+Current digital-goods work: [candidate evidence and exact release gates](DIGITAL_RELEASE.md). Actual files/native authentication/atomic entitlement tests are distinct from synthetic payment observations; a new real hosted payment/download and physical-phone upload/purchase check remain pending. Current prior payment/runtime/device evidence is [dated separately](PAYMENT_VALIDATION_2026-10-25.md). Older pending statements below describe their observation date, not the current server.
+
 Latest follow-up: [hosted validation](HOSTED_VALIDATION.md) records the approved application release, preserved data, public browser checks and explicitly pending synchronized payment/physical-device evidence. Historical observations below remain separate.
 
 ## Ubuntu migration evidence - 23 October 2026
