@@ -2,6 +2,7 @@ import { proofPublicSignals } from './zk/protocol';
 import { verifyHighestBid } from './zk/verify';
 import { env } from 'cloudflare:workers';
 import { getChatGPTUser } from '@/app/chatgpt-auth';
+import genesisCollection from '../../judging/collection.json';
 import { Auction, AuctionResult, PublicBid, QUICKNET, MAX_PROOF_BIDS, SNARK_FIELD, auctionProofContext, commitmentFor, isSaplingTestnet, roundTimeMs, sha256, snapshotHash, unlockRoundFor, validZatoshis, validateTimelockArmor } from './core';
 
 type AuctionRow = { payment_mode:'direct'|'escrow-testnet';fulfillment_terms:string|null;escrow_payout_address:string|null;escrow_fee_cap:string|null; payment_window_hours:number|null; protocol_version: 1 | 2; proof_context: string | null; id: string; owner_id: string; title: string; description: string; category: string; artwork: string; seller_name: string; reserve: string; closes_at: number; unlock_round: number; public_key: string; created_at: number; payment_address: string | null; result: string | null; bid_count?: number };
@@ -49,7 +50,9 @@ export async function listAuctions(userId: string) {
 }
 async function attachDigital(auction:Auction){
  const d=await database().prepare('SELECT category,license,edition,provenance,bytes,format FROM digital_listings WHERE auction_id=?').bind(auction.id).first<{category:string;license:string;edition:string;provenance:string;bytes:number;format:string}>();
- return {...auction,digital:d?{...d,previewUrl:'/api/digital/preview/'+auction.id}:null};
+ const family=await database().prepare('SELECT family FROM judging_editions WHERE auction_id=?').bind(auction.id).first<{family:string}>();
+ const original=family?genesisCollection.find(f=>f.slug===family.family):null;
+ return {...auction,digital:d?{...d,...(original?{width:original.width,height:original.height}:{}),previewUrl:'/api/digital/preview/'+auction.id}:null};
 }
 export async function myAuctionIds(userId: string) {
   const rows = await database().prepare('SELECT auction_id FROM bids WHERE bidder_id=? ORDER BY accepted_at DESC LIMIT 100').bind(userId).all<{ auction_id: string }>();

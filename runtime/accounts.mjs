@@ -30,7 +30,13 @@ export async function authenticate(db,username,password,now=Date.now()) {
  const actual=await derive(password,row?.salt??'0'.repeat(64),64,options);
  const expected=Buffer.from(row?.password_hash??'0'.repeat(128),'hex');
  if(!timingSafeEqual(actual,expected)||!row||row.disabled)return null;
- return createSession(db,row.id,now);
+  return createSession(db,row.id,now);
+}
+export async function verifyPassword(db,accountId,password){
+ if(typeof password!=='string'||password.length>128)return false;
+ const row=db.prepare('SELECT salt,password_hash,disabled FROM veil_accounts WHERE id=?').get(accountId);
+ const actual=await derive(password,row?.salt??'0'.repeat(64),64,options);
+ return timingSafeEqual(actual,Buffer.from(row?.password_hash??'0'.repeat(128),'hex'))&&!!row&&!row.disabled;
 }
 export function createSession(db,id,now=Date.now()){
  const token=randomBytes(32).toString('hex');
