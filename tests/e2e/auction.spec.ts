@@ -50,7 +50,7 @@ test('local identity is explicit; supplied identity headers do not authenticate'
 
 for(const [amount,verdict] of [['2.50','Your offer won.'],['2.10','Your offer won.'],['1.80','A sample bidder won.']]){
  test('guided demo real Worker/WASM proof: '+amount,async({page})=>{
-  await clock(page,UNLOCK-20000);await page.goto('/');await ready(page);await page.getByRole('button',{name:'Try a sealed auction',exact:true}).click();
+  await clock(page,UNLOCK-20000);await page.goto('/');await ready(page);await page.getByRole('button',{name:'Try the demo',exact:true}).click();
   await page.getByLabel('Demo bid in ZEC').fill(amount);await page.getByRole('button',{name:'Seal my bid',exact:true}).click();
   await expect(page.getByText('Unlocking in')).toBeVisible();await page.clock.setFixedTime(new Date(UNLOCK+100));
   await expect(page.getByRole('button',{name:'Open as seller'})).toBeEnabled();
@@ -113,7 +113,7 @@ for(const [label,reserve,offer] of [['no bids','1.20',null],['reserve unmet','10
 test('keyboard modal focus and mobile viewport layout',async({page})=>{
  await page.setViewportSize({width:390,height:844});await page.goto('/');await ready(page);
  expect(await page.evaluate(()=>document.documentElement.scrollWidth<=window.innerWidth)).toBeTruthy();
- const trigger=page.getByRole('button',{name:'Try a sealed auction',exact:true});await trigger.focus();await page.keyboard.press('Enter');await expect(page.getByRole('dialog')).toBeVisible();
+ const trigger=page.getByRole('button',{name:'Try the demo',exact:true});await trigger.focus();await page.keyboard.press('Enter');await expect(page.getByRole('dialog')).toBeVisible();
  await page.keyboard.press('Tab');expect(await page.evaluate(()=>!!document.activeElement?.closest('[role=dialog]'))).toBeTruthy();
  await page.screenshot({path:'.sites-runtime/e2e/mobile-dialog.png'});
  await page.keyboard.press('Escape');await expect(page.getByRole('dialog')).toHaveCount(0);await expect(trigger).toBeFocused();
@@ -140,7 +140,7 @@ test('real encrypted bid limits, self/late bids and malformed accepted-envelope 
 
 test('cancelling a real proof worker restores the demo without a success state',async({page})=>{
  await clock(page,UNLOCK-20000);await page.goto('/');await ready(page);
- await page.getByRole('button',{name:'Try a sealed auction',exact:true}).click();await page.getByRole('button',{name:'Seal my bid',exact:true}).click();await expect(page.getByText('Unlocking in')).toBeVisible();
+ await page.getByRole('button',{name:'Try the demo',exact:true}).click();await page.getByRole('button',{name:'Seal my bid',exact:true}).click();await expect(page.getByText('Unlocking in')).toBeVisible();
  await page.clock.setFixedTime(new Date(UNLOCK+100));
  let release!:()=>void;const gate=new Promise<void>(resolve=>{release=resolve;});
  await page.route('**/runtime-0.js',async route=>{await gate;await route.abort().catch(()=>{});});
