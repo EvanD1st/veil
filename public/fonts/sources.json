@@ -1,0 +1,34 @@
+[
+  {
+    "family": "Inter",
+    "weight": 400,
+    "file": "inter-regular.ttf",
+    "source": "https://fonts.gstatic.com/s/inter/v20/UcCO3FwrK3iLTeHuS_nVMrMxCp50SjIw2boKoduKmMEVuLyfMZg.ttf",
+    "sha256": "1b08e7fc267a5c7e1d614100f604b83e7e8a0be241f0f288faa2b3ac93a683ba",
+    "license": "SIL Open Font License 1.1"
+  },
+  {
+    "family": "Inter",
+    "weight": 600,
+    "file": "inter-semibold.ttf",
+    "source": "https://fonts.gstatic.com/s/inter/v20/UcCO3FwrK3iLTeHuS_nVMrMxCp50SjIw2boKoduKmMEVuGKYMZg.ttf",
+    "sha256": "e7a1aaf7eda9f2fad4131725fa556265ec75ca7b2d756260173a040363e8d4f7",
+    "license": "SIL Open Font License 1.1"
+  },
+  {
+    "family": "Playfair Display",
+    "weight": 400,
+    "file": "playfair-display-regular.ttf",
+    "source": "https://fonts.gstatic.com/s/playfairdisplay/v40/nuFvD-vYSZviVYUb_rj3ij__anPXJzDwcbmjWBN2PKdFvUDQ.ttf",
+    "sha256": "1609a54fa3ad1abc8d0037132f73700333241ea0b65672079998e352f151dea7",
+    "license": "SIL Open Font License 1.1"
+  },
+  {
+    "family": "Playfair Display",
+    "weight": 600,
+    "file": "playfair-display-semibold.ttf",
+    "source": "https://fonts.gstatic.com/s/playfairdisplay/v40/nuFvD-vYSZviVYUb_rj3ij__anPXJzDwcbmjWBN2PKebukDQ.ttf",
+    "sha256": "8ab6a1db2d7caeb46c742371da500d0f3de1dc6ec6bea2aef0106f678d7a1f8d",
+    "license": "SIL Open Font License 1.1"
+  }
+]

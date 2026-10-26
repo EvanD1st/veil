@@ -53,12 +53,3 @@ export function Purchases({open}:{open:(id:string)=>void}){
  useEffect(()=>{read<{purchases:typeof items}>('/api/digital/purchases').then(r=>setItems(r.purchases)).catch(e=>setError(e.message)).finally(()=>setLoading(false));},[]);
  return <section className="purchases-view"><div className="section-heading"><div><div className="eyebrow">YOUR COLLECTION</div><h2>My purchases</h2></div></div>{loading?<p>Loading protected purchases…</p>:error?<p role="alert">{error}</p>:items.length?<div className="lot-grid">{items.map(p=><article className="lot-card" key={p.auctionId}><img src={p.previewUrl} alt="Sanitized seller preview"/><div className="lot-info"><span className="item-kicker">{p.state==='active'?'ACCESS GRANTED':'SUSPENDED · REVIEW REQUIRED'}</span><h3>{p.title}</h3><p>{p.format.toUpperCase()} · {fileSize(p.bytes)}</p><button className="button button-dark" onClick={()=>open(p.auctionId)}>View purchase & license</button>{p.state==='active'&&<DownloadButton url={p.downloadUrl} format={p.format}/>}</div></article>)}</div>:<div className="empty-state"><h3>Your next discovery is waiting.</h3><p>Verified paid purchases will appear here. Winning a bid alone does not grant a download.</p></div>}</section>;
 }
-export function GoldScene(){
- const ref=useRef<HTMLDivElement>(null);
- useEffect(()=>{const node=ref.current;if(!node)return;let frame=0;const motion=matchMedia('(prefers-reduced-motion: reduce)'),coarse=matchMedia('(pointer: coarse)');
-  const visibility=()=>{node.dataset.paused=String(document.hidden);};visibility();
-  const move=(event:PointerEvent)=>{if(document.hidden||motion.matches||coarse.matches||frame)return;frame=requestAnimationFrame(()=>{frame=0;node.style.setProperty('--mx',String(event.clientX/innerWidth-.5));node.style.setProperty('--my',String(event.clientY/innerHeight-.5));});};
-  window.addEventListener('pointermove',move,{passive:true});document.addEventListener('visibilitychange',visibility);return()=>{cancelAnimationFrame(frame);window.removeEventListener('pointermove',move);document.removeEventListener('visibilitychange',visibility);};
- },[]);
- return <div ref={ref} className="gold-scene" aria-hidden="true">{[0,1,2].map(i=><div className={'gold-envelope depth-'+i} key={i}><img src="/images/veil-envelope.svg" alt=""/></div>)}<div className="silk-ribbon"/></div>;
-}

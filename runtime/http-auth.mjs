@@ -20,7 +20,7 @@ export function authenticationHandler(db,origin,{allowLoopbackHttp=false,adminAc
     if(req.method!=='GET'){sendPage(res,405,document('Method not allowed',''),{Allow:'GET'});return;}
     try{const rows=listAccounts(db,url.searchParams.get('after')??''),shown=rows.slice(0,50);sendPage(res,200,document('Accounts',`<p>Ordinary registered accounts. Passwords and sessions are never listed.</p><table><thead><tr><th>Username</th><th>Created (UTC)</th><th>Status</th></tr></thead><tbody>${shown.map(r=>`<tr><td>${escape(r.username)}</td><td>${escape(new Date(r.created_at).toISOString())}</td><td>${r.disabled?'Disabled':'Active'}</td></tr>`).join('')}</tbody></table>${rows.length>50?`<a href="/admin/accounts?after=${encodeURIComponent(shown[49].username)}">Next page</a>`:''}<a href="/">Back to auctions</a>`));}catch{sendPage(res,400,document('Invalid request','<p>Invalid account cursor.</p>'));}return;
    }
-   const api=url.pathname==='/api'||url.pathname.startsWith('/api/'),asset=/^\/(assets\/|images\/|zk\/|favicon\.)/.test(url.pathname);
+   const api=url.pathname==='/api'||url.pathname.startsWith('/api/'),asset=/^\/(assets\/|images\/|fonts\/|zk\/|favicon\.)/.test(url.pathname);
    if(!user&&!api&&!asset&&['GET','HEAD'].includes(req.method)){redirect(res,'/login?return_to='+encodeURIComponent(safeReturn(req.url)));return;}
    next(req,res);return;
   }
