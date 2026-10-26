@@ -16,6 +16,10 @@ Native scrypt credentials, session cookies, CSRF/origin checks, safe return path
 
 This UI inherits the merged digital-delivery implementation. If the live website still predates it, migration 0006 and private-store/eligible-seller setup from DIGITAL_RELEASE.md remain required; merging does not apply them. A new reviewed CI artifact and explicit deployment approval are needed. Do not activate escrow or reuse a legacy payment for digital access. Rollback after new purchases must retain compatible delivery routes, current DB and exact originals.
 
+## Creation-form race found during validation
+
+A portable browser regression exposed a stale form-state update: typing while the async eligibility response arrived could erase the assigned read-only receiver. The native/server binding checks failed closed. Form edits now merge through functional state updates, preserving both typed metadata and the server-owned receiver; a delayed-eligibility browser regression covers the interaction. No receiver validation or readonly control was weakened.
+
 ## Validation
 
 Local typecheck and native authentication/migration regressions are run without a workstation production build. Actual installed desktop Chrome checks the native auth HTML under its CSP: font loading, 14 V/Z envelopes, cursor motion, reduced motion, four mobile envelopes, empty password, password visibility and desktop form fit at 1366x768, 1280x720 and 1024x600. Phone viewport checks are emulation, not a new physical-device result.
