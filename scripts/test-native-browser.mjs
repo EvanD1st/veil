@@ -17,11 +17,12 @@ const signer=generateKeyPairSync('ed25519'),serviceToken=randomBytes(32).toStrin
 const storage=join(directory,'originals'),sellers=join(directory,'sellers.json');await writeFile(sellers,'{}',{mode:0o600});
 const sharp=(await import('sharp')).default,fileBytes=await sharp({create:{width:320,height:200,channels:3,background:'#f4d462'}}).png().toBuffer();
 const receiver=JSON.parse(await readFile('tests/fixtures/synthetic-receiver.json','utf8')).address;
-const child=spawn(process.execPath,[join(root,'runtime/server.mjs')],{cwd:root,env:{...process.env,VEIL_PUBLIC_ORIGIN:origin,VEIL_ALLOW_LOOPBACK_HTTP:'1',VEIL_ADMIN_ACCOUNT_IDS:observerId,VEIL_DIGITAL_ROOT:storage,VEIL_DIGITAL_SELLERS_FILE:sellers,VEIL_DIGITAL_PUBLISHING_ENABLED:'1',VEIL_SQLITE_PATH:path,PORT:String(port),VEIL_SCANNER_PUBLIC_KEY:signer.publicKey.export({format:'der',type:'spki'}).subarray(-32).toString('hex'),VEIL_SCANNER_SERVICE_TOKEN_SHA256:createHash('sha256').update(serviceToken).digest('hex')},stdio:['ignore','pipe','pipe']});
-let output='';child.stdout.on('data',b=>{output+=b;});child.stderr.on('data',b=>{output+=b;});
+const startChild=()=>spawn(process.execPath,[join(root,'runtime/server.mjs')],{cwd:root,env:{...process.env,VEIL_PUBLIC_ORIGIN:origin,VEIL_ALLOW_LOOPBACK_HTTP:'1',VEIL_ADMIN_ACCOUNT_IDS:observerId,VEIL_DIGITAL_ROOT:storage,VEIL_DIGITAL_SELLERS_FILE:sellers,VEIL_DIGITAL_PUBLISHING_ENABLED:'1',VEIL_SQLITE_PATH:path,PORT:String(port),VEIL_SCANNER_PUBLIC_KEY:signer.publicKey.export({format:'der',type:'spki'}).subarray(-32).toString('hex'),VEIL_SCANNER_SERVICE_TOKEN_SHA256:createHash('sha256').update(serviceToken).digest('hex')},stdio:['ignore','pipe','pipe']});
+let child=startChild(),output='';function capture(){child.stdout.on('data',b=>{output+=b;});child.stderr.on('data',b=>{output+=b;});}capture();
+async function waitForServer(){for(let n=0;n<120;n++){try{if((await fetch(origin)).ok)return;}catch{}if(child.exitCode!==null)break;await new Promise(r=>setTimeout(r,250));}throw Error('Artifact startup failed: '+output);}
 let browser;
 try{
- let ready=false;for(let n=0;n<120;n++){try{if((await fetch(origin)).ok){ready=true;break;}}catch{}if(child.exitCode!==null)break;await new Promise(r=>setTimeout(r,250));}if(!ready)throw Error('Artifact startup failed: '+output);
+ await waitForServer();
  browser=await chromium.launch({headless:true});
  async function login(username){
   const registering=username!=='observer',context=await browser.newContext({baseURL:origin,acceptDownloads:true,...(username==='bidder'?{viewport:{width:390,height:844}}:{})}),page=await context.newPage();
@@ -85,7 +86,8 @@ try{
  const mine=await(await bidder.page.request.get('/api/digital/purchases')).json();expect(mine.purchases).toHaveLength(1);expect((await(await observer.page.request.get('/api/digital/purchases')).json()).purchases).toHaveLength(0);
  await bidder.page.screenshot({path:'digital-purchase-mobile.png'});expect(await bidder.page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
  await bidder.page.getByRole('button',{name:'Close dialog',exact:true}).click();await bidder.page.getByRole('button',{name:'My purchases',exact:true}).click();await expect(bidder.page.getByRole('button',{name:'View purchase & license',exact:true})).toBeVisible();await bidder.page.screenshot({path:'digital-purchases-mobile.png'});
- console.log('PASS production-artifact digital purchase: actual sanitized preview and private-file upload, frozen terms, verified winner, explicitly SYNTHETIC signed payment, exact-byte authorized download, outsider denial. No real transfer claimed.');
+ child.kill('SIGTERM');await new Promise(r=>child.once('exit',r));child=startChild();capture();await waitForServer();const recovered=await bidder.page.request.get(protectedPath);expect(recovered.status()).toBe(200);expect(await recovered.body()).toEqual(fileBytes);expect((await observer.page.request.get(protectedPath)).status()).toBe(403);
+ console.log('PASS production-artifact digital purchase: actual sanitized preview and private-file upload, frozen terms, verified winner, explicitly SYNTHETIC signed payment, exact-byte authorized download, outsider denial and actual process restart with preserved sessions/grant. No real transfer claimed.');
  await page.getByRole('button',{name:'Close dialog',exact:true}).click();await expect(page.getByRole('dialog')).toHaveCount(0);
  await page.getByRole('link',{name:'Log out',exact:true}).click();await page.getByRole('button',{name:'Log out',exact:true}).click();expect(new URL(page.url()).pathname).toBe('/login');expect((await page.request.get('/api/auctions')).status()).toBe(401);expect((await page.request.get('/api/account')).status()).toBe(401);expect((await page.request.get(protectedPath)).status()).toBe(401);
  console.log('PASS production artifact: distinct real accounts, isolated contexts, persisted bid, key backup/restore, future live drand, cold/cached proof, publication and independent observer verification. No payment/device claim.');
