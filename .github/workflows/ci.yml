@@ -67,5 +67,7 @@ jobs:
             digital-explore-desktop.png
             digital-purchase-mobile.png
             digital-purchases-mobile.png
+            genesis-gallery-desktop.png
+            genesis-gallery-mobile.png
           if-no-files-found: error
           retention-days: 7
