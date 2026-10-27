@@ -29,7 +29,7 @@ export function judgingHandler(db,origin){
    if(!url.pathname.startsWith('/api/judging/worker/')||!process.env.VEIL_DEMO_SELLER_ID||user.userId!==process.env.VEIL_DEMO_SELLER_ID)throw new JudgingError('Demo seller authorization required.',403);
    if(process.env.VEIL_DEMO_ENABLED!=='1')throw new JudgingError('Automatic demo editions are paused.',503);
    const action=url.pathname.slice('/api/judging/worker/'.length);
-   if(action==='demand'){fields([]);const row=db.prepare('SELECT family FROM judging_edition_requests GROUP BY family ORDER BY MIN(requested_at) LIMIT 1').get();return json(res,200,{family:row?.family??null});}
+   if(action==='demand'){fields([]);const row=db.prepare("SELECT r.family FROM judging_edition_requests r WHERE NOT EXISTS(SELECT 1 FROM judging_editions e WHERE e.family=r.family AND e.state<>'verified') GROUP BY r.family ORDER BY MIN(r.requested_at) LIMIT 1").get();return json(res,200,{family:row?.family??null});}
    if(action==='register'){
     fields(['slug','previewId','fileId']);const p=process.env.VEIL_GENESIS_IMPORT_FILE;if(!p?.startsWith('/'))throw new JudgingError('Private reviewed import manifest required.',503);const st=await fs.lstat(p);if(!st.isFile()||st.isSymbolicLink()||st.size>16384||(st.mode&0o022))throw new JudgingError('Private reviewed import manifest required.',503);
     return json(res,200,registerFamily(db,b,user.userId,JSON.parse(await fs.readFile(p,'utf8'))));
