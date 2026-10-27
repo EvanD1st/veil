@@ -57,7 +57,7 @@ def main():
  props=['RuntimeMaxSec=420','TimeoutStopSec=20','MemoryHigh=1152M','MemoryMax=1408M','MemorySwapMax=128M','CPUQuota=50%','TasksMax=128','UMask=0077','LimitCORE=0','NoNewPrivileges=yes','PrivateTmp=yes','ProtectSystem=strict','ProtectHome=yes','IPAddressDeny=any','IPAddressAllow=localhost','InaccessiblePaths=/var/lib/veil-testnet /srv','ReadWritePaths='+str(root)]
  command=['systemd-run','--quiet','--pipe','--wait','--unit=veil-managed-restore','--service-type=exec','--uid=veil-managed','--gid=veil-managed']
  for p in props:command+=['--property='+p]
- command+=['/opt/veil-managed/current/veil-managed',mode,str(target),str(h['height'])]
+ command+=[config['binary'],mode,str(target),str(h['height'])]
  subprocess.run(['systemctl','reset-failed','veil-managed-restore.service'],stdout=subprocess.DEVNULL,stderr=subprocess.DEVNULL)
  started=time.monotonic();child=subprocess.Popen(command,stdin=subprocess.PIPE,stdout=subprocess.PIPE,stderr=subprocess.PIPE)
  child.stdin.write(payload);child.stdin.close();del payload
@@ -69,7 +69,7 @@ def main():
   time.sleep(5)
  raw=child.stdout.read();child.stderr.read();result=json.loads(raw) if child.returncode==0 else None
  after={n:unit(n) for n in units}
- evidence={'mode':mode,'seconds':round(time.monotonic()-started,2),'exitCode':child.returncode,'aborted':aborted,'peakBytes':peak,'minimumMemAvailableBytes':minimum,'sourceWalletPreserved':source_hash==digest(original/'wallet.db'),'sourceBirthday':birthday,'existingBefore':before,'existingAfter':after,'fundsMoved':False,'result':result}
+ evidence={'mode':mode,'account':target.name,'seconds':round(time.monotonic()-started,2),'exitCode':child.returncode,'aborted':aborted,'peakBytes':peak,'minimumMemAvailableBytes':minimum,'sourceWalletPreserved':source_hash==digest(original/'wallet.db'),'sourceBirthday':birthday,'existingBefore':before,'existingAfter':after,'fundsMoved':False,'result':result}
  (root/('funded-restore-evidence-'+str(int(time.time()))+'.json')).write_text(json.dumps(evidence,indent=2))
  print(json.dumps({k:v for k,v in evidence.items() if k not in ['existingBefore','existingAfter','result']}))
  if result:print(json.dumps({k:result.get(k) for k in ['network','height','confirmed','synchronized','independentRecovery']}))

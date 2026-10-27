@@ -1,6 +1,6 @@
 // Private loopback service; expose only through the authenticated SSH tunnel.
 import {createServer} from 'node:http';
-import {timingSafeEqual,randomInt} from 'node:crypto';
+import {timingSafeEqual,randomInt,randomUUID} from 'node:crypto';
 import {DatabaseSync} from 'node:sqlite';
 import {existsSync} from 'node:fs';
 import {pathToFileURL} from 'node:url';
@@ -8,12 +8,23 @@ import {Treasury} from './treasury.mjs';
 import {ZingolibAdapter,privateJson} from './zingolib-adapter.mjs';
 import {validateInvoice} from '../scanner/invoice.mjs';
 const hex=/^[a-f0-9]{64}$/;
+const PRIVATE_SELECTOR_URL='http://127.0.0.1:19070/api/judging/managed/selector';
+export function createManagedSelectorDelivery({websiteOrigin,selectorUrl=PRIVATE_SELECTOR_URL,token,fetchImpl=fetch}){
+ return async payload=>{
+  if(websiteOrigin!=='https://ve-il.duckdns.org'||selectorUrl!==PRIVATE_SELECTOR_URL)throw Error('Private selector tunnel required.');
+  const r=await fetchImpl(selectorUrl,{method:'POST',redirect:'error',headers:{Authorization:'Bearer '+token,'Content-Type':'application/json'},body:JSON.stringify(payload),signal:AbortSignal.timeout(15000)});
+  if(!r.ok||(await r.json()).accepted!==true)throw Error('Selector acknowledgement unavailable.');
+ };
+}
 export function createManagedService({db,adapter,policy,token,kill,now=Date.now,deliverSelector=async()=>{throw Error('Delivery unavailable');}}){
  if(!hex.test(token))throw Error('A separate private service token is required.');
  const treasury=new Treasury({db,adapter,policy,kill,now});
  db.exec('CREATE TABLE IF NOT EXISTS managed_backup_challenges(user TEXT PRIMARY KEY,positions TEXT NOT NULL,expires INTEGER NOT NULL,attempts INTEGER NOT NULL DEFAULT 0);');
  // Startup is serialized by the service's OS lock. A crashed signer is never retried.
  db.exec("UPDATE judge_transfers SET state='prepare-unknown' WHERE state='preparing'");
+ db.exec('CREATE TABLE IF NOT EXISTS managed_service_sessions(id TEXT PRIMARY KEY,opened_at INTEGER NOT NULL);');
+ db.prepare('INSERT INTO managed_service_sessions VALUES(?,?)').run(randomUUID(),now());
+ db.exec('DELETE FROM managed_service_sessions WHERE id NOT IN (SELECT id FROM managed_service_sessions ORDER BY opened_at DESC LIMIT 8)');
  let task=null,stopped=false;
  const wallet=user=>db.prepare('SELECT * FROM judge_private_wallets WHERE user=?').get(user);
  const work=fn=>{if(task)throw Error('Private wallet worker is busy.');task=Promise.resolve().then(fn).catch(()=>{}).finally(()=>{task=null;});};
@@ -89,11 +100,7 @@ if(process.argv[1]&&import.meta.url===pathToFileURL(process.argv[1]).href){
  const adapter=new ZingolibAdapter(config),db=new DatabaseSync(config.database);
  db.exec('PRAGMA journal_mode=WAL; PRAGMA synchronous=FULL; PRAGMA foreign_keys=ON;');
  const kill=()=>config.enabled!==true||existsSync(config.killFile);
- const deliverSelector=async payload=>{
-  if(config.websiteOrigin!=='https://ve-il.duckdns.org')throw Error('Approved website origin required.');
-  const r=await fetch(config.websiteOrigin+'/api/judging/managed/selector',{method:'POST',redirect:'error',headers:{Authorization:'Bearer '+config.token,'Content-Type':'application/json'},body:JSON.stringify(payload),signal:AbortSignal.timeout(15000)});
-  if(!r.ok||(await r.json()).accepted!==true)throw Error('Selector acknowledgement unavailable.');
- };
+ const deliverSelector=createManagedSelectorDelivery(config);
  const app=createManagedService({db,adapter,policy:config.policy,token:config.token,kill,deliverSelector});
  app.server.listen(19070,'127.0.0.1');
  for(const signal of ['SIGTERM','SIGINT'])process.on(signal,()=>{app.close();setTimeout(()=>process.exit(0),1000).unref();});
