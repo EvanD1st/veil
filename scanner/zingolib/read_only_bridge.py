@@ -15,6 +15,7 @@ import subprocess
 import threading
 import time
 import urllib.request
+import urllib.error
 
 READ_METHODS = frozenset({
     'getinfo', 'getblockchaininfo', 'getbestblockhash', 'getblock',
@@ -37,6 +38,7 @@ class Server(http.server.ThreadingHTTPServer):
     request_queue_size = 4
     def __init__(self, address, handler):
         self.slots = threading.BoundedSemaphore(4)
+        self.stats = {method:{'requests':0,'failures':0,'lastErrorCode':None} for method in READ_METHODS}
         super().__init__(address, handler)
     def process_request(self, request, client_address):
         if not self.slots.acquire(blocking=False):
@@ -68,6 +70,12 @@ class Handler(http.server.BaseHTTPRequestHandler):
         self.send_header('Content-Length', str(len(body)))
         self.end_headers()
         self.wfile.write(body)
+    def do_GET(self):
+        if self.path!='/health' or not hmac.compare_digest(self.headers.get('Authorization',''), self.server.local_auth):
+            self.send_json(401,{'error':'unauthorized'});return
+        # Fixed method names, counts and numeric error codes only. Never params,
+        # addresses, transaction identifiers, cookies or raw node diagnostics.
+        self.send_json(200,{'methods':self.server.stats})
     def do_POST(self):
         if self.path!='/' or not hmac.compare_digest(self.headers.get('Authorization',''), self.server.local_auth):
             self.send_json(401, {'error':'unauthorized'})
@@ -83,6 +91,8 @@ class Handler(http.server.BaseHTTPRequestHandler):
         except (ValueError, TypeError):
             self.send_json(403, {'id':None,'result':None,'error':{'code':-32601,'message':'Read-only trial: request rejected'}})
             return
+        stats=self.server.stats[validated['method']]
+        stats['requests']=min(1000000000,stats['requests']+1)
         try:
             req=urllib.request.Request('http://127.0.0.1:18232',data=json.dumps(validated).encode(),
                 headers={'Content-Type':'application/json','Authorization':self.server.node_auth})
@@ -94,9 +104,19 @@ class Handler(http.server.BaseHTTPRequestHandler):
             # Do not leak node diagnostic strings or arbitrary fields to the trial.
             result={'id':data.get('id'),'result':obj.get('result'), 'error':None}
             if obj.get('error'):
+                stats['failures']=min(1000000000,stats['failures']+1)
+                stats['lastErrorCode']=obj['error'].get('code') if isinstance(obj['error'].get('code'),int) else None
                 result['error']={'code':obj['error'].get('code',-32603),'message':'Node read unavailable'}
             self.send_json(200,result)
-        except Exception:
+        except Exception as error:
+            stats['failures']=min(1000000000,stats['failures']+1)
+            stats['lastErrorCode']=None
+            if isinstance(error,urllib.error.HTTPError):
+                try:
+                    detail=json.loads(error.read(4096))
+                    code=detail.get('error',{}).get('code')
+                    if isinstance(code,int):stats['lastErrorCode']=code
+                except Exception:pass
             self.send_json(503,{'id':data.get('id'),'result':None,'error':{'code':-32603,'message':'Node read unavailable'}})
 
 def main():

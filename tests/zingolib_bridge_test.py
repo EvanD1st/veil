@@ -66,5 +66,15 @@ class HttpBoundary(unittest.TestCase):
             status,body=self.request(b'{"method":"getinfo"}')
             self.assertEqual(status,200)
             self.assertEqual(body['error'],{'code':-1,'message':'Node read unavailable'})
+    def test_filtered_health_is_authenticated_and_contains_no_credentials_or_parameters(self):
+        with patch.object(bridge.urllib.request,'urlopen',return_value=io.BytesIO(b'{"result":null,"error":{"code":-8,"message":"synthetic-private-diagnostic"}}')):
+            self.request(b'{"method":"getblock","params":["synthetic-private-selector"]}')
+        for authorized in [False,True]:
+            conn=http.client.HTTPConnection(*self.server.server_address,timeout=3)
+            conn.request('GET','/health',headers={'Authorization':self.server.local_auth} if authorized else {})
+            r=conn.getresponse();raw=r.read().decode();conn.close()
+            self.assertEqual(r.status,200 if authorized else 401)
+            for private in ['synthetic-private-selector','synthetic-private-diagnostic',self.server.local_auth,self.server.node_auth]:self.assertNotIn(private,raw)
+            if authorized:self.assertEqual(json.loads(raw)['methods']['getblock'],{'requests':1,'failures':1,'lastErrorCode':-8})
 
 if __name__=='__main__':unittest.main()
