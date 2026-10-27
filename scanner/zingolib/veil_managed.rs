@@ -211,6 +211,17 @@ async fn run()->Result<()>{
     require(!root.join("NEVER_PLAINTEXT").exists(),"plaintext persistence forbidden")?;
     println!("{}",output);Ok(())
 }
+fn private_error_chain(error: &(dyn std::error::Error + 'static), mode: &str) -> String {
+    let mut detail = format!("mode={mode}\n");
+    let mut current = Some(error);
+    for depth in 0..8 {
+        let Some(item) = current else { break };
+        detail.push_str(&format!("{depth}: {item}\n"));
+        current = item.source();
+    }
+    detail
+}
+
 #[tokio::main(flavor="multi_thread",worker_threads=2)]
 async fn main(){
     std::panic::set_hook(Box::new(|_|eprintln!("managed wallet aborted; private state retained")));
@@ -225,7 +236,7 @@ async fn main(){
                 if let Ok(recipient)=identity(&root,false){
                     for n in 0..5 {
                         let path=root.join(format!("failure-{n}.age"));
-                        if !path.exists(){let mut detail=error.to_string();detail.truncate(detail.floor_char_boundary(8192));let _=encrypt(&path,detail.as_bytes(),&recipient);break;}
+                        if !path.exists(){let mut detail=private_error_chain(error.as_ref(),args.get(1).map(String::as_str).unwrap_or("unknown"));detail.truncate(detail.floor_char_boundary(8192));let _=encrypt(&path,detail.as_bytes(),&recipient);break;}
                     }
                 }
             }
