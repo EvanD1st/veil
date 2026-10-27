@@ -17,7 +17,7 @@ try{
   const cutoff=Date.now()-86400000,removed=[];db.exec('BEGIN IMMEDIATE');
   try{
    db.prepare('DELETE FROM digital_drafts WHERE created_at<? AND NOT EXISTS(SELECT 1 FROM digital_listings WHERE version_id=digital_drafts.id)').run(cutoff);
-   const rows=db.prepare('SELECT id FROM digital_assets WHERE created_at<? AND NOT EXISTS(SELECT 1 FROM digital_drafts WHERE file_id=digital_assets.id OR preview_id=digital_assets.id) AND NOT EXISTS(SELECT 1 FROM digital_listings WHERE file_id=digital_assets.id OR preview_id=digital_assets.id)').all(cutoff);
+   const rows=db.prepare('SELECT id FROM digital_assets WHERE created_at<? AND NOT EXISTS(SELECT 1 FROM digital_drafts WHERE file_id=digital_assets.id OR preview_id=digital_assets.id) AND NOT EXISTS(SELECT 1 FROM digital_listings WHERE file_id=digital_assets.id OR preview_id=digital_assets.id) AND NOT EXISTS(SELECT 1 FROM judging_families WHERE file_id=digital_assets.id OR preview_id=digital_assets.id)').all(cutoff);
    for(const a of rows){if(!/^[a-f0-9]{32}$/.test(a.id))throw Error();db.prepare('DELETE FROM digital_assets WHERE id=?').run(a.id);removed.push(a.id);}db.exec('COMMIT');
   }catch(e){db.exec('ROLLBACK');throw e;}
   let deleted=0;for(const dir of ['objects','tmp'])for(const name of await fs.readdir(join(root,dir))){

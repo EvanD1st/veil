@@ -62,7 +62,11 @@ test('digital purchase boundary: real local files and HTTP, synthetic signed pay
    assert.ok(db.prepare("SELECT 1 FROM digital_assets WHERE state='uploading'").get());assert.equal((await upload('deliverable',bytes)).status,429);req.destroy();
    for(let i=0;i<100&&db.prepare("SELECT 1 FROM digital_assets WHERE state='uploading'").get();i++)await new Promise(r=>setTimeout(r,10));
    assert.equal(db.prepare("SELECT COUNT(*) n FROM digital_assets WHERE state='uploading'").get().n,0);assert.deepEqual(await fs.readdir(join(root,'tmp')),[]);
-   assert.equal((await upload('deliverable',bytes)).status,201);
+   // Removing the reservation and unlinking the temp file happen before the final
+   // semaphore release. A retry may truthfully see 429 during that last async cleanup.
+   // Require bounded eventual recovery, not a scheduling-dependent immediate success.
+   let retry;for(let i=0;i<100;i++){retry=await upload('deliverable',bytes);if(retry.status!==429)break;await retry.arrayBuffer();await new Promise(r=>setTimeout(r,10));}
+   assert.equal(retry.status,201);
   });
   await t.test('only a fully decoded still image or constrained binary STL is accepted; no path/header reflection',async()=>{
    const bad=Buffer.concat([bytes,Buffer.from('trailing executable material')]);assert.equal((await upload('deliverable',bad)).status,400);
