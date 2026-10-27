@@ -53,6 +53,7 @@ jobs:
       - run: pnpm exec playwright install --with-deps chromium
       - run: node scripts/test-native-browser.mjs
       - run: node scripts/test-judging-browser.mjs
+      - run: node scripts/test-managed-browser.mjs
       - run: node scripts/test-auth-scene.mjs
       - run: node scripts/test-escrow-browser.mjs
       - run: tar -czf veil-ubuntu.tar.gz -C dist/standalone .
