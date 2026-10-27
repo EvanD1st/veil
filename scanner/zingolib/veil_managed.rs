@@ -214,5 +214,22 @@ async fn run()->Result<()>{
 #[tokio::main(flavor="multi_thread",worker_threads=2)]
 async fn main(){
     std::panic::set_hook(Box::new(|_|eprintln!("managed wallet aborted; private state retained")));
-    if run().await.is_err(){eprintln!("managed wallet operation failed; no broadcast performed");std::process::exit(1);}
+    if let Err(error)=run().await{
+        // Detailed SDK diagnostics can embed payment metadata. Keep a maximum of
+        // five encrypted private captures; never serialize them into a journal.
+        let args:Vec<String>=std::env::args().collect();
+        if let Some(value)=args.get(2){
+            let root=PathBuf::from(value);
+            if root.is_absolute() && root.canonicalize().ok().as_ref()==Some(&root)
+                && fs::metadata(&root).is_ok_and(|m|m.permissions().mode()&0o077==0){
+                if let Ok(recipient)=identity(&root,false){
+                    for n in 0..5 {
+                        let path=root.join(format!("failure-{n}.age"));
+                        if !path.exists(){let mut detail=error.to_string();detail.truncate(detail.floor_char_boundary(8192));let _=encrypt(&path,detail.as_bytes(),&recipient);break;}
+                    }
+                }
+            }
+        }
+        eprintln!("managed wallet operation failed; retained private state; no broadcast performed");std::process::exit(1);
+    }
 }
