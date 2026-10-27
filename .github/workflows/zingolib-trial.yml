@@ -1,0 +1,90 @@
+name: Isolated Zingolib trial artifacts
+on:
+  push:
+    branches: [zingolib-testnet-trial]
+    paths: ['scanner/zingolib/**', '.github/workflows/zingolib-trial.yml']
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  lightwalletd:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: '1.27.3'
+          cache: false
+      - name: Pinned bridge source, tests and binary
+        shell: bash
+        run: |
+          set -euo pipefail
+          git init /tmp/veil-lightwalletd
+          git -C /tmp/veil-lightwalletd remote add origin https://github.com/zcash/lightwalletd.git
+          git -C /tmp/veil-lightwalletd fetch --depth=1 origin e7436d2adb9ab5828eb8a27de534e16218841fc2
+          git -C /tmp/veil-lightwalletd checkout --detach FETCH_HEAD
+          test "$(git -C /tmp/veil-lightwalletd rev-parse HEAD)" = e7436d2adb9ab5828eb8a27de534e16218841fc2
+          cd /tmp/veil-lightwalletd
+          go mod verify
+          go test -p 2 ./parser ./frontend ./common ./cmd
+          mkdir -p "$GITHUB_WORKSPACE/trial-artifact"
+          go build -mod=readonly -trimpath -p 2 -o "$GITHUB_WORKSPACE/trial-artifact/lightwalletd" .
+          git diff --exit-code -- go.mod go.sum
+          go version > "$GITHUB_WORKSPACE/trial-artifact/lightwalletd-toolchain.txt"
+          printf '%s\n' e7436d2adb9ab5828eb8a27de534e16218841fc2 > "$GITHUB_WORKSPACE/trial-artifact/lightwalletd-source.txt"
+          cd "$GITHUB_WORKSPACE/trial-artifact"
+          sha256sum lightwalletd > lightwalletd.sha256
+      - uses: actions/upload-artifact@v7
+        with:
+          name: veil-lightwalletd-${{ github.sha }}
+          path: trial-artifact/
+          retention-days: 7
+  zingolib:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    env:
+      CARGO_BUILD_JOBS: '2'
+      CARGO_PROFILE_RELEASE_DEBUG: '0'
+      CARGO_INCREMENTAL: '0'
+    steps:
+      - uses: actions/checkout@v4
+      - name: Pinned SDK and toolchain
+        shell: bash
+        run: |
+          set -euo pipefail
+          sudo apt-get update -qq
+          sudo apt-get install -y --no-install-recommends age protobuf-compiler libssl-dev pkg-config clang cmake
+          git init /tmp/veil-zingolib
+          git -C /tmp/veil-zingolib remote add origin https://github.com/zingolabs/zingolib.git
+          git -C /tmp/veil-zingolib fetch --depth=1 origin bfb0a2156819ea7f75a9b09b1724abfd06c8925e
+          git -C /tmp/veil-zingolib checkout --detach FETCH_HEAD
+          test "$(git -C /tmp/veil-zingolib rev-parse HEAD)" = bfb0a2156819ea7f75a9b09b1724abfd06c8925e
+          cd /tmp/veil-zingolib
+          echo '8b24d60c8a531a30ba1c334d35a682f924b1a2069a1a4fecaab00eece500f58f  Cargo.lock' | sha256sum -c -
+          rustup toolchain install 1.99.0 --profile minimal
+          mkdir -p zingolib/src/bin
+          cp "$GITHUB_WORKSPACE/scanner/zingolib/veil_trial.rs" zingolib/src/bin/veil-trial.rs
+      - name: Locked SDK build and independent encrypted offline recovery
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd /tmp/veil-zingolib
+          cargo +1.99.0 build --locked --release -p zingolib --bin veil-trial
+          git diff --exit-code -- Cargo.lock
+          mkdir -p "$GITHUB_WORKSPACE/trial-artifact"
+          umask 077
+          target/release/veil-trial offline /tmp/veil-offline-wallet-test 4546000 > "$GITHUB_WORKSPACE/trial-artifact/offline-evidence.json"
+          if target/release/veil-trial offline /tmp/veil-offline-wallet-test 4546000; then exit 1; fi
+          if target/release/veil-trial send /tmp/veil-offline-wallet-test 4546000; then exit 1; fi
+          cp target/release/veil-trial "$GITHUB_WORKSPACE/trial-artifact/"
+          rustc +1.99.0 --version > "$GITHUB_WORKSPACE/trial-artifact/zingolib-toolchain.txt"
+          printf '%s\n' bfb0a2156819ea7f75a9b09b1724abfd06c8925e > "$GITHUB_WORKSPACE/trial-artifact/zingolib-source.txt"
+          sha256sum Cargo.lock > "$GITHUB_WORKSPACE/trial-artifact/zingolib-lock.sha256"
+          cd "$GITHUB_WORKSPACE/trial-artifact"
+          sha256sum veil-trial > veil-trial.sha256
+      - uses: actions/upload-artifact@v7
+        with:
+          name: veil-zingolib-trial-${{ github.sha }}
+          path: trial-artifact/
+          retention-days: 7
