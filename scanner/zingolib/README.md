@@ -27,3 +27,12 @@ Before admission, require at least 3 GiB MemAvailable and 15 GiB free disk, acti
 Rollback is **stop only `veil-zingolib-trial.service` and `veil-lightwallet-trial.service`**, leaving their encrypted new-wallet files and evidence intact. Both have Restart=no and no boot activation. Do not delete wallets, touch the working receiver/scanner or revert the deployed website database. The website has a separately verified compatible previous-reader rollback; these two rollbacks are independent.
 
 Before any managed spending implementation can be activated: independently recover actual funded test identities, validate proposal fee/output/change/expiry/network binding, persist prepared bytes/txid before a single broadcast, reconcile uncertain outcomes without resending, validate restart/capacity, review source dependencies and get separate approval for the exact testnet transfer. Nothing in this trial silently activates starter funding or Pay.
+
+## Managed-wallet tunnel directions
+
+The optional managed API and selector callback use different local listeners:
+
+* Website `127.0.0.1:19070` forwards over SSH `-R` to AWS `127.0.0.1:19070` (the authenticated private wallet API).
+* AWS `127.0.0.1:19071` forwards over SSH `-L` to website `127.0.0.1:8092` (the native application). Selector delivery uses only `http://127.0.0.1:19071/api/judging/managed/selector`, supplies the pinned public Host header for native host validation, refuses redirects and retains bearer authentication.
+
+Using AWS port 19070 for the callback loops into the wallet API and cannot deliver an invoice selector. The dedicated website SSH account must allow only `permitlisten="127.0.0.1:19070"` and `permitopen="127.0.0.1:8092"`, with no shell, PTY, agent or X11 access. Validate the actual authorized-key and sshd restrictions before adding the local forward. Neither listener is public, and no wallet RPC is forwarded. A synthetic two-listener regression verifies that callback traffic reaches the website listener, carries the expected Host/bearer, and never reaches the wallet API. Live tunnel delivery still requires the exact staged website configuration and a separately approved transaction.

@@ -37,7 +37,7 @@ def main():
  state.mkdir(mode=0o700);os.chown(state,account.pw_uid,account.pw_gid)
  wallets=state/'wallets';wallets.mkdir(mode=0o700);os.chown(wallets,account.pw_uid,account.pw_gid)
  etc.mkdir(mode=0o700);os.chown(etc,account.pw_uid,account.pw_gid)
- config={'enabled':False,'websiteOrigin':'https://ve-il.duckdns.org','selectorUrl':'http://127.0.0.1:19070/api/judging/managed/selector','token':secrets.token_hex(32),
+ config={'enabled':False,'websiteOrigin':'https://ve-il.duckdns.org','selectorUrl':'http://127.0.0.1:19071/api/judging/managed/selector','token':secrets.token_hex(32),
   'binary':str(base/'current/veil-managed'),'binarySha256':expected_binary,'database':str(state/'journal.sqlite'),
   'walletRoot':str(wallets),'healthFile':'/run/veil-managed-health/current.json','killFile':str(etc/'PAUSED'),
   'policy':{'grant':'200000','maxFee':'20000','daily':'2200000','total':'2200000','maxUsers':10,'treasuryAccount':str(uuid.uuid4())}}

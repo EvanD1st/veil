@@ -1,10 +1,11 @@
+import {createServer} from 'node:http';
 // Synthetic transport/key fixtures only. These tests never claim live funds.
 import test from 'node:test';import assert from 'node:assert/strict';
 import {DatabaseSync} from 'node:sqlite';import {readFileSync} from 'node:fs';import {randomUUID} from 'node:crypto';
 import {createManagedService,createManagedSelectorDelivery} from '../judging/managed-service.mjs';
 import {canonicalManagedInvoice,acceptManagedSelector} from '../judging/managed-client.mjs';
 const address=JSON.parse(readFileSync('tests/fixtures/synthetic-receiver.json')).address;
-test('selector bearer is restricted to the private reverse-tunnel URL',async()=>{let seen;const deliver=createManagedSelectorDelivery({websiteOrigin:'https://ve-il.duckdns.org',token:'a'.repeat(64),fetchImpl:async(url,options)=>{seen={url,options};return{ok:true,json:async()=>({accepted:true})};}});await deliver({txid:'b'.repeat(64)});assert.equal(seen.url,'http://127.0.0.1:19070/api/judging/managed/selector');assert.equal(seen.options.redirect,'error');assert.equal(seen.options.headers.Authorization,'Bearer '+'a'.repeat(64));await assert.rejects(createManagedSelectorDelivery({websiteOrigin:'https://ve-il.duckdns.org',selectorUrl:'https://ve-il.duckdns.org/api/judging/managed/selector',token:'a'.repeat(64)} )({}),/private selector tunnel/i);});
+test('selector bearer is restricted to the private reverse-tunnel URL',async()=>{let seen;const deliver=createManagedSelectorDelivery({websiteOrigin:'https://ve-il.duckdns.org',token:'a'.repeat(64),fetchImpl:async(url,options)=>{seen={url,options};return{ok:true,json:async()=>({accepted:true})};}});await deliver({txid:'b'.repeat(64)});assert.equal(seen.url,'http://127.0.0.1:19071/api/judging/managed/selector');assert.equal(seen.options.redirect,'error');assert.equal(seen.options.headers.Authorization,'Bearer '+'a'.repeat(64));await assert.rejects(createManagedSelectorDelivery({websiteOrigin:'https://ve-il.duckdns.org',selectorUrl:'https://ve-il.duckdns.org/api/judging/managed/selector',token:'a'.repeat(64)} )({}),/private selector tunnel/i);});
 function fixture(options={}){const db=new DatabaseSync(':memory:');let stamp=100000,valid=true;
  const adapter={evidence:'synthetic-ci-only',validated:true,cache:new Map(),async provision({operation}){this.cache.set(operation,{observedAt:stamp,confirmed:'1000000',synchronized:true});return {account:operation,address,independentAuthority:true};},async backup(){return {seed:Array.from({length:24},(_,n)=>'fixtureword'+n).join(' '),birthday:4546000,address};},async confirmIndividualBackup(_account,answers){return answers.every(a=>a.word==='fixtureword'+(a.index-1));},async balance(account){return {network:'testnet',account,confirmed:'1000000',synchronized:true};},async readiness(){},async refresh(account){this.cache.set(account,{observedAt:stamp,confirmed:'1000000',synchronized:true});}};
  const policy={grant:'200000',maxFee:'20000',daily:'220000',total:'220000',maxUsers:2,treasuryAccount:randomUUID()},app=createManagedService({db,adapter,policy,token:'a'.repeat(64),kill:()=>!valid,now:()=>stamp,...options});return {db,adapter,app,setTime:t=>stamp=t,kill:()=>valid=false};}
@@ -46,4 +47,28 @@ test('selector delivery reconciles a lost acknowledgement from the durable outbo
   await f.app.tick();await f.app.idle();assert.equal(calls,1);assert.equal(f.db.prepare('SELECT selector_ack FROM judge_transfers').get().selector_ack,0);
   f.setTime(130001);await f.app.tick();await f.app.idle();assert.equal(calls,2);assert.equal(seen.size,1);assert.equal(f.db.prepare('SELECT selector_ack FROM judge_transfers').get().selector_ack,1);
  }finally{f.app.close();f.db.close();}
+});
+
+// Synthetic HTTP listeners model the two opposite tunnel directions. A selector
+// must reach the website listener, never loop back into the wallet API.
+test('selector callback reaches the website tunnel while the wallet API stays separate',async()=>{
+ let walletCalls=0,websiteCalls=0;
+ const api=createServer((req,res)=>{walletCalls++;res.writeHead(404);res.end();});
+ const website=createServer(async(req,res)=>{
+  websiteCalls++;assert.equal(req.url,'/api/judging/managed/selector');
+  assert.equal(req.headers.authorization,'Bearer '+'a'.repeat(64));assert.equal(req.headers.host,'ve-il.duckdns.org');
+  let raw='';for await(const chunk of req)raw+=chunk;
+  assert.equal(JSON.parse(raw).txid,'b'.repeat(64));
+  res.writeHead(200,{'Content-Type':'application/json'});res.end('{"accepted":true}');
+ });
+ try{
+  await new Promise((resolve,reject)=>{api.once('error',reject);api.listen(19070,'127.0.0.1',resolve);});
+  await new Promise((resolve,reject)=>{website.once('error',reject);website.listen(19071,'127.0.0.1',resolve);});
+  await createManagedSelectorDelivery({websiteOrigin:'https://ve-il.duckdns.org',token:'a'.repeat(64)})({txid:'b'.repeat(64)});
+  assert.equal(websiteCalls,1);assert.equal(walletCalls,0);
+  await assert.rejects(createManagedSelectorDelivery({websiteOrigin:'https://ve-il.duckdns.org',selectorUrl:'http://127.0.0.1:19070/api/judging/managed/selector',token:'a'.repeat(64)})({}),/private selector tunnel/i);
+ }finally{
+  api.closeAllConnections();website.closeAllConnections();
+  await Promise.all([new Promise(resolve=>api.close(resolve)),new Promise(resolve=>website.close(resolve))]);
+ }
 });

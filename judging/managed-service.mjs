@@ -1,5 +1,5 @@
 // Private loopback service; expose only through the authenticated SSH tunnel.
-import {createServer} from 'node:http';
+import {createServer,request as httpRequest} from 'node:http';
 import {timingSafeEqual,randomInt,randomUUID} from 'node:crypto';
 import {DatabaseSync} from 'node:sqlite';
 import {existsSync} from 'node:fs';
@@ -8,11 +8,24 @@ import {Treasury} from './treasury.mjs';
 import {ZingolibAdapter,privateJson} from './zingolib-adapter.mjs';
 import {validateInvoice} from '../scanner/invoice.mjs';
 const hex=/^[a-f0-9]{64}$/;
-const PRIVATE_SELECTOR_URL='http://127.0.0.1:19070/api/judging/managed/selector';
-export function createManagedSelectorDelivery({websiteOrigin,selectorUrl=PRIVATE_SELECTOR_URL,token,fetchImpl=fetch}){
+const PRIVATE_SELECTOR_URL='http://127.0.0.1:19071/api/judging/managed/selector';
+// Node fetch normalizes Host to the tunnel address. Native host validation needs
+// the pinned public host, so use the HTTP client with an explicit Host header.
+function selectorRequest(url,options){
+ return new Promise((resolve,reject)=>{
+  const req=httpRequest(url,{method:'POST',headers:options.headers,signal:options.signal},res=>{
+   const chunks=[];let size=0;
+   res.on('data',chunk=>{size+=chunk.length;if(size>16384){res.destroy(Error('Selector response exceeded limit.'));return;}chunks.push(chunk);});
+   res.once('error',reject);res.once('end',()=>resolve({ok:res.statusCode>=200&&res.statusCode<300,json:async()=>JSON.parse(Buffer.concat(chunks).toString('utf8'))}));
+  });
+  req.once('error',reject);req.end(options.body);
+ });
+}
+
+export function createManagedSelectorDelivery({websiteOrigin,selectorUrl=PRIVATE_SELECTOR_URL,token,fetchImpl=selectorRequest}){
  return async payload=>{
   if(websiteOrigin!=='https://ve-il.duckdns.org'||selectorUrl!==PRIVATE_SELECTOR_URL)throw Error('Private selector tunnel required.');
-  const r=await fetchImpl(selectorUrl,{method:'POST',redirect:'error',headers:{Authorization:'Bearer '+token,'Content-Type':'application/json'},body:JSON.stringify(payload),signal:AbortSignal.timeout(15000)});
+  const r=await fetchImpl(selectorUrl,{method:'POST',redirect:'error',headers:{Host:new URL(websiteOrigin).host,Authorization:'Bearer '+token,'Content-Type':'application/json'},body:JSON.stringify(payload),signal:AbortSignal.timeout(15000)});
   if(!r.ok||(await r.json()).accepted!==true)throw Error('Selector acknowledgement unavailable.');
  };
 }
