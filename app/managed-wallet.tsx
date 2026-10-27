@@ -10,7 +10,7 @@ async function call<T=Wallet>(action:string,body:object={}):Promise<T>{
 }
 export function ManagedWallet(){
  const [wallet,setWallet]=useState<Wallet|null>(null),[busy,setBusy]=useState(false),[error,setError]=useState(''),[backup,setBackup]=useState<Backup|null>(null),[password,setPassword]=useState(''),[answers,setAnswers]=useState(['','','']);
- async function load(){try{setWallet(await call(''));}catch(e){setError((e as Error).message);}}
+ async function load(){try{setWallet(await call(''));}catch(e){setError((e as Error).message);setWallet(w=>w?{...w,balanceZatoshis:null,canPay:false,reason:'Wallet service unavailable. No current balance or payment availability is assumed.'}:null);}}
  useEffect(()=>{void load();const t=setInterval(load,15000);return()=>clearInterval(t);},[]);
  useEffect(()=>{const hide=()=>{if(document.hidden){setBackup(null);setAnswers(['','','']);setPassword('');}};document.addEventListener('visibilitychange',hide);return()=>document.removeEventListener('visibilitychange',hide);},[]);
  async function submit(action:string,body:object={}){if(busy)return;setBusy(true);setError('');try{const d=await call<Wallet&Backup>(action,body);if(action==='backup'){setBackup(d);setPassword('');setAnswers(['','','']);}else if(action==='confirm-backup'){setBackup(null);setAnswers(['','','']);}await load();}catch(e){setError((e as Error).message);}finally{setBusy(false);}}
@@ -18,7 +18,8 @@ export function ManagedWallet(){
 }
 export function ManagedCheckout({auctionId}:{auctionId:string}){
  const [available,setAvailable]=useState(false),[quote,setQuote]=useState<Quote|null>(null),[busy,setBusy]=useState(false),[message,setMessage]=useState('');
- useEffect(()=>{void call('').then(w=>setAvailable(w.canPay===true)).catch(()=>{});},[]);
+ useEffect(()=>{let cancelled=false;const load=()=>{void call('').then(w=>{if(!cancelled)setAvailable(w.canPay===true);}).catch(()=>{if(!cancelled)setAvailable(false);});};load();const t=setInterval(load,15000);return()=>{cancelled=true;clearInterval(t);};},[]);
+ useEffect(()=>{if(!quote)return;const t=setTimeout(()=>{setQuote(null);setMessage('Payment review expired. Request a fresh review before paying.');},Math.max(0,quote.expiresAt-Date.now()));return()=>clearTimeout(t);},[quote]);
  if(!available)return null;
  async function action(pay=false){if(busy)return;setBusy(true);setMessage('');try{const d=await call<Quote&{state:string}>(pay?'pay':'quote',pay?{auctionId,quoteId:quote?.quoteId,affirmative:true}:{auctionId});if(pay){setQuote(null);setMessage('Payment '+d.state+'. Wait for scanner confirmation. A timeout must be reconciled; never pay twice.');}else setQuote(d);}catch(e){setMessage((e as Error).message);}finally{setBusy(false);}}
  return <div className="key-card"><h3>Pay from your VEIL test wallet</h3>{quote?<><dl><dt>Network</dt><dd>Zcash TESTNET</dd><dt>Destination</dt><dd style={{overflowWrap:'anywhere'}}>{quote.address}</dd><dt>Amount</dt><dd>{formatZec(quote.amount)} TAZ</dd><dt>Maximum fee</dt><dd>{formatZec(quote.maxFee)} TAZ</dd><dt>Invoice memo</dt><dd style={{overflowWrap:'anywhere'}}>{quote.memo}</dd></dl><p>Review expires {new Date(quote.expiresAt).toLocaleTimeString()}. Selecting Pay authorizes this exact purchase once.</p><button className="button button-dark" disabled={busy||Date.now()>=quote.expiresAt} onClick={()=>action(true)}>{busy?'Retaining authorization…':'Pay this exact testnet invoice'}</button><button className="text-button" disabled={busy} onClick={()=>setQuote(null)}>Cancel review</button></>:<button className="button button-outline" disabled={busy} onClick={()=>action()}>Review testnet payment</button>}<p role="status">{message}</p></div>;

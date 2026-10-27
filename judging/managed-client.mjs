@@ -17,7 +17,7 @@ export function managedClient({tokenFile=process.env.VEIL_MANAGED_TOKEN_FILE,ena
  const token=readFileSync(tokenFile,'utf8').trim();if(!/^[a-f0-9]{64}$/.test(token))throw Error('Invalid managed service credential.');
  const client=async(action,user,input={})=>{
   const response=await fetchImpl('http://127.0.0.1:19070/v1',{method:'POST',redirect:'error',headers:{'Content-Type':'application/json','Authorization':'Bearer '+token},body:JSON.stringify({action,user,input}),signal:AbortSignal.timeout(20000)});
-  const text=await response.text();if(text.length>16384)throw Error('Managed service response exceeded limit.');
+  const parts=[];let size=0;for await(const chunk of response.body){size+=chunk.length;if(size>16384)throw Error('Managed service response exceeded limit.');parts.push(chunk);}const text=Buffer.concat(parts).toString('utf8');
   const result=JSON.parse(text);if(!response.ok)throw Error('Wallet operation is unavailable. Refresh its retained status before retrying.');return result;
  };
  client.authenticated=header=>{const want='Bearer '+token;return typeof header==='string'&&Buffer.byteLength(header)===Buffer.byteLength(want)&&timingSafeEqual(Buffer.from(header),Buffer.from(want));};

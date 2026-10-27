@@ -1,0 +1,23 @@
+[Unit]
+Description=VEIL private wallet API tunnel to the website host
+After=network-online.target
+Wants=network-online.target
+StartLimitIntervalSec=300
+StartLimitBurst=3
+
+[Service]
+User=veil-managed-tunnel
+Group=veil-managed-tunnel
+ExecStart=/usr/bin/ssh -NT -o BatchMode=yes -o IdentitiesOnly=yes -o StrictHostKeyChecking=yes -o HostKeyAlgorithms=ssh-ed25519 -o UserKnownHostsFile=/etc/veil-managed-tunnel-known-hosts -o ExitOnForwardFailure=yes -o ServerAliveInterval=20 -o ServerAliveCountMax=3 -i /var/lib/veil-managed-tunnel/id_ed25519 -R 127.0.0.1:19070:127.0.0.1:19070 veil-managed-tunnel@18.175.211.11
+Restart=on-failure
+RestartSec=30
+UMask=0077
+NoNewPrivileges=yes
+PrivateTmp=yes
+ProtectSystem=strict
+ProtectHome=yes
+MemoryMax=32M
+TasksMax=16
+
+[Install]
+WantedBy=multi-user.target

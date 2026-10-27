@@ -17,6 +17,7 @@ def main():
  original=pathlib.Path('/var/lib/veil-testnet/sender')
  assert tomllib.loads((original/'zallet.toml').read_text())['consensus']['network']=='test'
  assert unit('veil-zallet@sender.service')['ActiveState']=='inactive'
+ assert unit('veil-managed.service')['ActiveState']!='active'
  assert available()>=2684354560
  units=['veil-zebra.service','veil-zallet@receiver-v2.service','veil-scanner.service']
  before={n:unit(n) for n in units};assert all(x['ActiveState']=='active' for x in before.values())
@@ -35,10 +36,16 @@ def main():
   dest=sqlite3.connect(backup);c.backup(dest);dest.close();backup.chmod(0o600)
  c.close()
  source_hash=digest(original/'wallet.db')
- exported=subprocess.run(['/opt/veil-testnet/current/bin/zallet','-d',str(original),'export-mnemonic','--armor',str(uuid.UUID(bytes=account))],capture_output=True,timeout=30,check=True)
- decoded=subprocess.run(['/usr/bin/age','-d','-i',str(original/'encryption-identity.txt')],input=exported.stdout,capture_output=True,timeout=15,check=True)
- seed=decoded.stdout.decode().strip();assert len(seed.split()) in [12,15,18,21,24]
- target=pathlib.Path(config['walletRoot'])/config['policy']['treasuryAccount'];assert not target.exists()
+ target=pathlib.Path(config['walletRoot'])/config['policy']['treasuryAccount']
+ mode='status' if target.exists() else 'restore'
+ if mode=='restore':
+  exported=subprocess.run(['/opt/veil-testnet/current/bin/zallet','-d',str(original),'export-mnemonic','--armor',str(uuid.UUID(bytes=account))],capture_output=True,timeout=30,check=True)
+  decoded=subprocess.run(['/usr/bin/age','-d','-i',str(original/'encryption-identity.txt')],input=exported.stdout,capture_output=True,timeout=15,check=True)
+  seed=decoded.stdout.decode().strip();assert len(seed.split()) in [12,15,18,21,24]
+  payload=json.dumps({'network':'testnet','seed':seed,'birthday':birthday}).encode();del seed,decoded,exported
+ else:
+  assert all((target/name).is_file() for name in ['wallet.age','recovery.age','identity.txt'])
+  payload=b'{}'
  subprocess.run(['systemctl','start','veil-managed-health.service','veil-managed-indexer.service'],check=True)
  for _ in range(30):
   with socket.socket() as sock:
@@ -50,9 +57,9 @@ def main():
  props=['RuntimeMaxSec=420','TimeoutStopSec=20','MemoryHigh=1152M','MemoryMax=1408M','MemorySwapMax=128M','CPUQuota=50%','TasksMax=128','UMask=0077','LimitCORE=0','NoNewPrivileges=yes','PrivateTmp=yes','ProtectSystem=strict','ProtectHome=yes','IPAddressDeny=any','IPAddressAllow=localhost','InaccessiblePaths=/var/lib/veil-testnet /srv','ReadWritePaths='+str(root)]
  command=['systemd-run','--quiet','--pipe','--wait','--unit=veil-managed-restore','--service-type=exec','--uid=veil-managed','--gid=veil-managed']
  for p in props:command+=['--property='+p]
- command+=['/opt/veil-managed/current/veil-managed','restore',str(target),str(h['height'])]
+ command+=['/opt/veil-managed/current/veil-managed',mode,str(target),str(h['height'])]
+ subprocess.run(['systemctl','reset-failed','veil-managed-restore.service'],stdout=subprocess.DEVNULL,stderr=subprocess.DEVNULL)
  started=time.monotonic();child=subprocess.Popen(command,stdin=subprocess.PIPE,stdout=subprocess.PIPE,stderr=subprocess.PIPE)
- payload=json.dumps({'network':'testnet','seed':seed,'birthday':birthday}).encode();del seed,decoded,exported
  child.stdin.write(payload);child.stdin.close();del payload
  minimum=available();peak=0;aborted=False
  while child.poll() is None:
@@ -62,8 +69,8 @@ def main():
   time.sleep(5)
  raw=child.stdout.read();child.stderr.read();result=json.loads(raw) if child.returncode==0 else None
  after={n:unit(n) for n in units}
- evidence={'seconds':round(time.monotonic()-started,2),'exitCode':child.returncode,'aborted':aborted,'peakBytes':peak,'minimumMemAvailableBytes':minimum,'sourceWalletPreserved':source_hash==digest(original/'wallet.db'),'sourceBirthday':birthday,'existingBefore':before,'existingAfter':after,'fundsMoved':False,'result':result}
- (root/'funded-restore-evidence.json').write_text(json.dumps(evidence,indent=2))
+ evidence={'mode':mode,'seconds':round(time.monotonic()-started,2),'exitCode':child.returncode,'aborted':aborted,'peakBytes':peak,'minimumMemAvailableBytes':minimum,'sourceWalletPreserved':source_hash==digest(original/'wallet.db'),'sourceBirthday':birthday,'existingBefore':before,'existingAfter':after,'fundsMoved':False,'result':result}
+ (root/('funded-restore-evidence-'+str(int(time.time()))+'.json')).write_text(json.dumps(evidence,indent=2))
  print(json.dumps({k:v for k,v in evidence.items() if k not in ['existingBefore','existingAfter','result']}))
  if result:print(json.dumps({k:result.get(k) for k in ['network','height','confirmed','synchronized','independentRecovery']}))
  if child.returncode or aborted:raise SystemExit(1)

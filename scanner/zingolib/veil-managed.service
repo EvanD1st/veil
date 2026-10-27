@@ -12,7 +12,7 @@ User=veil-managed
 Group=veil-managed
 Environment=NODE_ENV=production
 LoadCredential=node-cookie:/var/lib/veil-testnet/node-auth/.cookie
-ExecStart=/opt/veil-testnet/node/bin/node --max-old-space-size=128 /opt/veil-managed/current/judging/managed-service.mjs /etc/veil-managed/service.json
+ExecStart=/usr/bin/flock --nonblock /var/lib/veil-managed/worker.lock /opt/veil-testnet/node/bin/node --max-old-space-size=128 /opt/veil-managed/current/judging/managed-service.mjs /etc/veil-managed/service.json
 Restart=on-failure
 RestartSec=15
 TimeoutStopSec=30
