@@ -59,6 +59,8 @@ export function createManagedService({db,adapter,policy,token,kill,now=Date.now,
   if(pending.length&&adapter.validated){work(async()=>{
    for(const r of pending){if(kill())break;if(r.state==='queued'){await treasury.prepare(r.id);break;}else if(r.state==='prepared'){await treasury.broadcast(r.id);break;}else await treasury.reconcile(r.id);}
   });return;}
+  const confirmed=db.prepare("SELECT id FROM judge_transfers WHERE state='confirmed' AND reconcile_next<=? ORDER BY reconcile_next LIMIT 1").get(now());
+  if(confirmed&&adapter.validated){db.prepare('UPDATE judge_transfers SET reconcile_next=? WHERE id=?').run(now()+60000,confirmed.id);work(()=>treasury.reconcile(confirmed.id));return;}
   const w=db.prepare("SELECT wallet_account FROM judge_private_wallets WHERE wallet_account IS NOT NULL AND state IN ('ready','backup-required') ORDER BY rowid LIMIT 50").all().find(w=>now()-(adapter.cache?.get(w.wallet_account)?.observedAt??0)>60000);
   if(w)work(()=>adapter.refresh(w.wallet_account));
  }
@@ -75,7 +77,7 @@ export function createManagedService({db,adapter,policy,token,kill,now=Date.now,
   }catch{if(!res.headersSent)send(res,503,{error:'Wallet operation unavailable; retained state must be checked before retry.'});}
  });
  server.maxConnections=8;server.requestTimeout=20000;server.headersTimeout=10000;
- const timer=setInterval(()=>tick().catch(()=>{}),15000);timer.unref();
+ const timer=setInterval(()=>tick().catch(()=>{}),5000);timer.unref();
  return {server,dispatch,treasury,tick,state,close:()=>{stopped=true;clearInterval(timer);server.close();},idle:()=>task??Promise.resolve()};
 }
 if(process.argv[1]&&import.meta.url===pathToFileURL(process.argv[1]).href){

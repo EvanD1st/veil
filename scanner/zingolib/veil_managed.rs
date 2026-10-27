@@ -138,18 +138,25 @@ async fn run()->Result<()>{
     let args:Vec<String>=std::env::args().collect();
     require(args.len()==4,"command root height required")?;
     let mode=args[1].as_str();
-    require(["provision","status","backup","check-backup","prepare","inspect"].contains(&mode),"unsupported command")?;
+    require(["provision","restore","status","backup","check-backup","prepare","inspect"].contains(&mode),"unsupported command")?;
     let root=PathBuf::from(&args[2]);let height:u32=args[3].parse()?;
     require(root.is_absolute() && (4_465_126..10_000_000).contains(&height),"testnet root/height required")?;
     let mut input=String::new();std::io::stdin().take(16385).read_to_string(&mut input)?;
     require(input.len()<=16384,"oversized input")?;
     let input=json::parse(&input)?;
-    if mode=="provision" {fs::create_dir(&root)?;fs::set_permissions(&root,fs::Permissions::from_mode(0o700))?;}
+    let create=mode=="provision"||mode=="restore";
+    if create {fs::create_dir(&root)?;fs::set_permissions(&root,fs::Permissions::from_mode(0o700))?;}
     require(root.canonicalize()?==root && fs::metadata(&root)?.permissions().mode()&0o077==0,"private canonical root required")?;
-    let recipient=identity(&root,mode=="provision")?;
+    let recipient=identity(&root,create)?;
     let path=root.join("wallet.age");let recovery=root.join("recovery.age");
-    let mut client=if mode=="provision"{
-        let c=LightClient::new(config(&root,WalletConfig::NewSeed{no_of_accounts:NonZeroU32::new(1).unwrap(),chain_height:height,wallet_settings:settings()},true)?,false).await?;
+    let mut client=if create{
+        let wallet=if mode=="restore"{
+            require(input["network"]=="testnet","testnet-only recovery required")?;
+            let birthday=input["birthday"].as_u32().ok_or("original birthday required")?;
+            require(birthday>=4_465_126&&birthday<=height,"original testnet birthday required")?;
+            WalletConfig::MnemonicPhrase{mnemonic_phrase:input["seed"].as_str().ok_or("individual testnet seed required")?.into(),no_of_accounts:NonZeroU32::new(1).unwrap(),birthday,wallet_settings:settings()}
+        }else{WalletConfig::NewSeed{no_of_accounts:NonZeroU32::new(1).unwrap(),chain_height:height,wallet_settings:settings()}};
+        let c=LightClient::new(config(&root,wallet,true)?,false).await?;
         let r=c.recovery_info().await.ok_or("recovery required")?;
         let b=json::object!{seed:r.seed_phrase,birthday:r.birthday,accounts:r.no_of_accounts,network:"testnet"}.dump();
         encrypt(&recovery,b.as_bytes(),&recipient)?;persist(&c,&path,&recipient).await?;c

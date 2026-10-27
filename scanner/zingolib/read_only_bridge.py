@@ -101,7 +101,7 @@ class Handler(http.server.BaseHTTPRequestHandler):
 
 def main():
     os.umask(0o077)
-    root=Path('/run/veil-lightwallet-trial')
+    root=Path(os.environ.get('VEIL_BRIDGE_RUNTIME','/run/veil-lightwallet-trial'))
     cookie=(Path(os.environ['CREDENTIALS_DIRECTORY'])/'node-cookie').read_bytes().strip()
     if b':' not in cookie or b'\n' in cookie:
         raise ValueError('invalid credential')

@@ -17,14 +17,15 @@ export class ZingolibAdapter{
  }
  async rpc(method,params=[]){
   if(!['getblockchaininfo','getrawtransaction','getblockhash','sendrawtransaction'].includes(method))throw Error('Unsupported node operation.');
-  const cookie=readFileSync(this.config.nodeCookieFile,'utf8').trim();if(!cookie.includes(':')||cookie.includes('\n'))throw Error('Invalid node credential.');
+  const credential=this.config.nodeCookieFile??join(process.env.CREDENTIALS_DIRECTORY??'/missing','node-cookie');
+  const cookie=readFileSync(credential,'utf8').trim();if(!cookie.includes(':')||cookie.includes('\n'))throw Error('Invalid node credential.');
   const response=await fetch('http://127.0.0.1:18232',{method:'POST',redirect:'error',headers:{'Content-Type':'application/json',Authorization:'Basic '+Buffer.from(cookie).toString('base64')},body:JSON.stringify({jsonrpc:'2.0',id:1,method,params}),signal:AbortSignal.timeout(15000)});
   const raw=await response.text();if(raw.length>8*1024*1024)throw Error('Node response too large.');const r=JSON.parse(raw);
   if(!response.ok||r.error)throw Error('Node operation unavailable.');return r.result;
  }
  async readiness(){
   const h=JSON.parse(readFileSync(this.config.healthFile,'utf8')),age=Date.now()-h.observedAt;
-  if(h.ready!==true||age<0||age>600000||h.stale===true)throw Error('Strict scanner readiness required.');
+  if(h.ready!==true||age<0||age>600000||h.stale===true||h.memAvailableBytes<2684354560||h.diskFreeBytes<15*1024**3)throw Error('Strict scanner readiness and resource reserve required.');
   const info=await this.rpc('getblockchaininfo');if(info.chain!=='test'||info.initialblockdownload===true||info.consensus?.chaintip!=='77190ad9')throw Error('Current testnet readiness required.');
   return info.blocks;
  }
@@ -39,6 +40,7 @@ export class ZingolibAdapter{
      if(error)return reject(Error('Wallet operation uncertain; private state retained.'));
      try{resolve(JSON.parse(stdout));}catch{reject(Error('Invalid wallet response.'));}
     });
+    const guard=setInterval(()=>{try{const mem=readFileSync('/proc/meminfo','utf8').match(/^MemAvailable:\s+(\d+)/m);if(!mem||Number(mem[1])*1024<1024**3)child.kill('SIGTERM');}catch{child.kill('SIGTERM');}},5000);guard.unref();child.once('exit',()=>clearInterval(guard));
     child.stdin.on('error',()=>{});child.stdin.end(JSON.stringify(input));
    });
   }finally{this.running=false;}
