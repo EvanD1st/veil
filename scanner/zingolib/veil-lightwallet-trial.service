@@ -1,0 +1,38 @@
+[Unit]
+Description=VEIL isolated read-only TESTNET lightwallet bridge trial
+After=veil-zebra.service
+Requisite=veil-zebra.service
+
+[Service]
+Type=exec
+User=veil-zingolib
+Group=veil-zingolib
+RuntimeDirectory=veil-lightwallet-trial
+RuntimeDirectoryMode=0700
+LoadCredential=node-cookie:/var/lib/veil-testnet/node-auth/.cookie
+ExecStart=/usr/bin/python3 /opt/veil-zingolib-trial/current/read_only_bridge.py
+Environment=GOMEMLIMIT=256MiB
+Environment=GOMAXPROCS=1
+Restart=no
+RuntimeMaxSec=1800
+TimeoutStopSec=20
+MemoryHigh=320M
+MemoryMax=384M
+MemorySwapMax=64M
+CPUQuota=25%
+TasksMax=64
+UMask=0077
+LimitCORE=0
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ProtectKernelTunables=true
+ProtectControlGroups=true
+RestrictAddressFamilies=AF_INET AF_UNIX
+IPAddressDeny=any
+IPAddressAllow=localhost
+ReadWritePaths=/run/veil-lightwallet-trial
+InaccessiblePaths=/srv /var/lib/veil-testnet
+
+# Deliberately no Install section: this finite trial is not enabled at boot.
