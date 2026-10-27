@@ -95,7 +95,7 @@ use zcash_primitives::transaction::{Transaction,TxId};
 async fn address(client:&LightClient)->Result<String>{
     let w=client.wallet().read().await;
     let ua=w.unified_addresses().values().next().ok_or("missing address")?;
-    Ok(zcash_keys::address::Address::Sapling(*ua.sapling().ok_or("missing Sapling")?).encode(&ChainType::Testnet))
+    Ok(zcash_keys::address::Address::Sapling(Box::new(*ua.sapling().ok_or("missing Sapling")?)).encode(&ChainType::Testnet))
 }
 fn integer(v:&json::JsonValue)->Result<u64>{
     let s=v.as_str().ok_or("integer string required")?;
@@ -119,7 +119,7 @@ async fn inspected(client:&LightClient,id:TxId,input:&json::JsonValue,tip:u32)->
         let own=t.sapling_notes().iter().any(|v|v.output_id()==n.output_id());
         if !own {
             require(selected.is_none() && n.encoded_recipient(&ChainType::Testnet)?==input["destination"].as_str().ok_or("destination")?
-                && n.value()==integer(&input["amount"])? && matches!(n.memo(),Memo::Text(s) if s.as_str()==input["memo"].as_str().unwrap_or("")),"output binding failed")?;
+                && n.value()==integer(&input["amount"])? && matches!(n.memo(),Memo::Text(s) if &**s==input["memo"].as_str().unwrap_or("")),"output binding failed")?;
             selected=Some(n.output_id().output_index());
         }
     }
@@ -170,7 +170,7 @@ async fn run()->Result<()>{
     let(tip,_)=check_sync(&mut client).await?;
     let output=if mode=="prepare"||mode=="inspect"{
         require(input["destination"].as_str().is_some_and(|s|s.starts_with("ztestsapling1")),"Sapling testnet required")?;
-        let id=if mode=="inspect"{input["txid"].as_str().ok_or("txid")?.parse::<TxId>()?}else{
+        let id=if mode=="inspect"{let w=client.wallet().read().await;*w.wallet_transactions.keys().find(|id|Some(id.to_string().as_str())==input["txid"].as_str()).ok_or("unknown retained txid")?}else{
             let receivers=vec![Receiver{recipient_address:zcash_address::ZcashAddress::try_from_encoded(input["destination"].as_str().ok_or("destination")?)?,amount:Zatoshis::from_u64(integer(&input["amount"])?)?,memo:Some(MemoBytes::from_bytes(input["memo"].as_str().ok_or("memo")?.as_bytes())?)}];
             let p=client.propose_send(transaction_request_from_receivers(receivers)?,zip32::AccountId::ZERO).await?;
             require(p.steps().len()==1,"one shielded transaction required")?;

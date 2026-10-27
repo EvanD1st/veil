@@ -1,4 +1,5 @@
 'use client';
+import {ManagedCheckout} from './managed-wallet';
 import {useEffect,useRef,useState} from 'react';
 import {Download,Upload,RefreshCw,ShieldCheck} from 'lucide-react';
 import type {PaymentState} from '@/lib/veil/payment';
@@ -30,7 +31,7 @@ export default function PaymentStatus({auctionId,now,escrow=false}:{auctionId:st
  useEffect(()=>{void load();const interval=setInterval(()=>void load(),60000);return()=>clearInterval(interval);},[auctionId]);
  const status=state?.status==='scanner-confirmed'&&state.report&&state.report.expiresAt<=now?'needs-refresh':state?.status;
  const due=state?.workflow?.dueAt,overdue=typeof due==='number'&&now>=due;
- return <div className="privacy-note payment-check"><b><ShieldCheck size={17}/> Payment confirmation</b>
+ return <div className="privacy-note payment-check">{!escrow&&state?.workflow?.isOwner===false&&<ManagedCheckout auctionId={auctionId}/>}<b><ShieldCheck size={17}/> Payment confirmation</b>
  <p>{status==='scanner-confirmed'?`Scanner-confirmed at ${new Date(state!.report!.observedAt).toLocaleTimeString()} · ${state!.report!.confirmations} confirmations. Evidence expires at ${new Date(state!.report!.expiresAt).toLocaleTimeString()}.`:status==='needs-refresh'?(state?.automation?.enabled?'The last scan is no longer current. Automatic verification will retry; check scanner availability below.':'The last scan is no longer current. Import a fresh report before relying on payment status.'):status==='not-confirmed'?'The scanner did not confirm this payment on the active chain.':state?.configured?'No payment has been confirmed. A synchronized wallet scanner must check the shielded output.':'Check scanner availability and download the invoice for verification.'}</p>
  <div className="button-row"><button className="text-button" disabled={busy} onClick={()=>load()}><RefreshCw size={14}/>{busy?'Checking…':'Check status'}</button>
  {state&&<button className="text-button" onClick={()=>downloadJson(`veil-invoice-${auctionId}.json`,state.invoice)}><Download size={14}/> Download invoice</button>}
