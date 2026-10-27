@@ -8,6 +8,7 @@ StartLimitBurst=2
 User=veil-demo
 Group=veil-demo
 WorkingDirectory=/opt/veil-demo-worker
+Environment=PLAYWRIGHT_BROWSERS_PATH=/opt/veil-demo-worker/browsers
 ExecStart=/opt/veil-testnet/node/bin/node --max-old-space-size=256 judging/run.mjs worker /etc/veil-demo/private.json
 Restart=on-failure
 RestartSec=60
