@@ -2,7 +2,7 @@
 import {createServer,request as httpRequest} from 'node:http';
 import {timingSafeEqual,randomInt,randomUUID} from 'node:crypto';
 import {DatabaseSync} from 'node:sqlite';
-import {existsSync} from 'node:fs';
+import {existsSync,realpathSync} from 'node:fs';
 import {pathToFileURL} from 'node:url';
 import {Treasury} from './treasury.mjs';
 import {ZingolibAdapter,privateJson} from './zingolib-adapter.mjs';
@@ -107,7 +107,7 @@ export function createManagedService({db,adapter,policy,token,kill,now=Date.now,
  const timer=setInterval(()=>tick().catch(()=>{}),5000);timer.unref();
  return {server,dispatch,treasury,tick,state,close:()=>{stopped=true;clearInterval(timer);server.close();},idle:()=>task??Promise.resolve()};
 }
-if(process.argv[1]&&import.meta.url===pathToFileURL(process.argv[1]).href){
+if(process.argv[1]&&import.meta.url===pathToFileURL(realpathSync(process.argv[1])).href){
  process.umask(0o077);
  const config=privateJson(process.argv[2]);
  const adapter=new ZingolibAdapter(config),db=new DatabaseSync(config.database);
