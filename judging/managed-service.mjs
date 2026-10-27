@@ -12,6 +12,8 @@ export function createManagedService({db,adapter,policy,token,kill,now=Date.now,
  if(!hex.test(token))throw Error('A separate private service token is required.');
  const treasury=new Treasury({db,adapter,policy,kill,now});
  db.exec('CREATE TABLE IF NOT EXISTS managed_backup_challenges(user TEXT PRIMARY KEY,positions TEXT NOT NULL,expires INTEGER NOT NULL,attempts INTEGER NOT NULL DEFAULT 0);');
+ // Startup is serialized by the service's OS lock. A crashed signer is never retried.
+ db.exec("UPDATE judge_transfers SET state='prepare-unknown' WHERE state='preparing'");
  let task=null,stopped=false;
  const wallet=user=>db.prepare('SELECT * FROM judge_private_wallets WHERE user=?').get(user);
  const work=fn=>{if(task)throw Error('Private wallet worker is busy.');task=Promise.resolve().then(fn).catch(()=>{}).finally(()=>{task=null;});};
