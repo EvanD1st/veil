@@ -7,6 +7,7 @@ const root='dist/standalone';
 await packageNativeImages(root);
 await cp('runtime',root+'/runtime',{recursive:true});await cp('drizzle',root+'/drizzle',{recursive:true});
 await mkdir(root+'/judging',{recursive:true});await cp('judging/collection.json',root+'/judging/collection.json');
+await cp('judging/managed-client.mjs',root+'/judging/managed-client.mjs');
 await mkdir(root+'/scanner',{recursive:true});await cp('scanner/invoice.mjs',root+'/scanner/invoice.mjs');
 await cp('lib/veil/zk/assets.json',root+'/proof-assets.json');
 await cp('LICENSE',root+'/LICENSE');await cp('LICENSE-GPL-3.0',root+'/LICENSE-GPL-3.0');
