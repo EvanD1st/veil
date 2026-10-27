@@ -2,9 +2,16 @@
 import {execFile} from 'node:child_process';
 import {readFileSync,lstatSync,existsSync} from 'node:fs';
 import {createHash} from 'node:crypto';
-import {join} from 'node:path';
+import {join,resolve} from 'node:path';
 const ID=/^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/;
-export function privateJson(path){const s=lstatSync(path);if(!s.isFile()||s.isSymbolicLink()||(s.mode&0o077)||s.size>65536)throw Error('Private configuration required.');return JSON.parse(readFileSync(path,'utf8'));}
+// systemd exposes unit credentials as 0440 for the service identity; allow
+// that mode only for this exact capability file inside the private credential dir.
+export function privateJson(path){
+ const s=lstatSync(path),mode=s.mode&0o777,credentialDir=process.env.CREDENTIALS_DIRECTORY&&resolve(process.env.CREDENTIALS_DIRECTORY);
+ const isSystemdCapability=credentialDir&&resolve(path)===resolve(credentialDir,'managed-validation')&&(mode===0o400||mode===0o440),ownerOnly=(s.mode&0o077)===0;
+ if(!s.isFile()||s.isSymbolicLink()||(!ownerOnly&&!isSystemdCapability)||s.size>65536)throw Error('Private configuration required.');
+ return JSON.parse(readFileSync(path,'utf8'));
+}
 export class ZingolibAdapter{
  constructor(config){
   this.config=config;this.evidence='live-zingolib-testnet';this.running=false;this.cache=new Map();

@@ -1,4 +1,18 @@
-# Managed Zingolib checkout status — 27 October 2026
+# Managed checkout current status — 27 October 2026
+
+PR #22 is merged into `main` at `e6b2076`. The user-approved follow-up website source `7e71a6f0bd03e0dbdec0239790716c7ef52de919` (archive SHA-256 `7f5742d0b1b8a73a5e0e3607c1c0bc19bd0c7fdfc99873be401f5a97307bd8f1`) is deployed at https://ve-il.duckdns.org. Deployment used a fresh consistent SQLite backup, required no migration, passed integrity and foreign-key checks, preserved all existing table counts and interrupted VEIL for 2.89 seconds. The prior release remains at `/srv/veil/releases/936171ef410315c64bc7c23e4521bda9ec6ed844`; current backup is `/srv/veil/shared/backups/approved-managed-7e71a6f`.
+
+The approved TESTNET invoice was broadcast once, confirmed in the active chain, and its automatic signed scanner report was acknowledged. Actual-clock expiry then hid the stale confirmation, preserved the earned download, and refreshed the same output automatically; the download bytes still matched exactly. No replacement transfer was sent.
+
+The bounded funding policy is approved: 200,000 zatoshis per independently backed-up account, no more than 10 accounts, maximum fee 20,000 zatoshis per grant, and daily plus lifetime aggregate limits of 2,200,000 zatoshis including fee allowance. The isolated Zingolib binary hash and funded-restore/prepared-inspection/single-broadcast/scanner/restart evidence match. The database contains the one confirmed, acknowledged purchase and no pending transfer; its integrity and foreign keys pass. The node reported Zcash testnet, NU7 branch `77190ad9`, fresh strict readiness, 3.1 GiB available memory and about 65 GiB free disk.
+
+Activation failed because systemd presents its read-only validation credential as mode `0440`, while `privateJson` rejects every group-readable file. The managed worker is now stopped and disabled at boot, and its runtime switch is `false`. The private tunnel, read-only indexer and health timer remain active and enabled at boot. No grant or additional transaction was made. A follow-up source change will accept only the exact read-only `managed-validation` file inside this unit's `CREDENTIALS_DIRECTORY`, preserve the owner-only requirement for other private JSON, and add regression coverage. Rebuild, CI, isolated worker retest and a concrete replacement artifact are pending; managed funding and Pay stay off until that artifact is approved and re-deployed.
+
+The remainder of this file records the earlier implementation and trial evidence; read it as historical context where it differs from this current status.
+
+---
+
+# Earlier managed Zingolib checkout status — 27 October 2026
 
 ## Implementation and release state
 
