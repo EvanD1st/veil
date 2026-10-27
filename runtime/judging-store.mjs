@@ -73,8 +73,8 @@ export function requestWallet(db,user,now=Date.now()){
 }
 export function requestEdition(db,user,slug,now=Date.now()){
  if(!collection.some(f=>f.slug===slug))fail('Unknown artwork.',404);
- return atomic(db,()=>{const current=db.prepare("SELECT state FROM judging_editions WHERE family=? AND state<>'verified'").get(slug);if(current)return {state:current.state};
+ return atomic(db,()=>{const current=db.prepare("SELECT e.state,(SELECT COUNT(*) FROM bids WHERE auction_id=e.auction_id) bids FROM judging_editions e WHERE family=? AND state<>'verified'").get(slug);if(current&&!(current.state==='open'&&current.bids>=8))return {state:current.state};
  if(db.prepare('SELECT COUNT(*) n FROM judging_editions WHERE family=?').get(slug).n>=5)fail('The five-edition test budget is exhausted.',429);
  if(db.prepare('SELECT COUNT(*) n FROM judging_edition_requests').get().n>=200)fail('Edition request capacity reached.',429);
- db.prepare('INSERT OR IGNORE INTO judging_edition_requests VALUES(?,?,?)').run(user,slug,now);return {state:'requested'};});
+ db.prepare('INSERT OR IGNORE INTO judging_edition_requests VALUES(?,?,?)').run(user,slug,now);return {state:current?'queued-after-current-edition':'requested'};});
 }
