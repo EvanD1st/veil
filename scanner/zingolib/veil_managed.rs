@@ -107,6 +107,13 @@ fn integer(v:&json::JsonValue)->Result<u64>{
     require(!s.is_empty() && s.len()<=14 && s.bytes().all(|c|c.is_ascii_digit()),"invalid amount")?;
     Ok(s.parse()?)
 }
+// Match the pinned SDK's network-aware ZIP 203/218 expiry policy. NU7's
+// 25-second blocks use 120 blocks for the same approximately 50-minute window.
+fn expiry_allowed(tip:u32,expiry:u32)->bool{
+    let Some(next)=tip.checked_add(1) else{return false;};
+    let max=u32::from(zingolib::wallet::expiry::tx_expiry_height(&ChainType::Testnet,BlockHeight::from_u32(next)));
+    expiry>tip && expiry<=max
+}
 // Inspect the retained SDK transaction and parse the exact serialized bytes again.
 // All recipients must be the requested Sapling receiver or this wallet's change.
 async fn inspected(client:&LightClient,id:TxId,input:&json::JsonValue,tip:u32)->Result<json::JsonValue>{
@@ -116,7 +123,7 @@ async fn inspected(client:&LightClient,id:TxId,input:&json::JsonValue,tip:u32)->
     let tx=t.transaction();
     require(tx.transparent_bundle().is_none_or(|b|b.vin.is_empty()&&b.vout.is_empty()),"public pool forbidden")?;
     let expiry=u32::from(tx.expiry_height());
-    require(expiry>tip && expiry<=tip+100,"expired or excessive expiry")?;
+    require(expiry_allowed(tip,expiry),"expired or excessive expiry")?;
     let fee=w.calculate_transaction_fee(t)?.into_u64();
     require(fee>0 && fee<=integer(&input["max_fee"])? ,"fee cap exceeded")?;
     let mut selected=None;
@@ -134,16 +141,20 @@ async fn inspected(client:&LightClient,id:TxId,input:&json::JsonValue,tip:u32)->
     require(t.sapling_notes().iter().all(|n|n.key_id().account_id()==zip32::AccountId::ZERO)
         && t.orchard_notes().iter().all(|n|n.key_id().account_id()==zip32::AccountId::ZERO)
         && t.ironwood_notes().iter().all(|n|n.key_id().account_id()==zip32::AccountId::ZERO),"foreign change")?;
+    let change_sapling=t.sapling_notes().iter().map(|n|n.value()).sum::<u64>();
+    let change_orchard=t.orchard_notes().iter().map(|n|n.value()).sum::<u64>();
+    let change_ironwood=t.ironwood_notes().iter().map(|n|n.value()).sum::<u64>();
+    let change=change_sapling.checked_add(change_orchard).and_then(|n|n.checked_add(change_ironwood)).ok_or("change overflow")?;
     let mut raw=Vec::new();tx.write(&mut raw)?;
     let parsed=Transaction::read(&raw[..],BranchId::for_height(&ChainType::Testnet,BlockHeight::from_u32(tip)))?;
     require(parsed.txid()==id,"raw transaction identity mismatch")?;
-    Ok(json::object!{source:input["source"].clone(),destination:input["destination"].clone(),amount:input["amount"].clone(),memo:input["memo"].clone(),fee:fee.to_string(),rawHex:hex::encode(raw),txid:id.to_string(),output:selected.unwrap(),expiryHeight:expiry,independentlyDecoded:true})
+    Ok(json::object!{source:input["source"].clone(),destination:input["destination"].clone(),amount:input["amount"].clone(),memo:input["memo"].clone(),fee:fee.to_string(),changeZatoshis:change.to_string(),rawHex:hex::encode(raw),txid:id.to_string(),output:selected.unwrap(),expiryHeight:expiry,independentlyDecoded:true})
 }
 async fn run()->Result<()>{
     let args:Vec<String>=std::env::args().collect();
     require(args.len()==4,"command root height required")?;
     let mode=args[1].as_str();
-    require(["offline","provision","restore","status","backup","check-backup","prepare","inspect"].contains(&mode),"unsupported command")?;
+    require(["offline","provision","restore","status","backup","check-backup","prepare","inspect","recover"].contains(&mode),"unsupported command")?;
     let root=PathBuf::from(&args[2]);let height:u32=args[3].parse()?;
     require(root.is_absolute() && (4_465_126..10_000_000).contains(&height),"testnet root/height required")?;
     let mut input=String::new();std::io::stdin().take(16385).read_to_string(&mut input)?;
@@ -190,7 +201,15 @@ async fn run()->Result<()>{
     // the original birthday or discards historical recovery work.
     persist(&client,&path,&recipient).await?;
     let(tip,_)=synced?;
-    let output=if mode=="prepare"||mode=="inspect"{
+    let output=if mode=="recover"{
+        // Recover one retained, exactly matching intent after an inspection
+        // failure. This branch never proposes, calculates, signs or transmits.
+        let ids={let w=client.wallet().read().await;require(w.wallet_transactions.len()<=1000,"manual history review required")?;w.wallet_transactions.keys().copied().collect::<Vec<_>>()};
+        let mut matches=Vec::new();
+        for id in ids{if let Ok(v)=inspected(&client,id,&input,tip).await{matches.push(v);}}
+        require(matches.len()==1,"retained exact transaction ambiguous or unavailable")?;
+        matches.remove(0)
+    }else if mode=="prepare"||mode=="inspect"{
         require(input["destination"].as_str().is_some_and(|s|s.starts_with("ztestsapling1")),"Sapling testnet required")?;
         let id=if mode=="inspect"{let w=client.wallet().read().await;*w.wallet_transactions.keys().find(|id|Some(id.to_string().as_str())==input["txid"].as_str()).ok_or("unknown retained txid")?}else{
             let receivers=vec![Receiver{recipient_address:zcash_address::ZcashAddress::try_from_encoded(input["destination"].as_str().ok_or("destination")?)?,amount:Zatoshis::from_u64(integer(&input["amount"])?)?,memo:Some(MemoBytes::from_bytes(input["memo"].as_str().ok_or("memo")?.as_bytes())?)}];
@@ -243,4 +262,27 @@ async fn main(){
         }
         eprintln!("managed wallet operation failed; retained private state; no broadcast performed");std::process::exit(1);
     }
+}
+
+#[cfg(test)]
+mod expiry_tests{
+    use super::expiry_allowed;
+    #[test]
+    fn nu7_uses_the_sdk_expiry_window(){
+        let tip=4_548_000;
+        assert!(expiry_allowed(tip,tip+121));
+        assert!(!expiry_allowed(tip,tip+122));
+    }
+    #[test]
+    fn expired_and_earlier_heights_are_refused(){
+        assert!(!expiry_allowed(4_548_000,4_548_000));
+        assert!(!expiry_allowed(4_548_000,4_547_999));
+    }
+    #[test]
+    fn pre_nu7_keeps_the_earlier_window(){
+        assert!(expiry_allowed(4_000_000,4_000_041));
+        assert!(!expiry_allowed(4_000_000,4_000_042));
+    }
+    #[test]
+    fn overflowing_height_is_refused(){assert!(!expiry_allowed(u32::MAX,u32::MAX));}
 }

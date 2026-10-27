@@ -73,6 +73,7 @@ jobs:
           cd /tmp/veil-zingolib
           cargo +1.99.0 build --locked --release -p zingolib --bin veil-trial
           cargo +1.99.0 build --locked --release -p zingolib --bin veil-managed
+          cargo +1.99.0 test --locked --release -p zingolib --bin veil-managed expiry_tests
           git diff --exit-code -- Cargo.lock
           mkdir -p "$GITHUB_WORKSPACE/trial-artifact"
           umask 077
