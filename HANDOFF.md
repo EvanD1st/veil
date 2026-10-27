@@ -1,5 +1,9 @@
 # VEIL — Implementation handoff
 
+## 27 October follow-up: managed funded recovery passed; spending still disabled
+
+PR #22 now repairs a confirmed stale executable path in isolated release staging (`987b146`), with passing CI and provenance regressions. The exact hash-verified diagnostic binary recovered the existing funded TESTNET sender, synchronized, read 1 TAZ and independently reopened after the optional bridge restart. A temporary bridge-only CPU increase resolved the observed historical stream failure; its original 25% quota was restored. Original sender database and core service restart counters were preserved. No transaction was prepared or broadcast, no website release occurred, and public managed funding/Pay remain disabled pending exact transaction inspection/approval and actual checkout evidence. Read [current evidence and activation gates](docs/MANAGED_CHECKOUT_STATUS.md); earlier failed-restore descriptions are historical. Artifacts and test scratch files use E: because C: has critically limited free space.
+
 ## 27 October: judging website deployed; Zingolib isolated trial
 
 PR #20 merged as main13ef1d4 with green post-merge CI. Its source tree equals tested artifactac03212, which is now deployed after a fresh matched backup, migration0007, integrity/count checks and 2.54-second interruption. Hosted authentication, scanner boundary, ten-family catalogue and all six proof hashes passed. Automatic editions and managed funding/Pay remain disabled. Read [exact release, rollback and live Zingolib evidence](docs/ZINGOLIB_TRIAL_2026-10-27.md). The separate SDK trial passed actual private lightwallet connectivity, two new unfunded wallet recoveries, synchronization and restart. It does not validate outgoing spending or activate the website wallet. Existing Zebra/Zallet/scanner and failed Zallet cargo-vet evidence remain unchanged. Earlier undeployed-candidate and compatibility findings below are historical.
