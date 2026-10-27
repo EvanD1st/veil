@@ -23,6 +23,7 @@ jobs:
       - run: pnpm test
       - run: node --check scripts/test-hosted-browser.mjs && node --check scripts/check-hosted-release.mjs && node --check scripts/test-hosted-cancellation.mjs
       - run: python3 -m unittest discover -s tests -p testnet_monitor_test.py
+      - run: python3 -m unittest discover -s tests -p genesis_import_test.py
       - run: pnpm build
       - run: node scripts/test-bundle.mjs
       - run: node scripts/test-prover-worker.mjs
@@ -50,6 +51,7 @@ jobs:
       - run: node scripts/test-ubuntu.mjs
       - run: pnpm exec playwright install --with-deps chromium
       - run: node scripts/test-native-browser.mjs
+      - run: node scripts/test-judging-browser.mjs
       - run: node scripts/test-auth-scene.mjs
       - run: node scripts/test-escrow-browser.mjs
       - run: tar -czf veil-ubuntu.tar.gz -C dist/standalone .
@@ -65,5 +67,7 @@ jobs:
             digital-explore-desktop.png
             digital-purchase-mobile.png
             digital-purchases-mobile.png
+            genesis-gallery-desktop.png
+            genesis-gallery-mobile.png
           if-no-files-found: error
           retention-days: 7
