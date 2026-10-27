@@ -1,0 +1,40 @@
+[Unit]
+Description=VEIL isolated managed TESTNET wallet service
+After=network-online.target veil-managed-indexer.service
+Wants=network-online.target
+Requisite=veil-managed-indexer.service
+StartLimitIntervalSec=300
+StartLimitBurst=3
+
+[Service]
+Type=simple
+User=veil-managed
+Group=veil-managed
+Environment=NODE_ENV=production
+LoadCredential=node-cookie:/var/lib/veil-testnet/node-auth/.cookie
+ExecStart=/opt/veil-testnet/node/bin/node --max-old-space-size=128 /opt/veil-managed/current/judging/managed-service.mjs /etc/veil-managed/service.json
+Restart=on-failure
+RestartSec=15
+TimeoutStopSec=30
+KillMode=control-group
+UMask=0077
+MemoryHigh=1152M
+MemoryMax=1408M
+MemorySwapMax=128M
+CPUQuota=50%
+TasksMax=128
+LimitCORE=0
+NoNewPrivileges=yes
+PrivateTmp=yes
+ProtectSystem=strict
+ProtectHome=yes
+ProtectKernelTunables=yes
+ProtectControlGroups=yes
+ReadWritePaths=/var/lib/veil-managed
+InaccessiblePaths=/srv /var/lib/veil-testnet
+RestrictAddressFamilies=AF_INET AF_UNIX
+# External HTTPS is needed only for narrow scanner-selector outbox delivery.
+# Wallet/indexer/node listeners remain loopback; the child has no broadcast API.
+
+[Install]
+WantedBy=multi-user.target
