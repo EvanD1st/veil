@@ -10,6 +10,13 @@ export function canonicalManagedInvoice(db,user,id){
  const memo=`VEIL:${id}:${r.winnerId}`,invoiceId=createHash('sha256').update(JSON.stringify(['VEIL-INVOICE-v1','testnet',id,r.winnerId,a.payment_address,r.amount,memo,r.snapshotHash,r.declaredAt])).digest('hex');
  return validateInvoice({version:1,network:'testnet',invoiceId,auctionId:id,bidId:r.winnerId,address:a.payment_address,amount:r.amount,memo});
 }
+export function assertManagedInvoiceUnclaimed(db,invoice){
+ // A queued, stale or negative scan is not permission to pay a second time.
+ // Keep selector replay independent: an identical callback still acknowledges.
+ if(db.prepare('SELECT 1 FROM payment_scan_jobs WHERE auction_id=?').get(invoice.auctionId)
+  ||db.prepare('SELECT 1 FROM payment_reports WHERE auction_id=?').get(invoice.auctionId))
+  throw Error('An output is already registered. Reconcile that payment; do not pay again.');
+}
 export function managedClient({tokenFile=process.env.VEIL_MANAGED_TOKEN_FILE,enabled=process.env.VEIL_MANAGED_ENABLED==='1',fetchImpl=fetch}={}){
  if(!enabled)return null;
  if(!tokenFile?.startsWith('/'))throw Error('A private managed service credential is required.');

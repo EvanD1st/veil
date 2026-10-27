@@ -1,6 +1,6 @@
 import * as fs from 'node:fs/promises';
 import {sessionUser,verifyPassword} from './accounts.mjs';
-import {managedClient,canonicalManagedInvoice,acceptManagedSelector} from '../judging/managed-client.mjs';
+import {managedClient,canonicalManagedInvoice,assertManagedInvoiceUnclaimed,acceptManagedSelector} from '../judging/managed-client.mjs';
 import {catalogue,requestWallet,walletStatus,registerFamily,reserveEdition,bindEdition,claimProof,finishProof,windowSeconds,requestEdition,JudgingError} from './judging-store.mjs';
 const json=(res,status,value)=>{res.writeHead(status,{'Content-Type':'application/json','Cache-Control':'private, no-store','X-Content-Type-Options':'nosniff','Referrer-Policy':'no-referrer',...(status===429?{'Retry-After':'60'}:{})});res.end(JSON.stringify(value));};
 export function judgingHandler(db,origin,{managed=managedClient()}={}){
@@ -39,6 +39,7 @@ export function judgingHandler(db,origin,{managed=managedClient()}={}){
    if(managed&&['/api/judging/wallet/quote','/api/judging/wallet/pay'].includes(url.pathname)){
     const pay=url.pathname.endsWith('/pay');fields(pay?['auctionId','quoteId','affirmative']:['auctionId']);
     let invoice;try{invoice=canonicalManagedInvoice(db,user.userId,b.auctionId);}catch{throw new JudgingError('Only the verified winning buyer can review and authorize this payment.',403);}
+    try{assertManagedInvoiceUnclaimed(db,invoice);}catch{throw new JudgingError('An output is already registered for this invoice. Refresh its retained status; do not pay again.',409);}
     return json(res,pay?202:200,await managed(pay?'pay':'quote',user.userId,pay?{invoice,quoteId:b.quoteId,affirmative:b.affirmative}:{invoice}));
    }
    if(url.pathname==='/api/judging/wallet/pay'||url.pathname==='/api/judging/wallet/fund')throw new JudgingError('Live spending and starter grants remain disabled pending isolated recovery, fee and outgoing-payment validation.',503);
@@ -56,6 +57,6 @@ export function judgingHandler(db,origin,{managed=managedClient()}={}){
    if(action==='claim'){fields([]);return json(res,200,{job:claimProof(db)});}
    if(action==='phase'){fields(['id','token','phase']);if(typeof b.token!=='string'||!/^[a-f0-9]{64}$/.test(b.token))throw new JudgingError('Invalid lease.',400);return json(res,200,finishProof(db,b.id,b.token,b.phase));}
    throw new JudgingError('Endpoint not found.',404);
-  }catch(e){json(res,e instanceof JudgingError?e.status:503,{error:e instanceof JudgingError?e.message:'Judging service is temporarily unavailable. No funds were moved.'});}
+  }catch(e){json(res,e instanceof JudgingError?e.status:503,{error:e instanceof JudgingError?e.message:'Judging service is temporarily unavailable. A payment outcome may be uncertain; check retained status before retrying.'});}
  };
 }
