@@ -7,7 +7,7 @@ export const LIVE_CAPABILITY_GATE=Object.freeze({enabled:false,reason:'Pinned za
 export function liveWalletAdapter(){throw Error(LIVE_CAPABILITY_GATE.reason);}
 export class Treasury{
  constructor({db,adapter,policy,now=Date.now,kill=()=>true}){
-  if(!adapter||adapter.evidence!=='synthetic-ci-only')throw Error('No reviewed live managed-wallet adapter is available.');
+  if(!adapter||!(adapter.evidence==='synthetic-ci-only'||adapter.evidence==='live-zingolib-testnet'&&adapter.validated===true))throw Error('No validated live managed-wallet adapter is available.');
   for(const k of ['grant','maxFee','daily','total'])amount(policy[k]);if(amount(policy.grant)<=0n||amount(policy.maxFee)<=0n||!Number.isSafeInteger(policy.maxUsers)||policy.maxUsers<1||policy.maxUsers>50)throw Error('Invalid bounded funding policy.');
   Object.assign(this,{db,adapter,policy,now,kill});
   db.exec(`CREATE TABLE IF NOT EXISTS judge_private_wallets(user TEXT PRIMARY KEY,operation TEXT UNIQUE NOT NULL,state TEXT NOT NULL,wallet_account TEXT UNIQUE,address TEXT UNIQUE,backup_confirmed INTEGER NOT NULL DEFAULT 0);
@@ -24,7 +24,7 @@ export class Treasury{
  }
  async confirmBackup(user,answers){this.gate();const w=this.wallet(user,false);if(!await this.adapter.confirmIndividualBackup(w.wallet_account,answers))throw Error('Individual backup checkpoint failed.');this.db.prepare("UPDATE judge_private_wallets SET backup_confirmed=1,state='ready' WHERE user=?").run(user);}
  wallet(user,ready=true){const w=this.db.prepare('SELECT * FROM judge_private_wallets WHERE user=?').get(user);if(!w?.wallet_account||ready&&(!w.backup_confirmed||w.state!=='ready'))throw Error('Independent wallet and verified backup required.');return w;}
- async balance(user){const w=this.wallet(user),r=await this.adapter.balance(w.wallet_account);if(r.network!=='testnet'||r.account!==w.wallet_account||r.synchronized!==true)throw Error('Chain-derived balance unavailable.');amount(r.confirmed);return {confirmed:r.confirmed,source:'synthetic-ci-only'};}
+ async balance(user){const w=this.wallet(user),r=await this.adapter.balance(w.wallet_account);if(r.network!=='testnet'||r.account!==w.wallet_account||r.synchronized!==true)throw Error('Chain-derived balance unavailable.');amount(r.confirmed);return {confirmed:r.confirmed,source:this.adapter.evidence};}
  requestGrant(user){this.gate();const w=this.wallet(user);return atomic(this.db,()=>{
   const old=this.db.prepare("SELECT id,state FROM judge_transfers WHERE kind='grant' AND user=?").get(user);if(old)return old;
   const rows=this.db.prepare("SELECT amount,max_fee,day FROM judge_transfers WHERE kind='grant'").all(),day=Math.floor(this.now()/86400000),cost=amount(this.policy.grant)+amount(this.policy.maxFee);
@@ -51,5 +51,5 @@ export class Treasury{
  async reconcile(id){const row=this.db.prepare('SELECT * FROM judge_transfers WHERE id=?').get(id);if(!row?.txid)return {state:'operator-review'};const r=await this.adapter.lookup(row.txid);
   if(r?.txid===row.txid&&r.network==='testnet'&&r.activeChain===true&&Number.isSafeInteger(r.confirmations)&&r.confirmations>=3){this.db.prepare("UPDATE judge_transfers SET state='confirmed' WHERE id=?").run(id);}else if(row.state==='confirmed'){this.db.prepare("UPDATE judge_transfers SET state='broadcast-unknown' WHERE id=?").run(id);}return this.status(id);
  }
- status(id){const r=this.db.prepare('SELECT state,kind FROM judge_transfers WHERE id=?').get(id);return {...r,evidence:'synthetic-ci-only',deliveryUnlocked:false};}
+ status(id){const r=this.db.prepare('SELECT state,kind FROM judge_transfers WHERE id=?').get(id);return {...r,evidence:this.adapter.evidence,deliveryUnlocked:false};}
 }
