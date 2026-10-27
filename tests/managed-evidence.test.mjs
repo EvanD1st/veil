@@ -16,7 +16,7 @@ function fixture(){
  const db=new DatabaseSync(':memory:');db.exec('CREATE TABLE judge_transfers(id TEXT,kind TEXT,state TEXT,broadcast_attempts INTEGER,selector_ack INTEGER,invoice_id TEXT,txid TEXT,sapling_output INTEGER,destination TEXT,amount TEXT,memo TEXT,raw_hex TEXT); CREATE TABLE managed_service_sessions(id TEXT,opened_at INTEGER);');
  db.prepare('INSERT INTO judge_transfers VALUES(\'transfer\',\'purchase\',\'confirmed\',1,1,?,?,?,?,?,?,?)').run(invoiceId,txid,1,address,'20000',memo,rawHex);
  db.prepare('INSERT INTO managed_service_sessions VALUES(\'one\',1),(\'two\',2)').run();
- const adapter={evidence:'live-zingolib-testnet',config:{binarySha256:'d'.repeat(64),policy:{treasuryAccount:'treasury'}},async readiness(){return 11;},async lookup(){return{network:'testnet',txid,activeChain:true,confirmations:3};},async rpc(){return blockHash;},async inspect(){return{rawHex,txid,independentlyDecoded:true};}};
+ const adapter={evidence:'live-zingolib-testnet',config:{binarySha256:'d'.repeat(64),policy:{treasuryAccount:'treasury'}},async readiness(){return 13;},async lookup(){return{network:'testnet',txid,activeChain:true,confirmations:5};},async rpc(){return blockHash;},async inspect(){return{rawHex,txid,independentlyDecoded:true};}};
  const fundedRestore={mode:'status',account:'treasury',exitCode:0,fundsMoved:false,aborted:false,sourceWalletPreserved:true,result:{network:'testnet',independentRecovery:true,synchronized:true,address,confirmed:'1000000'}};
  return{now,db,adapter,signed,scannerPublicKey,fundedRestore,txid,report};
 }
