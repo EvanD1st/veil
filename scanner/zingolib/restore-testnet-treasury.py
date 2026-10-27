@@ -14,6 +14,8 @@ def digest(path):
 def main():
  assert os.geteuid()==0;os.umask(0o077)
  root=pathlib.Path('/var/lib/veil-managed');config=json.loads(pathlib.Path('/etc/veil-managed/service.json').read_text())
+ assert config['enabled'] is False
+ assert digest(pathlib.Path(config['binary']))==config['binarySha256']
  original=pathlib.Path('/var/lib/veil-testnet/sender')
  assert tomllib.loads((original/'zallet.toml').read_text())['consensus']['network']=='test'
  assert unit('veil-zallet@sender.service')['ActiveState']=='inactive'
