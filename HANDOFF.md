@@ -1,5 +1,9 @@
 # VEIL — Implementation handoff
 
+## 27 October: judging website deployed; Zingolib isolated trial
+
+PR #20 merged as main13ef1d4 with green post-merge CI. Its source tree equals tested artifactac03212, which is now deployed after a fresh matched backup, migration0007, integrity/count checks and 2.54-second interruption. Hosted authentication, scanner boundary, ten-family catalogue and all six proof hashes passed. Automatic editions and managed funding/Pay remain disabled. Read [exact release, rollback and live Zingolib evidence](docs/ZINGOLIB_TRIAL_2026-10-27.md). The separate SDK trial passed actual private lightwallet connectivity, two new unfunded wallet recoveries, synchronization and restart. It does not validate outgoing spending or activate the website wallet. Existing Zebra/Zallet/scanner and failed Zallet cargo-vet evidence remain unchanged. Earlier undeployed-candidate and compatibility findings below are historical.
+
 ## Genesis judging candidate — 26 October 2026
 
 Branch `self-service-judging` starts from merged/deployed main `cb5ab9f` (CI 40368462337 passed). The website inspection confirms this source is live with migration 0006; older release descriptions below are historical. This follow-up prepares selected Genesis previews/private import, bounded normal auctions/editions, a separate supervised automatic-reveal worker and private wallet request/treasury recovery contracts. **Managed wallet provisioning, starter funding and managed checkout remain disabled**, with the exact installed standalone-key/PCZT recovery blocker documented in [self-service judging](docs/SELF_SERVICE_JUDGING.md). Additive migration 0007 is required. No new deployment, wallet/sync/service change or payment occurs. Originals stay outside Git; no synthetic balance or result is a live payment. Exact final CI and candidate hashes belong in the PR.
