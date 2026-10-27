@@ -6,6 +6,12 @@ commit. Neither the API nor its SDK subprocess may be active during selection.
 import hashlib,json,os,pathlib,shutil,subprocess,sys,tarfile
 def sha(p):
  with p.open('rb') as f:return hashlib.file_digest(f,'sha256').hexdigest()
+def bind_binary(data,binary,expected):
+ # Legacy configurations can point directly at an old SDK release. Bind the
+ # executable and hash together so read-only restores use the selected build.
+ assert data['enabled'] is False and sha(binary)==expected
+ return {**data,'binary':str(binary),'binarySha256':expected}
+
 def main():
  assert os.geteuid()==0 and len(sys.argv)==6
  archive=pathlib.Path(sys.argv[1]);binary=pathlib.Path(sys.argv[3]);binary_source=sys.argv[5]
@@ -24,7 +30,7 @@ def main():
  shutil.copyfile(binary,dest/'veil-managed');assert sha(dest/'veil-managed')==sys.argv[4]
  for p in dest.rglob('*'):p.chmod(0o755 if p.is_dir() or p.name=='veil-managed' else 0o644)
  config=pathlib.Path('/etc/veil-managed/service.json');data=json.loads(config.read_text());assert data['enabled'] is False
- data['binarySha256']=sys.argv[4];config.write_text(json.dumps(data,indent=2));config.chmod(0o600)
+ data=bind_binary(data,dest/'veil-managed',sys.argv[4]);config.write_text(json.dumps(data,indent=2));config.chmod(0o600)
  nextlink=base/'next';assert not nextlink.exists();nextlink.symlink_to(dest);nextlink.replace(base/'current')
  shutil.copyfile(dest/'scanner/zingolib/veil-managed.service','/etc/systemd/system/veil-managed.service')
  subprocess.run(['systemd-analyze','verify','/etc/systemd/system/veil-managed.service'],check=True)
