@@ -47,9 +47,8 @@ def main():
  shutil.copyfile(service,units/'veil-managed.service')
  bridge=(release/'scanner/zingolib/veil-lightwallet-trial.service').read_text()
  bridge=bridge.replace('veil-zingolib','veil-lightwallet').replace('veil-lightwallet-trial','veil-managed-indexer')
- bridge=bridge.replace('/opt/veil-lightwallet-trial/current/read_only_bridge.py',str(base/'current/scanner/zingolib/read_only_bridge.py'))
- # The original ExecStart path contains the earlier directory name; replace explicitly.
- bridge=bridge.replace('/opt/veil-lightwallet-trial/current/',str(base/'current/scanner/zingolib/'))
+ bridge='\n'.join('ExecStart=/usr/bin/python3 '+str(base/'current/scanner/zingolib/read_only_bridge.py') if line.startswith('ExecStart=') else line for line in bridge.splitlines())+'\n'
+ bridge=bridge.replace('[Unit]','[Unit]\nStartLimitIntervalSec=300\nStartLimitBurst=3')
  bridge=bridge.replace('Restart=no','Restart=on-failure\nRestartSec=15').replace('RuntimeMaxSec=1800\n','')
  bridge=bridge.replace('[Service]','[Service]\nEnvironment=VEIL_BRIDGE_RUNTIME=/run/veil-managed-indexer')
  bridge+='\n[Install]\nWantedBy=multi-user.target\n'

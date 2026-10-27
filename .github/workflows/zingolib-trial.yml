@@ -79,6 +79,8 @@ jobs:
           target/release/veil-trial offline /tmp/veil-offline-wallet-test 4546000 > "$GITHUB_WORKSPACE/trial-artifact/offline-evidence.json"
           if target/release/veil-trial offline /tmp/veil-offline-wallet-test 4546000; then exit 1; fi
           if target/release/veil-trial send /tmp/veil-offline-wallet-test 4546000; then exit 1; fi
+          printf '{}' | target/release/veil-managed offline /tmp/veil-managed-offline-test 4546000 > "$GITHUB_WORKSPACE/trial-artifact/managed-offline-evidence.json"
+          if printf '{}' | target/release/veil-managed offline /tmp/veil-managed-offline-test 4546000; then exit 1; fi
           cp target/release/veil-trial "$GITHUB_WORKSPACE/trial-artifact/"
           cp target/release/veil-managed "$GITHUB_WORKSPACE/trial-artifact/"
           rustc +1.99.0 --version > "$GITHUB_WORKSPACE/trial-artifact/zingolib-toolchain.txt"

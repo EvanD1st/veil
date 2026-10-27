@@ -93,9 +93,14 @@ use zcash_protocol::{memo::{Memo,MemoBytes},value::Zatoshis,consensus::{BlockHei
 use zcash_primitives::transaction::{Transaction,TxId};
 
 async fn address(client:&LightClient)->Result<String>{
-    let w=client.wallet().read().await;
-    let ua=w.unified_addresses().values().next().ok_or("missing address")?;
-    Ok(zcash_keys::address::Address::Sapling(Box::new(*ua.sapling().ok_or("missing Sapling")?)).encode(&ChainType::Testnet))
+    let mut w=client.wallet().write().await;
+    // This SDK deliberately defaults to an Orchard-only UA. Request its supported
+    // Sapling derivation explicitly; never relabel an Orchard receiver as Sapling.
+    if !w.unified_addresses().values().any(|ua|ua.sapling().is_some()){
+        w.generate_unified_address(zingolib::wallet::keys::unified::ReceiverSelection::sapling_only(),zip32::AccountId::ZERO)?;
+    }
+    let sapling=w.unified_addresses().values().find_map(|ua|ua.sapling()).ok_or("missing Sapling")?;
+    Ok(zcash_keys::address::Address::Sapling(Box::new(*sapling)).encode(&ChainType::Testnet))
 }
 fn integer(v:&json::JsonValue)->Result<u64>{
     let s=v.as_str().ok_or("integer string required")?;
@@ -138,13 +143,13 @@ async fn run()->Result<()>{
     let args:Vec<String>=std::env::args().collect();
     require(args.len()==4,"command root height required")?;
     let mode=args[1].as_str();
-    require(["provision","restore","status","backup","check-backup","prepare","inspect"].contains(&mode),"unsupported command")?;
+    require(["offline","provision","restore","status","backup","check-backup","prepare","inspect"].contains(&mode),"unsupported command")?;
     let root=PathBuf::from(&args[2]);let height:u32=args[3].parse()?;
     require(root.is_absolute() && (4_465_126..10_000_000).contains(&height),"testnet root/height required")?;
     let mut input=String::new();std::io::stdin().take(16385).read_to_string(&mut input)?;
     require(input.len()<=16384,"oversized input")?;
     let input=json::parse(&input)?;
-    let create=mode=="provision"||mode=="restore";
+    let create=mode=="offline"||mode=="provision"||mode=="restore";
     if create {fs::create_dir(&root)?;fs::set_permissions(&root,fs::Permissions::from_mode(0o700))?;}
     require(root.canonicalize()?==root && fs::metadata(&root)?.permissions().mode()&0o077==0,"private canonical root required")?;
     let recipient=identity(&root,create)?;
@@ -156,7 +161,7 @@ async fn run()->Result<()>{
             require(birthday>=4_465_126&&birthday<=height,"original testnet birthday required")?;
             WalletConfig::MnemonicPhrase{mnemonic_phrase:input["seed"].as_str().ok_or("individual testnet seed required")?.into(),no_of_accounts:NonZeroU32::new(1).unwrap(),birthday,wallet_settings:settings()}
         }else{WalletConfig::NewSeed{no_of_accounts:NonZeroU32::new(1).unwrap(),chain_height:height,wallet_settings:settings()}};
-        let c=LightClient::new(config(&root,wallet,true)?,false).await?;
+        let c=LightClient::new(config(&root,wallet,mode!="offline")?,false).await?;
         let r=c.recovery_info().await.ok_or("recovery required")?;
         let b=json::object!{seed:r.seed_phrase,birthday:r.birthday,accounts:r.no_of_accounts,network:"testnet"}.dump();
         encrypt(&recovery,b.as_bytes(),&recipient)?;persist(&c,&path,&recipient).await?;c
@@ -167,6 +172,12 @@ async fn run()->Result<()>{
     require(backup["network"]=="testnet" && backup["accounts"].as_u32()==Some(1),"individual backup required")?;
     let restored=LightClient::new(config(&root,WalletConfig::MnemonicPhrase{mnemonic_phrase:backup["seed"].as_str().ok_or("seed")?.into(),no_of_accounts:NonZeroU32::new(1).unwrap(),birthday:backup["birthday"].as_u32().ok_or("birthday")?,wallet_settings:settings()},false)?,false).await?;
     require(address(&restored).await?==addr,"independent recovery mismatch")?;drop(restored);
+    if mode=="offline"{
+        persist(&client,&path,&recipient).await?;
+        let reopened=LightClient::from_bytes(decrypt(&path,&root)?,config(&root,WalletConfig::Read,false)?).await?;
+        require(address(&reopened).await?==addr,"encrypted persistence mismatch")?;
+        println!("{}",json::object!{network:"testnet",saplingReceiver:true,independentRecovery:true,encryptedReopen:true,broadcastEnabled:false});return Ok(());
+    }
     if mode=="backup"{println!("{}",json::object!{network:"testnet",seed:backup["seed"].clone(),birthday:backup["birthday"].clone(),address:addr});return Ok(());}
     if mode=="check-backup"{
         let words:Vec<&str>=backup["seed"].as_str().ok_or("seed")?.split_whitespace().collect();
@@ -174,7 +185,11 @@ async fn run()->Result<()>{
         for a in input["answers"].members(){let n=a["index"].as_usize().ok_or("index")?;require(n>0&&n<=words.len()&&a["word"].as_str()==Some(words[n-1]),"backup mismatch")?;}
         println!("{}",json::object!{confirmed:true});return Ok(());
     }
-    let(tip,_)=check_sync(&mut client).await?;
+    let synced=check_sync(&mut client).await;
+    // Retain partial scan ranges on a bounded sync timeout; resume never shortens
+    // the original birthday or discards historical recovery work.
+    persist(&client,&path,&recipient).await?;
+    let(tip,_)=synced?;
     let output=if mode=="prepare"||mode=="inspect"{
         require(input["destination"].as_str().is_some_and(|s|s.starts_with("ztestsapling1")),"Sapling testnet required")?;
         let id=if mode=="inspect"{let w=client.wallet().read().await;*w.wallet_transactions.keys().find(|id|Some(id.to_string().as_str())==input["txid"].as_str()).ok_or("unknown retained txid")?}else{
