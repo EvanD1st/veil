@@ -24,6 +24,7 @@ jobs:
       - run: node --check scripts/test-hosted-browser.mjs && node --check scripts/check-hosted-release.mjs && node --check scripts/test-hosted-cancellation.mjs
       - run: python3 -m unittest discover -s tests -p testnet_monitor_test.py
       - run: python3 -m unittest discover -s tests -p genesis_import_test.py
+      - run: python3 -m unittest discover -s tests -p zingolib_bridge_test.py
       - run: pnpm build
       - run: node scripts/test-bundle.mjs
       - run: node scripts/test-prover-worker.mjs
