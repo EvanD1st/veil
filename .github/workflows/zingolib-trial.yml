@@ -1,7 +1,7 @@
 name: Isolated Zingolib trial artifacts
 on:
   push:
-    branches: [zingolib-testnet-trial]
+    branches: [zingolib-testnet-trial, managed-zingolib-checkout]
     paths: ['scanner/zingolib/**', '.github/workflows/zingolib-trial.yml']
   workflow_dispatch:
 permissions:
@@ -65,24 +65,30 @@ jobs:
           rustup toolchain install 1.99.0 --profile minimal
           mkdir -p zingolib/src/bin
           cp "$GITHUB_WORKSPACE/scanner/zingolib/veil_trial.rs" zingolib/src/bin/veil-trial.rs
+          cp "$GITHUB_WORKSPACE/scanner/zingolib/veil_managed.rs" zingolib/src/bin/veil-managed.rs
       - name: Locked SDK build and independent encrypted offline recovery
         shell: bash
         run: |
           set -euo pipefail
           cd /tmp/veil-zingolib
           cargo +1.99.0 build --locked --release -p zingolib --bin veil-trial
+          cargo +1.99.0 build --locked --release -p zingolib --bin veil-managed
           git diff --exit-code -- Cargo.lock
           mkdir -p "$GITHUB_WORKSPACE/trial-artifact"
           umask 077
           target/release/veil-trial offline /tmp/veil-offline-wallet-test 4546000 > "$GITHUB_WORKSPACE/trial-artifact/offline-evidence.json"
           if target/release/veil-trial offline /tmp/veil-offline-wallet-test 4546000; then exit 1; fi
           if target/release/veil-trial send /tmp/veil-offline-wallet-test 4546000; then exit 1; fi
+          printf '{}' | target/release/veil-managed offline /tmp/veil-managed-offline-test 4546000 > "$GITHUB_WORKSPACE/trial-artifact/managed-offline-evidence.json"
+          if printf '{}' | target/release/veil-managed offline /tmp/veil-managed-offline-test 4546000; then exit 1; fi
           cp target/release/veil-trial "$GITHUB_WORKSPACE/trial-artifact/"
+          cp target/release/veil-managed "$GITHUB_WORKSPACE/trial-artifact/"
           rustc +1.99.0 --version > "$GITHUB_WORKSPACE/trial-artifact/zingolib-toolchain.txt"
           printf '%s\n' bfb0a2156819ea7f75a9b09b1724abfd06c8925e > "$GITHUB_WORKSPACE/trial-artifact/zingolib-source.txt"
           sha256sum Cargo.lock > "$GITHUB_WORKSPACE/trial-artifact/zingolib-lock.sha256"
           cd "$GITHUB_WORKSPACE/trial-artifact"
           sha256sum veil-trial > veil-trial.sha256
+          sha256sum veil-managed > veil-managed.sha256
       - uses: actions/upload-artifact@v7
         with:
           name: veil-zingolib-trial-${{ github.sha }}
