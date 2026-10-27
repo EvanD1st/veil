@@ -20,10 +20,11 @@ export function createManagedService({db,adapter,policy,token,kill,now=Date.now,
  async function state(user){
   const w=wallet(user),balance=w?.wallet_account?adapter.cache?.get(w.wallet_account):null;
   const fresh=balance&&now()-balance.observedAt<120000;
-  return {state:w?.state??'not-activated',network:'testnet',custody:'managed',address:w?.address??null,balanceZatoshis:fresh&&balance.synchronized?balance.confirmed:null,starterFunds:db.prepare("SELECT state FROM judge_transfers WHERE user=? AND kind='grant'").get(user)?.state??'not-requested',backupAvailable:!!w?.wallet_account,canPay:!!(w?.backup_confirmed&&fresh&&adapter.validated&&!kill()),reason:kill()?'Wallet operations are paused.':adapter.validated?'VEIL holds spending authority. Confirmed funds come from the synchronized testnet wallet.':'Wallet recovery is available; funded signing and checkout validation is pending.'};
+  return {state:w?.state??'not-activated',network:'testnet',custody:'managed',address:w?.address??null,balanceZatoshis:fresh&&balance.synchronized?balance.confirmed:null,starterFunds:db.prepare("SELECT state FROM judge_transfers WHERE user=? AND kind='grant'").get(user)?.state??'not-requested',backupAvailable:!!w?.wallet_account,canPay:!!(w?.backup_confirmed&&fresh&&(adapter.validated||adapter.trialApproved)&&!kill()),reason:kill()?'Wallet operations are paused.':adapter.validated?'VEIL holds spending authority. Confirmed funds come from the synchronized testnet wallet.':adapter.trialApproved?'Isolated approved test transfers only; public funding is not active.':'Wallet recovery is available; funded signing and checkout validation is pending.'};
  }
  async function dispatch(action,user,input){
   if(typeof user!=='string'||user.length<1||user.length>200||!input||Array.isArray(input)||typeof input!=='object')throw Error('Invalid request.');
+  if(adapter.trialApproved&&!adapter.validated&&!adapter.trialAllowsUser(user))throw Error('This isolated validation is limited to its approved test identities.');
   const fields=keys=>{if(Object.keys(input).some(k=>!keys.includes(k)))throw Error('Unexpected fields.');};
   if(action==='state'){fields([]);return state(user);}
   if(action==='activate'){fields([]);if(!wallet(user))work(()=>treasury.activate(user));return {state:wallet(user)?.state??'provisioning'};}
@@ -58,7 +59,7 @@ export function createManagedService({db,adapter,policy,token,kill,now=Date.now,
   const interrupted=db.prepare("SELECT * FROM judge_private_wallets WHERE state='provisioning' AND wallet_account IS NULL LIMIT 1").get();
   if(interrupted){work(async()=>{try{const r=await adapter.provision({operation:interrupted.operation,user:interrupted.user});if(!r.independentAuthority)throw Error();db.prepare("UPDATE judge_private_wallets SET state='backup-required',wallet_account=?,address=? WHERE user=?").run(r.account,r.address,interrupted.user);}catch{db.prepare("UPDATE judge_private_wallets SET state='unavailable' WHERE user=?").run(interrupted.user);}});return;}
   const pending=db.prepare("SELECT id,state FROM judge_transfers WHERE state IN ('prepared','broadcast-unknown','submitted','queued') ORDER BY CASE state WHEN 'queued' THEN 1 ELSE 0 END,rowid LIMIT 20").all();
-  if(pending.length&&adapter.validated){work(async()=>{
+  if(pending.length&&(adapter.validated||adapter.trialApproved)){work(async()=>{
    for(const r of pending){if(kill())break;if(r.state==='queued'){await treasury.prepare(r.id);break;}else if(r.state==='prepared'){await treasury.broadcast(r.id);break;}else await treasury.reconcile(r.id);}
   });return;}
   const confirmed=db.prepare("SELECT id FROM judge_transfers WHERE state='confirmed' AND reconcile_next<=? ORDER BY reconcile_next LIMIT 1").get(now());

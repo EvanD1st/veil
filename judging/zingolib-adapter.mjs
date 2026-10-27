@@ -14,6 +14,13 @@ export class ZingolibAdapter{
   // Root-owned approval evidence is generated only after the isolated funded trial.
   this.validated=false;
   if(config.validationFile){const v=privateJson(config.validationFile);this.validated=v.network==='testnet'&&v.binarySha256===binaryHash&&['fundedRestore','preparedInspection','singleBroadcast','scannerConfirmed','restartReconciled'].every(k=>v[k]===true);}
+  this.approval=config.trialApprovalFile?privateJson(config.trialApprovalFile):null;
+ }
+ get trialApproved(){const a=this.approval;return !!(a?.network==='testnet'&&a.binarySha256===this.config.binarySha256&&Number.isSafeInteger(a.expiresAt)&&Date.now()<a.expiresAt&&Array.isArray(a.transfers)&&a.transfers.length>0&&a.transfers.length<=20);}
+ trialAllowsUser(user){return this.trialApproved&&this.approval.transfers.some(t=>t.user===user);}
+ authorize(row){
+  if(this.validated)return;
+  if(!this.trialApproved||!this.approval.transfers.some(t=>t.kind===row.kind&&t.user===row.user&&t.source===row.source&&t.destination===row.destination&&t.amount===row.amount&&t.memo===row.memo&&t.invoiceId===(row.invoice_id??null)&&/^[1-9][0-9]{0,13}$/.test(t.maxFee??'')&&BigInt(row.max_fee)<=BigInt(t.maxFee)))throw Error('This exact test transfer has no current approval.');
  }
  async rpc(method,params=[]){
   if(!['getblockchaininfo','getrawtransaction','getblockhash','sendrawtransaction'].includes(method))throw Error('Unsupported node operation.');
@@ -46,7 +53,7 @@ export class ZingolibAdapter{
   }finally{this.running=false;}
  }
  async provision({operation}){
-  if(!ID.test(operation))throw Error('Invalid allocation.');
+  if(!ID.test(operation)||operation===this.config.policy.treasuryAccount)throw Error('Invalid or reserved allocation.');
   const path=join(this.config.walletRoot,operation),result=await this.invoke(existsSync(path)?'status':'provision',operation);
   this.cache.set(operation,{...result,observedAt:Date.now()});
   return {account:operation,address:result.address,independentAuthority:result.independentRecovery===true};

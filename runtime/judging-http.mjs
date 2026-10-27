@@ -11,6 +11,7 @@ export function judgingHandler(db,origin,{managed=managedClient()}={}){
   try{
    if(url.pathname==='/api/judging/managed/selector'){
     if(req.method!=='POST'||!managed?.authenticated?.(req.headers.authorization))throw new JudgingError('Service authentication required.',401);
+    if(!/^[a-f0-9]{64}$/.test(process.env.VEIL_SCANNER_PUBLIC_KEY??'')||!/^[a-f0-9]{64}$/.test(process.env.VEIL_SCANNER_SERVICE_TOKEN_SHA256??''))throw new JudgingError('Automatic verification is unavailable.',503);
     let n=0,parts=[];for await(const c of req){n+=c.length;if(n>2048)throw new JudgingError('Request too large.',413);parts.push(c);}
     return json(res,200,acceptManagedSelector(db,JSON.parse(Buffer.concat(parts).toString('utf8'))));
    }
