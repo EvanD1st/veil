@@ -2,3 +2,4 @@
 @media(max-width:1000px){.genesis-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media(max-width:600px){.genesis-grid{grid-template-columns:minmax(0,1fr);gap:18px}.genesis-collection{padding:25px 0}.genesis-card h3{font-size:27px}.genesis-heading{font-size:25px}.genesis-detail-frame{height:min(44vh,360px)}}
 .card-image img[src^="/api/digital/preview/"],.auction-detail-head>img[src^="/api/digital/preview/"]{object-fit:contain;background:#eee7d9;padding:8px}
+.genesis-frame{position:relative}.genesis-frame img{position:absolute;inset:12px;width:calc(100% - 24px);height:calc(100% - 24px);object-fit:contain}
