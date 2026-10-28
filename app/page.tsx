@@ -1,2 +1,2 @@
-import VeilApp from './veil-app';
-export default function Home() { return <VeilApp/>; }
+// Framework route entrypoint; implementation is kept in the source tree.
+export {default} from '@/frontend/app/page';

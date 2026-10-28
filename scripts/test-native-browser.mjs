@@ -5,10 +5,10 @@ import {mkdtemp,readFile,writeFile} from 'node:fs/promises';
 import {tmpdir} from 'node:os';
 import {join,resolve} from 'node:path';
 import {spawn} from 'node:child_process';
-import {initializeDatabase,openDatabase} from '../runtime/database.mjs';
-import {createAccount} from '../runtime/accounts.mjs';
+import {initializeDatabase,openDatabase} from '../backend/runtime/database.mjs';
+import {createAccount} from '../backend/runtime/accounts.mjs';
 import {generateKeyPairSync,randomBytes,createHash} from 'node:crypto';
-import {openOutbox,ScannerWorker,transport} from '../scanner/service.mjs';
+import {openOutbox,ScannerWorker,transport} from '../backend/scanner/service.mjs';
 const root=resolve('dist/standalone'),directory=await mkdtemp(join(tmpdir(),'veil-live-browser-')),path=join(directory,'private.sqlite');
 initializeDatabase(path,join(root,'drizzle'));const db=openDatabase(path);
 const observerId=await createAccount(db,'observer','ci-only-live-browser-password-observer');
@@ -17,7 +17,7 @@ const signer=generateKeyPairSync('ed25519'),serviceToken=randomBytes(32).toStrin
 const storage=join(directory,'originals'),sellers=join(directory,'sellers.json');await writeFile(sellers,'{}',{mode:0o600});
 const sharp=(await import('sharp')).default,fileBytes=await sharp({create:{width:320,height:200,channels:3,background:'#f4d462'}}).png().toBuffer();
 const receiver=JSON.parse(await readFile('tests/fixtures/synthetic-receiver.json','utf8')).address;
-const startChild=()=>spawn(process.execPath,[join(root,'runtime/server.mjs')],{cwd:root,env:{...process.env,VEIL_PUBLIC_ORIGIN:origin,VEIL_ALLOW_LOOPBACK_HTTP:'1',VEIL_ADMIN_ACCOUNT_IDS:observerId,VEIL_DIGITAL_ROOT:storage,VEIL_DIGITAL_SELLERS_FILE:sellers,VEIL_DIGITAL_PUBLISHING_ENABLED:'1',VEIL_SQLITE_PATH:path,PORT:String(port),VEIL_SCANNER_PUBLIC_KEY:signer.publicKey.export({format:'der',type:'spki'}).subarray(-32).toString('hex'),VEIL_SCANNER_SERVICE_TOKEN_SHA256:createHash('sha256').update(serviceToken).digest('hex')},stdio:['ignore','pipe','pipe']});
+const startChild=()=>spawn(process.execPath,[join(root,'backend/runtime/server.mjs')],{cwd:root,env:{...process.env,VEIL_PUBLIC_ORIGIN:origin,VEIL_ALLOW_LOOPBACK_HTTP:'1',VEIL_ADMIN_ACCOUNT_IDS:observerId,VEIL_DIGITAL_ROOT:storage,VEIL_DIGITAL_SELLERS_FILE:sellers,VEIL_DIGITAL_PUBLISHING_ENABLED:'1',VEIL_SQLITE_PATH:path,PORT:String(port),VEIL_SCANNER_PUBLIC_KEY:signer.publicKey.export({format:'der',type:'spki'}).subarray(-32).toString('hex'),VEIL_SCANNER_SERVICE_TOKEN_SHA256:createHash('sha256').update(serviceToken).digest('hex')},stdio:['ignore','pipe','pipe']});
 let child=startChild(),output='';function capture(){child.stdout.on('data',b=>{output+=b;});child.stderr.on('data',b=>{output+=b;});}capture();
 async function waitForServer(){for(let n=0;n<120;n++){try{if((await fetch(origin)).ok)return;}catch{}if(child.exitCode!==null)break;await new Promise(r=>setTimeout(r,250));}throw Error('Artifact startup failed: '+output);}
 let browser;

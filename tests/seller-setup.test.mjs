@@ -7,9 +7,9 @@ import {join,resolve} from 'node:path';
 import {createServer} from 'node:http';
 import {execFileSync} from 'node:child_process';
 import {readFileSync} from 'node:fs';
-import {initializeDatabase,openDatabase} from '../runtime/database.mjs';
-import {createAccount,createSession,COOKIE,revokeSession} from '../runtime/accounts.mjs';
-import {digitalHandler} from '../runtime/digital-files.mjs';
+import {initializeDatabase,openDatabase} from '../backend/runtime/database.mjs';
+import {createAccount,createSession,COOKIE,revokeSession} from '../backend/runtime/accounts.mjs';
+import {digitalHandler} from '../backend/runtime/digital-files.mjs';
 const address=JSON.parse(readFileSync(new URL('./fixtures/synthetic-receiver.json',import.meta.url),'utf8')).address;
 function syntheticAddress(fill){
  const alphabet='qpzry9x8gf2tvdw0s3jn54khce6mua7l',prefix='ztestsapling',words=[];let acc=0,bits=0;
@@ -22,7 +22,7 @@ const alternate=syntheticAddress(0x14);
 
 test('seller onboarding authenticates, bounds requests, isolates accounts and never grants approval from a request',async t=>{
  const directory=await mkdtemp(join(tmpdir(),'veil-seller-setup-')),path=join(directory,'test.sqlite'),sellers=join(directory,'sellers.json'),saved={...process.env};
- initializeDatabase(path,resolve('drizzle'));const db=openDatabase(path);
+ initializeDatabase(path,resolve('backend/drizzle'));const db=openDatabase(path);
  const first=await createAccount(db,'seller-one','synthetic-test-password-one'),second=await createAccount(db,'seller-two','synthetic-test-password-two');
  const cookies={[first]:COOKIE+'='+createSession(db,first),[second]:COOKIE+'='+createSession(db,second)};
  await writeFile(sellers,'{}',{mode:0o600});Object.assign(process.env,{VEIL_SQLITE_PATH:path,VEIL_DIGITAL_SELLERS_FILE:sellers,VEIL_DIGITAL_PUBLISHING_ENABLED:'1',VEIL_DIGITAL_ROOT:join(directory,'files')});
@@ -53,7 +53,7 @@ test('seller onboarding authenticates, bounds requests, isolates accounts and ne
   await t.test('only the private operator map enables the matching receiver; pause and removal close publishing',async()=>{
    await writeFile(sellers,JSON.stringify({[first]:address}),{mode:0o600});
    let own=await config(first);assert.equal(own.eligible,true);assert.equal(own.setup.state,'ready');assert.equal(own.address,address);assert.equal((await config(second)).eligible,false);
-   const queue=JSON.parse(execFileSync(process.execPath,['runtime/digital-admin.mjs','seller-requests'],{encoding:'utf8',env:process.env}));assert.equal(queue.length,1);assert.equal(queue[0].account_id,first);assert.equal(queue[0].state,'approved');assert.deepEqual(Object.keys(queue[0]).sort(),['account_id','receiver','requested_at','state','updated_at','username']);
+   const queue=JSON.parse(execFileSync(process.execPath,['backend/runtime/digital-admin.mjs','seller-requests'],{encoding:'utf8',env:process.env}));assert.equal(queue.length,1);assert.equal(queue[0].account_id,first);assert.equal(queue[0].state,'approved');assert.deepEqual(Object.keys(queue[0]).sort(),['account_id','receiver','requested_at','state','updated_at','username']);
    assert.equal((await call('/api/digital/receiver-request',{body:{address:alternate}})).status,409);
    await writeFile(sellers,JSON.stringify({[first]:alternate}));assert.equal((await config(first)).eligible,false);
    await writeFile(sellers,JSON.stringify({[first]:address}));

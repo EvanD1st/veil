@@ -5,7 +5,7 @@ from pathlib import Path
 import tempfile
 import unittest
 
-spec=importlib.util.spec_from_file_location('managed_stage',Path(__file__).parents[1]/'scanner/zingolib/stage-managed-release.py')
+spec=importlib.util.spec_from_file_location('managed_stage',Path(__file__).parents[1]/'backend/scanner/zingolib/stage-managed-release.py')
 stage=importlib.util.module_from_spec(spec);spec.loader.exec_module(stage)
 
 class BinarySelection(unittest.TestCase):

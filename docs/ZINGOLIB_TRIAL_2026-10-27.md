@@ -16,7 +16,7 @@ Pinned SSH and read-only inspection confirmed Zebra gRPC exposes `zebra.indexer.
 
 ## Isolated implementation and CI
 
-Branch `zingolib-testnet-trial` starts from merged main 13ef1d4. A pinned-source `lightwalletd` bridge and an SDK-based `veil-trial` binary are separate from the application, receiving wallet and scanner. [Implementation and boundaries](../scanner/zingolib/README.md) describe the sources, locked builds, memory limits, encryption and rollback.
+Branch `zingolib-testnet-trial` starts from merged main 13ef1d4. A pinned-source `lightwalletd` bridge and an SDK-based `veil-trial` binary are separate from the application, receiving wallet and scanner. [Implementation and boundaries](../backend/scanner/zingolib/README.md) describe the sources, locked builds, memory limits, encryption and rollback.
 
 At implementation commit **1022a22d01455d44133d90f6d26fe84814e0aae1**, [binary CI 40466060402](https://github.com/EvanD1st/veil/actions/runs/40466060402) passed both jobs and [application CI 40466060391](https://github.com/EvanD1st/veil/actions/runs/40466060391) passed. The binary build did not run on the workstation, website host or node host. Bridge parser/frontend/common/CLI tests passed. Offline SDK tests created two independent ephemeral test wallets, restored their keys from encrypted individual backups, reopened encrypted wallet serialization and rejected overwrite/unsupported operations. CI wallet secrets were not uploaded.
 

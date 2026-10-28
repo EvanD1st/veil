@@ -5,8 +5,8 @@ import {mkdtemp,readFile,writeFile} from 'node:fs/promises';
 import {join} from 'node:path';
 import {tmpdir} from 'node:os';
 import {randomUUID} from 'node:crypto';
-import {PrivateState} from '../judging/private-state.mjs';
-import {enrollOwnerReceiver,importViewingKeyRpc,verifyIncomingCoverage} from '../judging/owner-enrollment.mjs';
+import {PrivateState} from '../backend/judging/private-state.mjs';
+import {enrollOwnerReceiver,importViewingKeyRpc,verifyIncomingCoverage} from '../backend/judging/owner-enrollment.mjs';
 const address=JSON.parse(await readFile('tests/fixtures/synthetic-receiver.json','utf8')).address;
 const fakeKey='zxviewtestsapling1'+'a'.repeat(120);
 async function fixture(){

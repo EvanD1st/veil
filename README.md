@@ -51,7 +51,7 @@ node scripts/test-native-browser.mjs
 
 Production builds run in Linux CI, not the workstation or shared website host. The portable Worker browser tests use explicitly synthetic digital metadata; native tests exercise actual uploads, SQLite, filesystem permissions and protected downloads. The production-artifact browser flow uses separate real cookie accounts, ordinary clocks and live future drand; only its signed payment observation is synthetic. It must never be described as a live transfer. Private originals, databases, credentials and wallet material are excluded from release artifacts.
 
-See [current candidate evidence](docs/DIGITAL_RELEASE.md), [historical validation](docs/VALIDATION.md), [scanner](scanner/README.md) and [testnet infrastructure](scanner/testnet/README.md). The native Ubuntu target supports private local storage. The retained Sites/Worker target fails closed for new file-backed publishing and has no production filesystem adapter. Never enable a fixture to make a hosted target pass.
+See [current candidate evidence](docs/DIGITAL_RELEASE.md), [historical validation](docs/VALIDATION.md), [scanner](backend/scanner/README.md) and [testnet infrastructure](backend/scanner/testnet/README.md). The native Ubuntu target supports private local storage. The retained Sites/Worker target fails closed for new file-backed publishing and has no production filesystem adapter. Never enable a fixture to make a hosted target pass.
 
 ## Proof protocol
 
@@ -83,4 +83,8 @@ Legacy version-1 auctions keep SHA-256 commitments and explicitly **seller-decla
 - [tlock-js](https://github.com/drand/tlock-js), [drand](https://docs.drand.love/). The committed beacon fixture is quicknet round 1000.
 - The retained legacy sneaker concept is AI-generated; the VEIL mark, golden envelope and other decorative/gallery SVGs are original. Sample concepts are not purchasable deliverables.
 
-Original VEIL source retains its MIT notice in `LICENSE`. The combined application now incorporates GPL-3.0-or-later snarkjs code and runtime; its distribution must comply with GPL-3.0-or-later (`LICENSE-GPL-3.0`). Vendored files retain attribution, and modifications are described in `lib/veil/zk/vendor/README.md`. Dependency licenses remain applicable. Make the corresponding source available when distributing this build. The repository is public and retains the corresponding source and license notices. The hosted review audience is configured separately.
+Original VEIL source retains its MIT notice in `LICENSE`. The combined application now incorporates GPL-3.0-or-later snarkjs code and runtime; its distribution must comply with GPL-3.0-or-later (`LICENSE-GPL-3.0`). Vendored files retain attribution, and modifications are described in `shared/veil/zk/vendor/README.md`. Dependency licenses remain applicable. Make the corresponding source available when distributing this build. The repository is public and retains the corresponding source and license notices. The hosted review audience is configured separately.
+
+## Source organization
+
+Frontend code and public assets are in `frontend/`; API handlers, authentication, databases and workers are in `backend/`; common protocol code is in `shared/`. Root `app/` files are framework routing adapters only. Commands still run from the repository root, and generated deployment paths remain compatible. See [repository layout](docs/REPOSITORY_LAYOUT.md).

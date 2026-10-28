@@ -20,7 +20,7 @@ Rotate `VEIL_SCANNER_PUBLIC_KEY` to invalidate signatures from the old key immed
 
 ## Real shielded testnet validation — external setup required
 
-Use the [live testnet runbook](LIVE_TESTNET.md) and [version-pinned Linux setup](../scanner/testnet/README.md). The selected source pair is experimental: current released Zallet/Zebra versions have a v28/v29 state mismatch, and the NU7 Zallet update has not cleared upstream audits. Do not substitute guessed versions or describe preparation as completed live validation. Three confirmations are VEIL’s testnet observation policy, not universal Zcash finality.
+Use the [live testnet runbook](LIVE_TESTNET.md) and [version-pinned Linux setup](../backend/scanner/testnet/README.md). The selected source pair is experimental: current released Zallet/Zebra versions have a v28/v29 state mismatch, and the NU7 Zallet update has not cleared upstream audits. Do not substitute guessed versions or describe preparation as completed live validation. Three confirmations are VEIL’s testnet observation policy, not universal Zcash finality.
 
 This workstation has no Zallet/Zebra executables detected on PATH, RPC endpoints, scanner key file or configured trusted scanner public key. No live transfer has been performed. RPC fixtures and browser proof tests are not evidence of a payment.
 
@@ -28,7 +28,7 @@ The operator must provide:
 
 1. A synchronized Zebra **testnet** node and Zallet receiving/viewing wallet, with wallet/node tips checked. Record `zebrad --version` and the wallet's installed version before starting; do not substitute guessed version numbers.
 2. A real Sapling testnet receiving address owned/viewable by that wallet, plus a compatible funded **testnet** sending wallet. Synthetic test receivers are not payment destinations.
-3. Loopback-only wallet/node RPC endpoints and local credentials/cookies as described in `scanner/README.md`.
+3. Loopback-only wallet/node RPC endpoints and local credentials/cookies as described in `backend/scanner/README.md`.
 4. A locally generated scanner Ed25519 private key. Configure only its public key on the existing Site.
 5. Explicit authorization for an operator to make the testnet transfer. This implementation task sends no funds and does not deploy.
 

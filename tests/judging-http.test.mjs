@@ -1,7 +1,7 @@
 import test from'node:test';import assert from'node:assert/strict';import{mkdtemp}from'node:fs/promises';import{tmpdir}from'node:os';import{join,resolve}from'node:path';import{createServer}from'node:http';
-import{initializeDatabase,openDatabase}from'../runtime/database.mjs';import{createAccount,createSession,sessionCookie}from'../runtime/accounts.mjs';import{judgingHandler}from'../runtime/judging-http.mjs';
+import{initializeDatabase,openDatabase}from'../backend/runtime/database.mjs';import{createAccount,createSession,sessionCookie}from'../backend/runtime/accounts.mjs';import{judgingHandler}from'../backend/runtime/judging-http.mjs';
 test('native judging endpoints keep private activation, reauthentication, CSRF, role and bounded-abuse guards',async()=>{
- const dir=await mkdtemp(join(tmpdir(),'veil-judge-http-')),path=join(dir,'db.sqlite');initializeDatabase(path,resolve('drizzle'));const db=openDatabase(path),a=await createAccount(db,'judge.alpha','judge-alpha-password'),b=await createAccount(db,'judge.beta','judge-beta-password'),cookie=sessionCookie(createSession(db,a)).split(';')[0],other=sessionCookie(createSession(db,b)).split(';')[0];
+ const dir=await mkdtemp(join(tmpdir(),'veil-judge-http-')),path=join(dir,'db.sqlite');initializeDatabase(path,resolve('backend/drizzle'));const db=openDatabase(path),a=await createAccount(db,'judge.alpha','judge-alpha-password'),b=await createAccount(db,'judge.beta','judge-beta-password'),cookie=sessionCookie(createSession(db,a)).split(';')[0],other=sessionCookie(createSession(db,b)).split(';')[0];
  const handler=judgingHandler(db,'https://veil.example'),server=createServer((req,res)=>handler(req,res,()=>{res.writeHead(418);res.end();}));await new Promise(r=>server.listen(0,'127.0.0.1',r));const url='http://127.0.0.1:'+server.address().port;
  const request=(path,body,headers={})=>fetch(url+path,{method:body===undefined?'GET':'POST',headers:{Cookie:cookie,Origin:'https://veil.example','Content-Type':'application/json',...headers},...(body===undefined?{}:{body:JSON.stringify(body)})});
  try{
@@ -23,7 +23,7 @@ test('native judging endpoints keep private activation, reauthentication, CSRF, 
 });
 
 test('funding HTTP distinguishes a new queued grant from a retained cooldown result',async()=>{
- const dir=await mkdtemp(join(tmpdir(),'veil-fund-feedback-')),path=join(dir,'db.sqlite');initializeDatabase(path,resolve('drizzle'));const db=openDatabase(path),id=await createAccount(db,'fund.feedback','fund-feedback-password'),cookie=sessionCookie(createSession(db,id)).split(';')[0];
+ const dir=await mkdtemp(join(tmpdir(),'veil-fund-feedback-')),path=join(dir,'db.sqlite');initializeDatabase(path,resolve('backend/drizzle'));const db=openDatabase(path),id=await createAccount(db,'fund.feedback','fund-feedback-password'),cookie=sessionCookie(createSession(db,id)).split(';')[0];
  let result={id:'synthetic-retained',state:'confirmed',created:false,reason:'cooldown',nextEligibleAt:1900000000000};
  const handler=judgingHandler(db,'https://veil.example',{managed:async(action,user)=>{assert.equal(action,'fund');assert.equal(user,id);return result;}}),server=createServer((req,res)=>handler(req,res,()=>res.end()));await new Promise(r=>server.listen(0,'127.0.0.1',r));
  const request=()=>fetch('http://127.0.0.1:'+server.address().port+'/api/judging/wallet/fund',{method:'POST',headers:{Cookie:cookie,Origin:'https://veil.example','Content-Type':'application/json'},body:'{}'});

@@ -17,6 +17,6 @@ export async function checkDeployedAssets(base,manifest,fetcher=fetch,log=consol
 }
 if(process.argv[1]&&import.meta.url===pathToFileURL(process.argv[1]).href){
  try{const [base]=process.argv.slice(2);if(!base||process.argv.length!==3)throw Error('Usage: node scripts/check-deployed-assets.mjs https://EXISTING_SITE');
- const manifest=JSON.parse(await readFile(new URL('../lib/veil/zk/assets.json',import.meta.url),'utf8'));await checkDeployedAssets(base,manifest);
+ const manifest=JSON.parse(await readFile(new URL('../shared/veil/zk/assets.json',import.meta.url),'utf8'));await checkDeployedAssets(base,manifest);
  }catch(e){console.error(e.message);process.exitCode=1;}
 }

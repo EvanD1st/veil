@@ -11,7 +11,7 @@ const beacon = require('./fixtures/quicknet-1000.json');
 // Only transport/hosting adapters are replaced. Production crypto and SQL execute unchanged.
 const db = new DatabaseSync(':memory:');
 db.exec('PRAGMA foreign_keys = ON');
-for (const file of fs.readdirSync('drizzle').filter(f => f.endsWith('.sql')).sort()) db.exec(fs.readFileSync(path.join('drizzle', file), 'utf8'));
+for (const file of fs.readdirSync('backend/drizzle').filter(f => f.endsWith('.sql')).sort()) db.exec(fs.readFileSync(path.join('backend/drizzle', file), 'utf8'));
 const env = { DB: { prepare(sql) { const statement = db.prepare(sql); let values = []; return { bind(...args) { values = args; return this; }, async first() { return statement.get(...values) ?? null; }, async all() { return { results: statement.all(...values) }; }, async run() { return { meta: { changes: statement.run(...values).changes } }; } }; } } };
 let requestHeaders = new Headers();
 const realLoad = Module._load;
@@ -185,7 +185,7 @@ test('v2 proof binds complete accepted log, winner, reserve and context; malform
   Date.now=()=>core.roundTimeMs(1000)-120000;
   const id=crypto.randomUUID();
   // Explicit source-level digital metadata fixture; native tests validate actual file contents.
-  const receiver=require('./fixtures/synthetic-receiver.json').address,draftId=crypto.randomUUID(),assetIds=['da'.repeat(16),'db'.repeat(16)];
+  const receiver=require('./fixtures/synthetic-receiver.json').address,draftId=crypto.randomUUID(),assetIds=['da'.repeat(16),'backend/db/index.ts'.repeat(16)];
   for(const [n,kind]of ['preview','deliverable'].entries())db.prepare("INSERT INTO digital_assets VALUES(?,?,?,?,?,'complete',?,?,?,?)").run(assetIds[n],'seller',kind,'png','image/png',1,1,'ff'.repeat(32),Date.now());
   db.prepare('INSERT INTO digital_drafts VALUES(?,?,?,?,?,?,?,?,?,?)').run(draftId,'seller',...assetIds,'Digital Art','Synthetic personal use license.','','Synthetic source-level fixture.',receiver,Date.now());
   env.VEIL_DIGITAL_PUBLISHING_ENABLED='1';env.VEIL_DIGITAL_SELLERS=JSON.stringify({seller:receiver});env.VEIL_DIGITAL_VERIFY=async()=>true;
@@ -247,7 +247,7 @@ test('payment reports require trusted signatures, exact invoice, sufficient conf
 });
 
 test('read-only scanner checks wallet sync and incoming note, and downgrades reorged output',async()=>{
- const {scanInvoice}=await import('../scanner/scan.mjs');
+ const {scanInvoice}=await import('../backend/scanner/scan.mjs');
  const invoice={version:1,network:'testnet',invoiceId:'aa'.repeat(32),auctionId,bidId:opening.bidId,address:require('./fixtures/synthetic-receiver.json').address,amount:'250',memo:`VEIL:${auctionId}:${opening.bidId}`};
  const txid='bb'.repeat(32),block='cc'.repeat(32),tip='dd'.repeat(32);
  const state={locked:false,node_tip:{height:100,blockhash:tip},wallet_tip:{height:100,blockhash:tip},fully_synced_height:100};

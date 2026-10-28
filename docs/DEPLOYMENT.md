@@ -24,7 +24,7 @@ Configure only the operator-trusted Ed25519 public key as `VEIL_SCANNER_PUBLIC_K
 
 ## Authentication boundary
 
-`app/chatgpt-auth.ts` consumes the authenticated-user headers supplied by the trusted Sites gateway. That gateway must authenticate users and strip/overwrite caller-supplied `oai-authenticated-*` headers. This is a hosting capability boundary, not standalone verified authentication.
+`backend/auth/chatgpt-auth.ts` consumes the authenticated-user headers supplied by the trusted Sites gateway. That gateway must authenticate users and strip/overwrite caller-supplied `oai-authenticated-*` headers. This is a hosting capability boundary, not standalone verified authentication.
 
 Do not expose `pnpm start`, the local preview or a raw Worker on a public standalone endpoint that accepts those headers from callers. The preview is loopback-only. Independent hosting requires verified authentication and an equivalent identity boundary. The Ubuntu target below supplies administrator-created accounts and verified cookie sessions; the original header-based adapter remains exclusive to Sites.
 

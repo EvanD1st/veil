@@ -7,7 +7,7 @@ import json
 import threading
 from unittest.mock import patch
 
-spec=importlib.util.spec_from_file_location('bridge',Path(__file__).parents[1]/'scanner/zingolib/read_only_bridge.py')
+spec=importlib.util.spec_from_file_location('bridge',Path(__file__).parents[1]/'backend/scanner/zingolib/read_only_bridge.py')
 bridge=importlib.util.module_from_spec(spec);spec.loader.exec_module(bridge)
 
 class ReadOnlyBoundary(unittest.TestCase):

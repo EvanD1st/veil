@@ -133,7 +133,7 @@ test('keyboard modal focus and mobile viewport layout',async({page})=>{
 
 test('real encrypted bid limits, self/late bids and malformed accepted-envelope blocking',async({page})=>{
  const {auction,title}=await create(page);const api='/api/auctions/'+auction.id;
- async function seal(){return page.evaluate(async auction=>{const path='/lib/veil/crypto.ts';const {sealBid}=await import(path);return sealBid(auction.id,auction.publicKey,auction.unlockRound,'250000000',auction.proofContext);},auction);}
+ async function seal(){return page.evaluate(async auction=>{const path='/frontend/veil/crypto.ts';const {sealBid}=await import(path);return sealBid(auction.id,auction.publicKey,auction.unlockRound,'250000000',auction.proofContext);},auction);}
  const first=await seal();expect((await page.request.post(api+'/bids',{data:first})).status()).toBe(403);
  await page.request.get('/__veil/identity?as=bidder-1');
  expect((await page.request.post(api+'/bids',{data:{...first,ciphertext:'x'.repeat(300)}})).status()).toBe(400);

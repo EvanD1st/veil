@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import {mkdtemp,writeFile,chmod,symlink,rm} from 'node:fs/promises';
 import {join} from 'node:path';
 import {tmpdir} from 'node:os';
-import {privateJson} from '../judging/zingolib-adapter.mjs';
+import {privateJson} from '../backend/judging/zingolib-adapter.mjs';
 
 test('private JSON accepts owner-only files and rejects links',async t=>{
  if(process.platform==='win32'){t.skip('POSIX private file modes are required.');return;}

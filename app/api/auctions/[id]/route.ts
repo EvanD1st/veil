@@ -1,3 +1,3 @@
-import { actor, details, handle, json } from '@/lib/veil/server';
+// Framework route entrypoint; implementation is kept in the source tree.
+export {GET} from '@/backend/routes/auctions/[id]/route';
 export const dynamic = 'force-dynamic';
-export async function GET(request: Request, context: { params: Promise<{ id: string }> }) { return handle(async () => { const { id } = await context.params; return json(await details(id, await actor(request))); }); }

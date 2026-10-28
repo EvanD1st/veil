@@ -1,3 +1,3 @@
-import {body,handle,json} from '@/lib/veil/server';
-import {scannerAuthentication,scannerExchange} from '@/lib/veil/payment-queue';
-export async function POST(request:Request){return handle(async()=>{await scannerAuthentication(request);return json(await scannerExchange(await body(request,6500)));});}
+// Framework route entrypoint; implementation is kept in the source tree.
+export {POST} from '@/backend/routes/scanner/jobs/route';
+export const dynamic = 'force-dynamic';

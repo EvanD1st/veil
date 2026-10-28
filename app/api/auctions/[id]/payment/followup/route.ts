@@ -1,4 +1,3 @@
-import {actor,body,handle,json,submitPaymentFollowup} from '@/lib/veil/server';
-export async function POST(request:Request,{params}:{params:Promise<{id:string}>}){
- return handle(async()=>json(await submitPaymentFollowup((await params).id,await body(request,300),await actor(request,true))));
-}
+// Framework route entrypoint; implementation is kept in the source tree.
+export {POST} from '@/backend/routes/auctions/[id]/payment/followup/route';
+export const dynamic = 'force-dynamic';

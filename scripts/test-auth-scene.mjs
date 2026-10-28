@@ -1,9 +1,9 @@
-import {authPage,sendPage} from '../runtime/auth-pages.mjs';
+import {authPage,sendPage} from '../frontend/auth/auth-pages.mjs';
 import {createServer} from 'node:http';
 import {mkdir,readFile} from 'node:fs/promises';
 import {chromium} from '@playwright/test';
 import assert from 'node:assert/strict';
-const server=createServer(async(req,res)=>{if(/^\/fonts\/(inter|playfair-display)-(regular|semibold)\.ttf$/.test(req.url)){res.writeHead(200,{'Content-Type':'font/ttf'});res.end(await readFile('public'+req.url));return;}sendPage(res,200,authPage(req.url.includes('signup')?'signup':'login','/'));});
+const server=createServer(async(req,res)=>{if(/^\/fonts\/(inter|playfair-display)-(regular|semibold)\.ttf$/.test(req.url)){res.writeHead(200,{'Content-Type':'font/ttf'});res.end(await readFile('frontend/public'+req.url));return;}sendPage(res,200,authPage(req.url.includes('signup')?'signup':'login','/'));});
 await new Promise(r=>server.listen(5199,'127.0.0.1',r));let browser;
 try{
  await mkdir('outputs/auth-scene',{recursive:true});

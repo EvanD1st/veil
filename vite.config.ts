@@ -1,6 +1,6 @@
 import vinext from "vinext";
 import { defineConfig } from "vite";
-import hostingConfig from "./.openai/hosting.json";
+import hostingConfig from ".openai/hosting.json";
 import { readExecutionProfile } from "./scripts/execution-profile.mjs";
 import { sites } from "./build/sites-vite-plugin";
 import { localTestIdentity } from './build/local-test-plugin';
@@ -60,6 +60,7 @@ export default defineConfig(async (configEnv) => {
   const { cloudflare } = await import("@cloudflare/vite-plugin");
 
   return {
+    publicDir: 'frontend/public',
     server: {
       host: '127.0.0.1',
       ...(managedLinux
