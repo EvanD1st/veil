@@ -38,7 +38,7 @@ export function bindEdition(db,id,seller,now=Date.now()){
  if(e.state==='preparing'){db.prepare("UPDATE judging_editions SET state='open',updated_at=? WHERE id=?").run(now,id);db.prepare('DELETE FROM judging_edition_requests WHERE family=?').run(e.family);}return {bound:true,auctionId:a.id};});
 }
 export function catalogue(db,now=Date.now()){
- return collection.map(f=>{const e=db.prepare('SELECT e.*,a.result,a.seller_name,a.reserve,(SELECT COUNT(*) FROM bids WHERE auction_id=a.id) bid_count FROM judging_editions e LEFT JOIN auctions a ON a.id=e.auction_id WHERE e.family=? ORDER BY e.edition DESC LIMIT 1').get(f.slug);
+ return collection.map(f=>{const e=db.prepare('SELECT e.*,a.result,a.seller_name,a.reserve,a.created_at,(SELECT COUNT(*) FROM bids WHERE auction_id=a.id) bid_count FROM judging_editions e LEFT JOIN auctions a ON a.id=e.auction_id WHERE e.family=? ORDER BY e.edition DESC LIMIT 1').get(f.slug);
   let result;try{result=e?.result?JSON.parse(e.result):null;}catch{}
   return {...f,current:e?{auctionId:e.state==='preparing'?null:e.auction_id,edition:e.edition,opensAt:e.created_at,closesAt:e.closes_at,
    state:result?.status==='zk-verified'?'verified':e.state==='open'&&now>=e.closes_at?'waiting':e.state,

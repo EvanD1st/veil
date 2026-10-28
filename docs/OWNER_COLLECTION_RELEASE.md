@@ -74,7 +74,10 @@ and resume the scanner. Record the actual selected checkpoint and service recove
    publication. Resume retained journals after uncertainty; never replace keys,
    recreate an existing auction or extend its reserved closing time.
 5. Verify exactly ten distinct published IDs with `owner` as their actual account
-   owner, matching frozen originals, correct starting amounts and 35-day windows.
+   owner, matching frozen originals, correct starting amounts and the original 35-day reserved deadlines.
+   The public opening timestamp is the persisted auction creation time; the
+   pre-create reservation and durable RSA key write precede it by a bounded
+   interval (at most 30 seconds), without extending the reserved deadline.
    Back up the resulting private recovery journals before enabling the worker.
 6. Start the separately admitted proof worker with `recurring: false`. It reveals
    closed auctions and publishes only verifier-accepted results. Its native login
