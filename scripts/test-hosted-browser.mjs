@@ -22,7 +22,7 @@ try{
   const expected=await readFile(resolve(privateOutput,'expected-deliverable.png'));if(expected.length>10485760)throw Error('Unexpected private comparison file size.');
   const downloadPath='/api/digital/download/'+id,response=await bidder.page.request.get(downloadPath);expect(response.status()).toBe(200);expect(response.headers()['cache-control']).toContain('no-store');expect(await response.body()).toEqual(expected);
   expect((await observer.page.request.get(downloadPath)).status()).toBe(403);expect((await observer.page.request.get(paymentPath)).status()).toBe(403);
-  await bidder.page.getByRole('button',{name:'My purchases',exact:true}).click();await bidder.page.getByRole('button',{name:'View purchase & license',exact:true}).first().waitFor();
+  await bidder.page.locator('.section-menu > summary').click();await bidder.page.locator('.section-menu-options').getByRole('button',{name:'My purchases',exact:true}).click();await bidder.page.getByRole('button',{name:'View purchase & license',exact:true}).first().waitFor();
   await bidder.page.goto('/logout');await bidder.page.getByRole('button',{name:'Log out',exact:true}).click();expect((await bidder.page.request.get(downloadPath)).status()).toBe(401);
   console.log('PASS hosted digital website checks: current trusted report for the NEW saved invoice, exact-byte winning download, outsider denial and logout revocation. Actual wallet/output execution evidence must be recorded separately; no transfer or scan was submitted by this check.');
  }else{
