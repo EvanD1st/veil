@@ -77,3 +77,33 @@ test('uncompleted auction publication requires its retained matching recovery ke
  await verifyCollectionRecovery(client,families,journalRoot);
  auction.result={status:'zk-verified'};await verifyCollectionRecovery(client,families,join(journalRoot,'empty-history'));
 });
+
+test('all ten real seeding jobs retain RSA recovery keys before create and retry without duplicates or deadline extensions',async()=>{
+ const root=await mkdtemp(join(tmpdir(),'veil-ten-seed-')),originalsRoot=join(root,'originals'),journalRoot=join(root,'keys');
+ const {mkdir}=await import('node:fs/promises');const {randomUUID}=await import('node:crypto');await mkdir(originalsRoot,{mode:0o700});
+ const objects=[];for(const f of collection){const bytes=Buffer.alloc(f.bytes,9);await writeFile(join(originalsRoot,f.slug+'.png'),bytes,{mode:0o600});objects.push({slug:f.slug,file:f.slug+'.png',sha256:createHash('sha256').update(bytes).digest('hex')});}await writeFile(join(originalsRoot,'import.json'),JSON.stringify({objects}),{mode:0o600});
+ const reservations=new Map(),auctions=new Map();let uploads=0,creates=0;
+ const families=()=>collection.map(f=>{const e=reservations.get(f.slug);return {...f,current:e?{auctionId:e.bound?e.auction_id:null,closesAt:e.closes_at,opensAt:e.opensAt,state:e.bound?'open':'preparing'}:null};});
+ const client={upload:async()=> 'synthetic-asset-'+(++uploads),request:async(path,body)=>{
+  if(path==='/api/account')return {username:'owner'};
+  if(path==='/api/digital/config')return {eligible:true,address:'synthetic-bound-receiver'};
+  if(path==='/api/judging/wallet')return {state:'ready',address:'synthetic-bound-receiver'};
+  if(path==='/api/judging/catalogue')return {families:families()};
+  if(path==='/api/judging/worker/register')return {registered:true};
+  if(path==='/api/judging/worker/reserve'){
+   assert.equal(body.windowSeconds,3024000);let e=reservations.get(body.slug);if(!e){e={id:randomUUID(),auction_id:randomUUID(),opensAt:1000000,closes_at:1000000+3024000000,edition:1};reservations.set(body.slug,e);}return e;
+  }
+  if(path==='/api/judging/worker/bind'){const e=[...reservations.values()].find(v=>v.id===body.id);assert.ok(auctions.has(e.auction_id));e.bound=true;return {bound:true};}
+  if(path==='/api/digital/drafts')return {draftId:randomUUID()};
+  if(path==='/api/auctions'){
+   creates++;assert.equal(body.auctionKind,'digital-download');assert.equal(body.sellerName,'owner');assert.equal(body.reserve,'1000000');assert.equal(body.paymentAddress,'synthetic-bound-receiver');assert.equal(auctions.has(body.id),false);
+   const journal=JSON.parse(await readFile(join(journalRoot,body.id+'.json'),'utf8'));assert.equal(journal.phase,'creating-unknown');assert.equal(journal.privateKey.n,body.publicKey.n);assert.ok(journal.privateKey.d);
+   auctions.set(body.id,{...body,isOwner:true});return {auction:auctions.get(body.id)};
+  }
+  if(path.startsWith('/api/auctions/'))return {auction:auctions.get(path.split('/').at(-1))};
+  assert.fail('Unexpected mock endpoint '+path);
+ }};
+ const cfg={username:'owner',ownerUsername:'owner',originalsRoot,journalRoot,auctionWindowSeconds:60,reserveZatoshis:'1'};
+ assert.equal((await seedCollection(client,cfg)).createdOrRecovered,10);assert.equal(uploads,20);assert.equal(creates,10);
+ const deadlines=[...reservations.values()].map(e=>e.closes_at);const rerun=await seedCollection(client,cfg);assert.equal(rerun.createdOrRecovered,0);assert.equal(rerun.alreadyListed,10);assert.equal(creates,10);assert.equal(uploads,20);assert.deepEqual([...reservations.values()].map(e=>e.closes_at),deadlines);
+});

@@ -1,3 +1,8 @@
+> Current owner-collection rollout: see [OWNER_COLLECTION_RELEASE.md](OWNER_COLLECTION_RELEASE.md).
+> Production now defaults to one auction per artwork (`VEIL_GENESIS_RECURRING=0`).
+> Historical demand/repeat-edition behavior below requires an explicit opt-in and
+> is not enabled for the ten owner auctions.
+
 # Genesis judging candidate — 26 October 2026
 
 This is a partially blocked implementation, not a complete self-service wallet release. The inspected deployed source is **cb5ab9f3dd285f5b8399836fdd65bdd554ee4c2b**, with migration 0006 and the restricted digital seller enabled. Its main CI 40368462337 passed. This branch starts there, preserves existing accounts/payments/files, and requires additive **0007_judging.sql**. No new release, live edition, wallet, funding policy, service installation or payment is activated by this task.

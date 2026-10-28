@@ -27,3 +27,11 @@ Additive migration `0009_digital_seller_setup.sql` adds the request table/indexe
 Requests are unique by account and receiver, capped at 200 stored accounts, and use the bounded 40-operation/10-minute throttle. Unapproved address changes have a 10-minute cooldown; identical retries are idempotent within the throttle. Approved destinations cannot be changed through the endpoint. Exact Origin and native session checks remain mandatory; scanner bearer credentials confer no seller access.
 
 Pause publishing with the existing switch or remove the seller from the private map. Retain scanner coverage for outstanding invoices and keep frozen destinations and earned downloads. Roll back only to a schema-compatible artifact, retaining this additive table and current payment records. Never restore a database from before a completed purchase.
+
+## Existing owner Test wallet
+
+The owner collection uses the same independently backed-up Test wallet receiver,
+not a separately pasted address. Follow [OWNER_COLLECTION_RELEASE.md](OWNER_COLLECTION_RELEASE.md)
+for the private read-only viewing-key companion, import/rescan and exact native
+account binding. Ordinary pending requests are not automatically approved by this
+owner-only operator tool. Never bypass receiver coverage by merely adding a UI flag.
