@@ -79,3 +79,23 @@ test('live grant preparation cannot spend more than the fresh confirmed treasury
  await assert.rejects(live.prepare(grant.id),/Insufficient confirmed treasury/);assert.equal(prepared,false);assert.equal(live.status(grant.id).state,'queued');assert.equal(f.db.prepare('SELECT broadcast_attempts FROM judge_transfers WHERE id=?').get(grant.id).broadcast_attempts,0);
  }finally{f.db.close();}
 });
+
+test('a retained confirmed grant is explicitly a cooldown response, never a new funding acceptance',async()=>{
+ const f=await dailyFixture();try{
+ const first=f.service.requestGrant('a');assert.equal(first.created,true);assert.equal(first.reason,'queued');
+ f.db.prepare("UPDATE judge_transfers SET state='confirmed' WHERE id=?").run(first.id);
+ const blocked=f.service.requestGrant('a');assert.equal(blocked.created,false);assert.equal(blocked.reason,'cooldown');assert.equal(blocked.state,'confirmed');assert.equal(blocked.nextEligibleAt,f.getTime()+86400000);assert.equal(f.service.grantStatus('a').blockReason,'cooldown');
+ assert.equal(f.db.prepare('SELECT COUNT(*) n FROM judge_transfers').get().n,1);
+ f.db.prepare("UPDATE judge_transfers SET state='broadcast-unknown' WHERE id=?").run(first.id);const uncertain=f.service.requestGrant('a');assert.equal(uncertain.created,false);assert.equal(uncertain.reason,'pending');
+ }finally{f.db.close();}
+});
+
+// Explicit operator top-ups share the bounded treasury policy; no real transfer.
+test('operator top-ups share funding budgets without resetting or shortening the normal grant cooldown',async()=>{
+ const f=await dailyFixture({daily:'40040000',total:'40040000'});try{
+ const first=f.service.requestGrant('a'),stamp=f.getTime();f.db.prepare("UPDATE judge_transfers SET state='confirmed' WHERE id=?").run(first.id);
+ f.db.prepare("INSERT INTO judge_transfers(id,kind,user,source,destination,amount,memo,max_fee,day,state,requested_at) SELECT 'operator-extra','operator-topup',user,source,destination,amount,memo,max_fee,day,'confirmed',requested_at+3600000 FROM judge_transfers WHERE id=?").run(first.id);
+ assert.equal(f.service.grantStatus('a').nextEligibleAt,stamp+86400000);assert.equal(f.service.requestGrant('a').id,first.id);
+ f.setTime(stamp+86400000);assert.throws(()=>f.service.requestGrant('a'),/budget exhausted/);
+ }finally{f.db.close();}
+});

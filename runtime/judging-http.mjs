@@ -35,7 +35,7 @@ export function judgingHandler(db,origin,{managed=managedClient()}={}){
    }
    if(managed&&url.pathname==='/api/judging/wallet/confirm-backup'){fields(['answers']);return json(res,200,await managed('confirm-backup',user.userId,{answers:b.answers}));}
    if(managed&&url.pathname==='/api/judging/wallet/refresh'){fields([]);return json(res,202,await managed('refresh',user.userId));}
-   if(managed&&url.pathname==='/api/judging/wallet/fund'){fields([]);return json(res,202,await managed('fund',user.userId));}
+   if(managed&&url.pathname==='/api/judging/wallet/fund'){fields([]);const result=await managed('fund',user.userId);return json(res,result.created===true?202:200,result);}
    if(managed&&['/api/judging/wallet/quote','/api/judging/wallet/pay'].includes(url.pathname)){
     const pay=url.pathname.endsWith('/pay');fields(pay?['auctionId','quoteId','affirmative']:['auctionId']);
     let invoice;try{invoice=canonicalManagedInvoice(db,user.userId,b.auctionId);}catch{throw new JudgingError('Only the verified winning buyer can review and authorize this payment.',403);}

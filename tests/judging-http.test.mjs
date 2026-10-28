@@ -21,3 +21,14 @@ test('native judging endpoints keep private activation, reauthentication, CSRF, 
   assert.equal(db.prepare('SELECT COUNT(*) n FROM judging_wallet_requests').get().n,1);
  }finally{await new Promise(r=>server.close(r));db.close();}
 });
+
+test('funding HTTP distinguishes a new queued grant from a retained cooldown result',async()=>{
+ const dir=await mkdtemp(join(tmpdir(),'veil-fund-feedback-')),path=join(dir,'db.sqlite');initializeDatabase(path,resolve('drizzle'));const db=openDatabase(path),id=await createAccount(db,'fund.feedback','fund-feedback-password'),cookie=sessionCookie(createSession(db,id)).split(';')[0];
+ let result={id:'synthetic-retained',state:'confirmed',created:false,reason:'cooldown',nextEligibleAt:1900000000000};
+ const handler=judgingHandler(db,'https://veil.example',{managed:async(action,user)=>{assert.equal(action,'fund');assert.equal(user,id);return result;}}),server=createServer((req,res)=>handler(req,res,()=>res.end()));await new Promise(r=>server.listen(0,'127.0.0.1',r));
+ const request=()=>fetch('http://127.0.0.1:'+server.address().port+'/api/judging/wallet/fund',{method:'POST',headers:{Cookie:cookie,Origin:'https://veil.example','Content-Type':'application/json'},body:'{}'});
+ try{
+ const retained=await request();assert.equal(retained.status,200);assert.deepEqual(await retained.json(),result);
+ result={...result,state:'queued',created:true,reason:'queued'};const queued=await request();assert.equal(queued.status,202);assert.equal((await queued.json()).created,true);
+ }finally{await new Promise(r=>server.close(r));db.close();}
+});
