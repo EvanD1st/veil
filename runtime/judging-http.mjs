@@ -51,7 +51,7 @@ export function judgingHandler(db,origin,{managed=managedClient()}={}){
     fields(['slug','previewId','fileId']);const p=process.env.VEIL_GENESIS_IMPORT_FILE;if(!p?.startsWith('/'))throw new JudgingError('Private reviewed import manifest required.',503);const st=await fs.lstat(p);if(!st.isFile()||st.isSymbolicLink()||st.size>16384||(st.mode&0o022))throw new JudgingError('Private reviewed import manifest required.',503);
     return json(res,200,registerFamily(db,b,user.userId,JSON.parse(await fs.readFile(p,'utf8'))));
    }
-   if(action==='reserve'){fields(['slug']);return json(res,200,reserveEdition(db,b.slug,{seconds:windowSeconds(process.env.VEIL_DEMO_WINDOW_SECONDS)}));}
+   if(action==='reserve'){fields(['slug','windowSeconds']);const seconds=b.windowSeconds===undefined?windowSeconds(process.env.VEIL_DEMO_WINDOW_SECONDS??'3024000'):windowSeconds(typeof b.windowSeconds==='number'&&Number.isSafeInteger(b.windowSeconds)?String(b.windowSeconds):b.windowSeconds);return json(res,200,reserveEdition(db,b.slug,{seconds}));}
    if(action==='bind'){fields(['id']);return json(res,200,bindEdition(db,b.id,user.userId));}
    if(action==='claim'){fields([]);return json(res,200,{job:claimProof(db)});}
    if(action==='phase'){fields(['id','token','phase']);if(typeof b.token!=='string'||!/^[a-f0-9]{64}$/.test(b.token))throw new JudgingError('Invalid lease.',400);return json(res,200,finishProof(db,b.id,b.token,b.phase));}

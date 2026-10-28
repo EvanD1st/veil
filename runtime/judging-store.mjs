@@ -6,8 +6,8 @@ export const hash=value=>createHash('sha256').update(value).digest('hex');
 export class JudgingError extends Error{constructor(message,status=409){super(message);this.status=status;}}
 const fail=(message,status)=>{throw new JudgingError(message,status);};
 function atomic(db,fn){db.exec('BEGIN IMMEDIATE');try{const result=fn();db.exec('COMMIT');return result;}catch(e){db.exec('ROLLBACK');throw e;}}
-export function windowSeconds(value='300'){
- if(typeof value!=='string'||!/^\d+$/.test(value)||Number(value)<60||Number(value)>900)fail('Bidding window must be 60–900 real seconds.',503);
+export function windowSeconds(value='3024000'){
+ if(typeof value!=='string'||!/^\d+$/.test(value)||Number(value)<60||Number(value)>3024000)fail('Bidding window must be 60 seconds to 35 days.',503);
  return Number(value);
 }
 export function registerFamily(db,{slug,previewId,fileId},seller,manifest,now=Date.now()){
@@ -19,7 +19,7 @@ export function registerFamily(db,{slug,previewId,fileId},seller,manifest,now=Da
  return atomic(db,()=>{const old=db.prepare('SELECT * FROM judging_families WHERE slug=?').get(slug);if(old){if(old.file_id!==fileId||old.preview_id!==previewId)fail('This family already has frozen files.');return {registered:true};}
  db.prepare('INSERT INTO judging_families VALUES(?,?,?,?)').run(slug,previewId,fileId,now);return {registered:true};});
 }
-export function reserveEdition(db,slug,{seconds=300,now=Date.now()}={}){
+export function reserveEdition(db,slug,{seconds=3024000,now=Date.now()}={}){
  windowSeconds(String(seconds));if(!collection.some(f=>f.slug===slug))fail('Unknown artwork.',404);
  return atomic(db,()=>{
   const family=db.prepare('SELECT * FROM judging_families WHERE slug=?').get(slug);if(!family)fail('The protected artwork is not imported.',503);

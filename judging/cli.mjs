@@ -1,5 +1,5 @@
 import {privateJson,privateDirectory} from './private-state.mjs';
-import {demoClient,seedFamily} from './demo-client.mjs';
+import {demoClient,seedFamily,seedCollection} from './demo-client.mjs';
 import {proveDemoJob} from './proof-worker.mjs';
 import {admitProof,memoryAvailable} from './admission.mjs';
 import collection from './collection.json' with {type:'json'};
@@ -9,6 +9,8 @@ try{
  if(config.enabled!==true)throw Error('Demo worker is paused.');
  if(command==='seed'){
   const client=await demoClient(config);try{if(!slug)throw Error('Supply one exact artwork slug; no endless catalogue seeding.');await seedFamily(client,config,slug);console.log('Selected edition secured and opened/reconciled.');}finally{await client.logout();}
+ }else if(command==='seed-all'){
+  if(slug)throw Error('seed-all does not take an artwork slug.');const client=await demoClient(config);try{const result=await seedCollection(client,config);console.log(`Artwork auctions secured or reconciled: ${result.createdOrRecovered}; already listed: ${result.alreadyListed}.`);}finally{await client.logout();}
  }else if(command==='worker'){
   const {chromium}=await import('@playwright/test');
   // Start through run.mjs: kernel flock serializes both seed and worker commands.
@@ -20,5 +22,5 @@ try{
      const {family}=await client.request('/api/judging/worker/demand',{});if(family)try{await seedFamily(client,config,family);}catch{console.log('Edition unavailable; retained state requires review or its bounded edition budget is exhausted.');}
     }}finally{await client.logout();}for(let i=0;i<60&&!stopping;i++)await new Promise(r=>setTimeout(r,1000));}
   }finally{await browser?.close();}
- }else throw Error('Use seed PRIVATE_CONFIG SLUG or worker PRIVATE_CONFIG.');
+}else throw Error('Use seed PRIVATE_CONFIG SLUG, seed-all PRIVATE_CONFIG, or worker PRIVATE_CONFIG.');
 }catch{console.error('Demo operation stopped. Inspect the private journal; no replacement keys, bids or publication retries were manufactured.');process.exitCode=1;}
