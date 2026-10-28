@@ -49,7 +49,11 @@ allowing publication. Do not mark coverage ready merely because a process runs.
    originals and durable journal directories. It needs auction keys and its own
    native login only, never wallet/signing/scanner credentials. Use the existing
    memory admission, kernel flock and systemd resource caps; run no prover on the
-   small website host. Trial the worker on isolated test data first.
+   small website host. Trial the worker on isolated test data first. The default
+   admission is 3072 MiB; an assessed `proofAdmissionMiB: 2816` is allowed only
+   with the unchanged 1536 MiB worker cap and 1 GiB emergency browser guard.
+   This leaves at least 1280 MiB outside the worker cap and does not loosen
+   node/wallet limits.
 4. Run `node judging/run.mjs seed-all PRIVATE_WORKER_CONFIG` under the worker's
    identity. It preflights all ten original hashes before uploads, verifies the
    authenticated owner and exact managed receiver, and fixes each reservation to
