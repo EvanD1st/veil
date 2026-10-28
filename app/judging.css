@@ -40,3 +40,17 @@
 @media(max-width:1100px){.site-header nav{display:none}.section-menu{display:block;order:3;width:100%}.section-menu summary{width:100%}.section-menu-options{width:min(320px,calc(100vw - 40px))}.site-header .how-link{display:none}}
 @media(max-width:640px){.wallet-recovery{grid-template-columns:repeat(2,minmax(0,1fr));gap:8px 12px;padding:12px}.backup-answers{grid-template-columns:1fr;gap:10px}.backup-actions{align-items:stretch;flex-direction:column}.account-popover{right:0}}
 .funding-policy{margin:10px 0 18px;padding:12px 14px;border-left:3px solid #9a7b35;background:#f4f0e7;color:#625944}
+
+/* Navigation has a clear label/current-section hierarchy on every screen. */
+.section-menu summary{min-height:56px;min-width:210px;padding:9px 12px;justify-content:flex-start;gap:11px;border-color:#dfd6c5;border-radius:12px;background:#fffdf8;box-shadow:0 2px 8px #37280e04;transition:border-color .2s,box-shadow .2s}
+.section-menu summary:hover,.section-menu[open] summary{border-color:#b59a5e;box-shadow:0 3px 14px #5c461310}
+.section-menu-symbol{display:grid;place-items:center;flex:none;width:32px;height:32px;border-radius:50%;background:#f3ead4;color:#8d6d2c}
+.section-menu-copy{display:grid;gap:3px;min-width:0;text-align:left}.section-menu-copy small{font-size:8px;font-weight:600;line-height:1;letter-spacing:.16em;text-transform:uppercase;color:#8c7956}.section-menu-copy strong{font-size:14px;font-weight:600;line-height:1.3;color:#242b25}
+.section-menu-chevron{margin-left:auto;color:#8a7c62;transition:transform .2s}.section-menu[open] .section-menu-chevron{transform:rotate(180deg)}
+.section-menu-options{width:250px;border-radius:12px;padding:8px;box-shadow:0 14px 38px #30261524}.section-menu-heading{padding:9px 12px 8px;color:#938365;font-size:9px;font-weight:600;letter-spacing:.14em;text-transform:uppercase}
+.section-menu-options button{display:flex;align-items:center;gap:11px;min-height:44px;font-size:13px;border-radius:8px}.section-menu-options button>svg{color:#8e7b53}.section-menu-options button.nav-active{background:#f5ecd7;color:#33280f}.section-menu-check{margin-left:auto}
+.checkout-mode{display:flex;align-items:center;gap:10px;padding:14px 16px;margin:20px 0 24px;border:1px solid #e3d7b9;border-radius:9px;background:#f7f0de;color:#4a3c20;font-size:13px;font-weight:500}.checkout-mode>svg{color:#8d7139;flex:none}.checkout-mode-tag{margin-left:auto;font-size:9px;letter-spacing:.1em;text-transform:uppercase;color:#897347}
+#auctions .card-image{padding:12px;background:#eee8dc}#auctions .card-image>img{object-fit:contain}
+@media(max-width:1100px){.section-menu summary{min-width:0}.section-menu-options{width:min(320px,calc(100vw - 40px))}}
+@media(max-width:640px){.section-menu summary{min-height:52px;padding:8px 11px}.section-menu-copy strong{font-size:14px}.checkout-mode{padding:12px;font-size:12px}.checkout-mode-tag{display:none}}
+@media(prefers-reduced-motion:reduce){.section-menu summary,.section-menu-chevron{transition:none}}

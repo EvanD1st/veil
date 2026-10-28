@@ -36,8 +36,8 @@ export class Treasury{
  wallet(user,ready=true){const w=this.db.prepare('SELECT * FROM judge_private_wallets WHERE user=?').get(user);if(!w?.wallet_account||ready&&(!w.backup_confirmed||w.state!=='ready'))throw Error('Independent wallet and verified backup required.');return w;}
  async balance(user){const w=this.wallet(user),r=await this.adapter.balance(w.wallet_account);if(r.network!=='testnet'||r.account!==w.wallet_account||r.synchronized!==true)throw Error('Chain-derived balance unavailable.');amount(r.confirmed);return {confirmed:r.confirmed,source:this.adapter.evidence};}
  grantStatus(user){
-  const rows=this.db.prepare("SELECT id,user,state,amount,max_fee,day,requested_at FROM judge_transfers WHERE kind='grant' ORDER BY COALESCE(requested_at,(day+1)*86400000) DESC,rowid DESC").all();
-  const own=rows.filter(r=>r.user===user),last=own[0],pending=own.find(r=>r.state!=='confirmed');
+  const rows=this.db.prepare("SELECT id,kind,user,state,amount,max_fee,day,requested_at FROM judge_transfers WHERE kind IN ('grant','operator-topup') ORDER BY COALESCE(requested_at,(day+1)*86400000) DESC,rowid DESC").all();
+  const own=rows.filter(r=>r.user===user),last=own.find(r=>r.kind==='grant'),pending=own.find(r=>r.state!=='confirmed');
   const stamp=this.now();if(!Number.isSafeInteger(stamp)||stamp<0)throw Error('Valid funding clock required.');
   const requested=r=>r.requested_at??(r.day+1)*86400000; // Legacy grants wait conservatively from the end of their recorded UTC day.
   const next=last&&this.policy.grantIntervalMs?requested(last)+this.policy.grantIntervalMs:null;

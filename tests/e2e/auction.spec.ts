@@ -18,7 +18,7 @@ async function identity(page:Page,as:string){await page.goto('/__veil/identity?a
 async function create(page:Page,reserve='1.20',paymentAddress?:string){
  await clock(page,UNLOCK-120001);await identity(page,'seller');
  await page.getByRole('button',{name:'Create auction',exact:true}).click();
- await page.getByRole('button',{name:'Digital download · verified checkout'}).click();
+ await expect(page.getByRole('note')).toContainText('Digital download · verified checkout');
  const title='Browser lot '+crypto.randomUUID().slice(0,8);
  await page.getByLabel('Lot title').fill(title);await page.getByLabel('Public seller name').fill('Test studio');
  await page.getByLabel('The story').fill('Fictional lot for deterministic browser testing.');
@@ -41,12 +41,14 @@ async function create(page:Page,reserve='1.20',paymentAddress?:string){
 async function open(page:Page,title:string){await page.getByRole('button',{name:new RegExp(title)}).click();await expect(page.getByRole('dialog')).toBeVisible();}
 async function bid(page:Page,title:string,who:string,amount:string){await identity(page,who);await open(page,title);await page.getByLabel('Your offer in ZEC').fill(amount);await page.getByRole('button',{name:'Seal my bid',exact:true}).click();await expect(page.getByText('Your offer is sealed.')).toBeVisible();}
 
-test('any signed-in judge can create a no-checkout auction and accept another account’s sealed bid',async({page})=>{
+test('create auction offers only verified digital checkout and blocks an uncovered seller',async({page})=>{
  await clock(page,UNLOCK-120001);await identity(page,'observer');await page.getByRole('button',{name:'Create auction',exact:true}).click();
- const title='Judge practice lot '+crypto.randomUUID().slice(0,8);await page.getByLabel('Lot title').fill(title);await page.getByLabel('Public seller name').fill('Judge studio');await page.getByLabel('The story').fill('A practice listing for sealed bidding and result verification by judges.');await page.getByLabel('Starting bid · testnet ZEC').fill('0.01');await page.getByLabel('Closes in').selectOption('2');await page.getByRole('checkbox').check();
- const downloaded=page.waitForEvent('download'),created=page.waitForResponse(r=>r.url().endsWith('/api/auctions')&&r.request().method()==='POST');await page.getByRole('button',{name:'Open the auction',exact:true}).click();const response=await created;expect(response.status()).toBe(201);const {auction}=await response.json();await downloaded;
- expect(auction.auctionKind).toBe('practice');expect(auction.paymentAddress).toBeNull();expect(auction.digital).toBeNull();
- const bidder=await page.context().browser()!.newContext({baseURL:'http://127.0.0.1:5174'});try{const buyer=await bidder.newPage();await clock(buyer,UNLOCK-120001);await identity(buyer,'bidder-1');await open(buyer,title);await buyer.getByLabel('Your offer in ZEC').fill('0.02');await buyer.getByRole('button',{name:'Seal my bid',exact:true}).click();await expect(buyer.getByText('Your bid is sealed.')).toBeVisible();const payment=await buyer.request.get(`/api/auctions/${auction.id}/payment`);expect(payment.status()).toBe(409);expect(await payment.json()).toEqual({error:'This auction has no payment request.'});await expect(buyer.getByText('Practice auction: bids and winner verification are real, but this listing has no payment checkout or protected download.')).toBeVisible();}finally{await bidder.close();}
+ await expect(page.getByRole('note')).toContainText('Digital download · verified checkout');
+ await expect(page.getByRole('button',{name:/Practice auction/})).toHaveCount(0);
+ await page.getByLabel('Lot title').fill('Judge digital lot');await page.getByLabel('Public seller name').fill('Judge studio');await page.getByLabel('The story').fill('A digital listing awaiting the seller receiver and protected original.');await page.getByLabel('Starting bid · testnet ZEC').fill('0.01');await page.getByRole('checkbox').check();
+ await expect(page.getByRole('button',{name:'Open the auction',exact:true})).toBeDisabled();
+ await expect(page.getByLabel(/Sapling testnet address/)).toHaveAttribute('readonly','');
+ await expect(page.getByLabel('Public preview (PNG or JPEG)')).toBeDisabled();
 });
 
 test('local identity is explicit; supplied identity headers do not authenticate',async({page})=>{
@@ -164,7 +166,7 @@ test('seller receiver lookup survives edits while eligibility is pending',async(
  let release!:()=>void;const gate=new Promise<void>(resolve=>{release=resolve;});
  await page.route('**/api/digital/config',async route=>{const response=await route.fetch();await gate;await route.fulfill({response});});
  await page.getByRole('button',{name:'Create auction',exact:true}).click();
- await page.getByRole('button',{name:'Digital download · verified checkout'}).click();
+ await expect(page.getByRole('note')).toContainText('Digital download · verified checkout');
  await page.getByLabel('Lot title').fill('Typing while coverage loads');
  await page.getByLabel('Public seller name').fill('Pending lookup studio');
  await expect(page.getByLabel(/Sapling testnet address/)).toHaveValue('');
