@@ -8,7 +8,8 @@ import {Treasury} from './treasury.mjs';
 import {ZingolibAdapter,privateJson} from './zingolib-adapter.mjs';
 import {validateInvoice} from '../scanner/invoice.mjs';
 const hex=/^[a-f0-9]{64}$/;
-const PRIVATE_SELECTOR_URL='http://127.0.0.1:19070/api/judging/managed/selector';
+// 19070 is this wallet API; 19071 is the separate reverse tunnel to the website.
+const PRIVATE_SELECTOR_URL='http://127.0.0.1:19071/api/judging/managed/selector';
 export function createManagedSelectorDelivery({websiteOrigin,selectorUrl=PRIVATE_SELECTOR_URL,token,fetchImpl=fetch}){
  return async payload=>{
   if(websiteOrigin!=='https://ve-il.duckdns.org'||selectorUrl!==PRIVATE_SELECTOR_URL)throw Error('Private selector tunnel required.');
