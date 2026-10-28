@@ -1,5 +1,5 @@
 import test from'node:test';import assert from'node:assert/strict';import{mkdtemp,mkdir,stat,chmod,symlink}from'node:fs/promises';import{join}from'node:path';import{tmpdir}from'node:os';
-import{PrivateState,privateDirectory,privateJson}from'../judging/private-state.mjs';import{proveDemoJob}from'../judging/proof-worker.mjs';import{availableBytes}from'../judging/admission.mjs';
+import{PrivateState,privateDirectory,privateJson}from'../judging/private-state.mjs';import{proveDemoJob}from'../judging/proof-worker.mjs';import{availableBytes,proofMinimumBytes}from'../judging/admission.mjs';
 test('private auction recovery journals are durable, bounded, owner-only on Linux and reject path/link substitution',async()=>{
  const root=join(await mkdtemp(join(tmpdir(),'veil-judge-keys-')),'private');await privateDirectory(root);const state=new PrivateState(root);const data={auctionId:'fixture',privateKey:{test:'SYNTHETIC AUCTION KEY; NOT A WALLET'}};await state.write('fixture.json',data);assert.deepEqual(await new PrivateState(root).read('fixture.json'),data);await state.write('fixture.json',{...data,publicationRequested:true});assert.equal((await state.read('fixture.json')).publicationRequested,true);
  await assert.rejects(state.write('../outside.json',data));await assert.rejects(state.write('oversized.json',{data:'x'.repeat(65537)}));
@@ -11,3 +11,8 @@ test('unknown publication recovery is read-only and never starts another browser
  await assert.rejects(proveDemoJob(client,{journalRoot:root},{newContext(){throw Error('Must not create a second proving session.');}},{id:'fixture',auctionId:id,token:'a'.repeat(64)}),/review/);assert.equal(calls.length,2);assert.equal((await state.read(id+'.json')).publicationRequested,true);
 });
 test('memory admission uses MemAvailable and rejects missing native observations instead of assuming spare RAM',()=>{assert.equal(availableBytes('MemTotal: 8388608 kB\nMemAvailable: 3145728 kB\n'),3*1024**3);assert.throws(()=>availableBytes('MemFree: 4194304 kB'),/observation/);});
+
+test('assessed proof admission cannot undercut the worker cap plus emergency headroom',()=>{
+ assert.equal(proofMinimumBytes(),3072*1024**2);assert.equal(proofMinimumBytes(2816)-1536*1024**2,1280*1024**2);
+ for(const n of [0,1024,2815,3073,2816.5,NaN,'2816'])assert.throws(()=>proofMinimumBytes(n),/admission/);
+});
