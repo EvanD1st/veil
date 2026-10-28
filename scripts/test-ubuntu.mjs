@@ -6,7 +6,7 @@ import{pathToFileURL}from'node:url';import{createRequire}from'node:module';impor
 // missing packaged dependency from the CI checkout's ancestor node_modules.
 const temp=await mkdtemp(join(tmpdir(),'veil-ubuntu-smoke-')),source=resolve(process.env.VEIL_ARTIFACT_ROOT??'dist/standalone'),root=join(temp,'app');
 await cp(source,root,{recursive:true});
-const {initializeDatabase,openDatabase}=await import(pathToFileURL(join(root,'backend/runtime/database.mjs'))),{createAccount}=await import(pathToFileURL(join(root,'backend/runtime/accounts.mjs'))),artifactRequire=createRequire(join(root,'package.json'));
+const {initializeDatabase,openDatabase}=await import(pathToFileURL(join(root,'runtime/database.mjs'))),{createAccount}=await import(pathToFileURL(join(root,'runtime/accounts.mjs'))),artifactRequire=createRequire(join(root,'package.json'));
 const decoderPath=relative(root,artifactRequire.resolve('sharp'));assert.ok(!isAbsolute(decoderPath)&&decoderPath!=='..'&&!decoderPath.startsWith('..'+(process.platform==='win32'?'\\':'/')),'Decoder must resolve inside the artifact.');
 assert.equal(artifactRequire('sharp').versions.sharp,'0.35.4');
 const database=join(temp,'veil.sqlite');
@@ -14,7 +14,7 @@ initializeDatabase(database,join(root,'drizzle'));const db=openDatabase(database
 await createAccount(db,'seller','ci-only-password-seller','native-seller');await createAccount(db,'bidder','ci-only-password-bidder','native-bidder');db.close();
 const receiver=JSON.parse(await readFile(process.env.VEIL_TEST_RECEIVER_FILE??'tests/fixtures/synthetic-receiver.json','utf8')).address,sellers=join(temp,'sellers.json');await writeFile(sellers,JSON.stringify({'native-seller':receiver}),{mode:0o600});
 const probe=createServer();await new Promise(r=>probe.listen(0,'127.0.0.1',r));const port=probe.address().port;await new Promise(r=>probe.close(r));
-const server=spawn(process.execPath,[join(root,'backend/runtime/server.mjs')],{cwd:root,env:{...process.env,PORT:String(port),VEIL_SQLITE_PATH:database,VEIL_DIGITAL_ROOT:join(temp,'originals'),VEIL_DIGITAL_SELLERS_FILE:sellers,VEIL_DIGITAL_PUBLISHING_ENABLED:'1',VEIL_PUBLIC_ORIGIN:'https://veil.example'},stdio:['ignore','pipe','pipe']});
+const server=spawn(process.execPath,[join(root,'runtime/server.mjs')],{cwd:root,env:{...process.env,PORT:String(port),VEIL_SQLITE_PATH:database,VEIL_DIGITAL_ROOT:join(temp,'originals'),VEIL_DIGITAL_SELLERS_FILE:sellers,VEIL_DIGITAL_PUBLISHING_ENABLED:'1',VEIL_PUBLIC_ORIGIN:'https://veil.example'},stdio:['ignore','pipe','pipe']});
 let output='';server.stdout.on('data',b=>{output+=b;});server.stderr.on('data',b=>{output+=b;});
 const origin='http://127.0.0.1:'+port;
 async function request(path,init={}){return fetch(origin+path,{...init,headers:{Host:'veil.example',...init.headers},redirect:'manual'});}

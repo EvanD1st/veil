@@ -29,7 +29,7 @@ test('digital purchase boundary: real local files and HTTP, synthetic signed pay
  process.env.VEIL_DIGITAL_ROOT=root;process.env.VEIL_DIGITAL_SELLERS_FILE=sellers;process.env.VEIL_DIGITAL_PUBLISHING_ENABLED='1';process.env.VEIL_SQLITE_PATH=path;
  const signer=generateKeyPairSync('ed25519'),key=signer.publicKey.export({format:'der',type:'spki'}).subarray(-32).toString('hex');
  const env={DB:d1Adapter(db),VEIL_DIGITAL_SELLERS:JSON.stringify({[ids.seller]:receiver}),VEIL_DIGITAL_PUBLISHING_ENABLED:'1',VEIL_DIGITAL_VERIFY:(id,user)=>verifyDraftFiles(db,id,user),VEIL_SCANNER_PUBLIC_KEY:key,VEIL_SCANNER_SERVICE_TOKEN_SHA256:'ab'.repeat(32)};
- Module._load=function(id,...args){if(id==='cloudflare:workers')return {env};if(id==='@/backend/auth/chatgpt-auth')return {getChatGPTUser:async()=>null};return realLoad.call(this,id,...args);};
+ Module._load=function(id,...args){if(id==='cloudflare:workers')return {env};if(id==='@/app/chatgpt-auth')return {getChatGPTUser:async()=>null};return realLoad.call(this,id,...args);};
  const service=require('../.sites-runtime/test-build/lib/veil/server.js'),queue=require('../.sites-runtime/test-build/lib/veil/payment-queue.js');
  async function start(){server=createServer((req,res)=>{auth(req,res,()=>handler(req,res,()=>{res.writeHead(404,{'Cache-Control':'no-store'});res.end();})).catch(()=>{if(!res.headersSent)res.writeHead(500);res.end();});});await new Promise(r=>server.listen(0,'127.0.0.1',r));origin='http://127.0.0.1:'+server.address().port;auth=authenticationHandler(db,origin,{allowLoopbackHttp:true});handler=digitalHandler(db,origin,{limits:testLimits});}
  async function stop(){if(server?.listening){server.closeAllConnections();await new Promise(r=>server.close(r));}}
