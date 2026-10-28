@@ -10,16 +10,21 @@ export class Treasury{
  constructor({db,adapter,policy,now=Date.now,kill=()=>true}){
   if(!adapter||!['synthetic-ci-only','live-zingolib-testnet'].includes(adapter.evidence))throw Error('No reviewed managed-wallet adapter is available.');
   for(const k of ['grant','maxFee','daily','total'])amount(policy[k]);if(amount(policy.grant)<=0n||amount(policy.maxFee)<=0n||!Number.isSafeInteger(policy.maxUsers)||policy.maxUsers<1||policy.maxUsers>50)throw Error('Invalid bounded funding policy.');
+  if(policy.grantIntervalMs!==undefined&&policy.grantIntervalMs!==86400000)throw Error('Recurring grants require a rolling 24-hour interval.');
   Object.assign(this,{db,adapter,policy,now,kill});
   db.exec(`CREATE TABLE IF NOT EXISTS judge_private_wallets(user TEXT PRIMARY KEY,operation TEXT UNIQUE NOT NULL,state TEXT NOT NULL,wallet_account TEXT UNIQUE,address TEXT UNIQUE,backup_confirmed INTEGER NOT NULL DEFAULT 0);
    CREATE TABLE IF NOT EXISTS judge_quotes(id TEXT PRIMARY KEY,user TEXT NOT NULL,invoice TEXT NOT NULL,max_fee TEXT NOT NULL,expires INTEGER NOT NULL,consumed INTEGER NOT NULL DEFAULT 0);
    CREATE TABLE IF NOT EXISTS judge_transfers(id TEXT PRIMARY KEY,kind TEXT NOT NULL,user TEXT NOT NULL,source TEXT NOT NULL,destination TEXT NOT NULL,amount TEXT NOT NULL,memo TEXT NOT NULL,max_fee TEXT NOT NULL,invoice_id TEXT UNIQUE,day INTEGER NOT NULL,state TEXT NOT NULL,raw_hex TEXT,txid TEXT UNIQUE,fee TEXT,sapling_output INTEGER,expiry_height INTEGER,selector_ack INTEGER NOT NULL DEFAULT 0,selector_next INTEGER NOT NULL DEFAULT 0,selector_failures INTEGER NOT NULL DEFAULT 0,reconcile_next INTEGER NOT NULL DEFAULT 0,broadcast_attempts INTEGER NOT NULL DEFAULT 0);
-   CREATE UNIQUE INDEX IF NOT EXISTS judge_one_starter_grant ON judge_transfers(user) WHERE kind='grant';
    CREATE UNIQUE INDEX IF NOT EXISTS judge_one_inflight_source ON judge_transfers(source) WHERE state IN ('preparing','prepare-unknown','prepared','broadcast-unknown','submitted');`);
   // Existing private journals predate the one-broadcast guard. Add the column
   // in place so restart/upgrade never resets a retained transfer's send count.
   if(!db.prepare('PRAGMA table_info(judge_transfers)').all().some(c=>c.name==='broadcast_attempts'))
    db.exec('ALTER TABLE judge_transfers ADD COLUMN broadcast_attempts INTEGER NOT NULL DEFAULT 0');
+  if(!db.prepare('PRAGMA table_info(judge_transfers)').all().some(c=>c.name==='requested_at'))db.exec('ALTER TABLE judge_transfers ADD COLUMN requested_at INTEGER');
+  atomic(db,()=>{
+   if(policy.grantIntervalMs){db.exec("DROP INDEX IF EXISTS judge_one_starter_grant; CREATE UNIQUE INDEX IF NOT EXISTS judge_one_daily_grant ON judge_transfers(user,day) WHERE kind='grant';");}
+   else db.exec("CREATE UNIQUE INDEX IF NOT EXISTS judge_one_starter_grant ON judge_transfers(user) WHERE kind='grant';");
+  });
  }
  gate(spending=true){if(this.kill())throw Error('Managed-wallet kill switch is active.');if(spending&&this.adapter.evidence==='live-zingolib-testnet'&&this.adapter.validated!==true&&this.adapter.trialApproved!==true)throw Error('Funded signing and checkout validation is required before spending.');}
  async activate(user){this.gate(false);const allocation=atomic(this.db,()=>{const w=this.db.prepare('SELECT * FROM judge_private_wallets WHERE user=?').get(user);if(w)return{existing:w};if(this.db.prepare('SELECT COUNT(*) n FROM judge_private_wallets').get().n>=this.policy.maxUsers)throw Error('Wallet capacity exhausted.');const operation=randomUUID();this.db.prepare("INSERT INTO judge_private_wallets(user,operation,state) VALUES(?,?,'provisioning')").run(user,operation);return{operation};});if(allocation.existing)return{state:allocation.existing.state};const operation=allocation.operation;
@@ -30,13 +35,25 @@ export class Treasury{
  async confirmBackup(user,answers){this.gate(false);const w=this.wallet(user,false);if(!await this.adapter.confirmIndividualBackup(w.wallet_account,answers))throw Error('Individual backup checkpoint failed.');this.db.prepare("UPDATE judge_private_wallets SET backup_confirmed=1,state='ready' WHERE user=?").run(user);}
  wallet(user,ready=true){const w=this.db.prepare('SELECT * FROM judge_private_wallets WHERE user=?').get(user);if(!w?.wallet_account||ready&&(!w.backup_confirmed||w.state!=='ready'))throw Error('Independent wallet and verified backup required.');return w;}
  async balance(user){const w=this.wallet(user),r=await this.adapter.balance(w.wallet_account);if(r.network!=='testnet'||r.account!==w.wallet_account||r.synchronized!==true)throw Error('Chain-derived balance unavailable.');amount(r.confirmed);return {confirmed:r.confirmed,source:this.adapter.evidence};}
+ grantStatus(user){
+  const rows=this.db.prepare("SELECT id,user,state,amount,max_fee,day,requested_at FROM judge_transfers WHERE kind='grant' ORDER BY COALESCE(requested_at,(day+1)*86400000) DESC,rowid DESC").all();
+  const own=rows.filter(r=>r.user===user),last=own[0],pending=own.find(r=>r.state!=='confirmed');
+  const stamp=this.now();if(!Number.isSafeInteger(stamp)||stamp<0)throw Error('Valid funding clock required.');
+  const requested=r=>r.requested_at??(r.day+1)*86400000; // Legacy grants wait conservatively from the end of their recorded UTC day.
+  const next=last&&this.policy.grantIntervalMs?requested(last)+this.policy.grantIntervalMs:null;
+  const spent=rs=>rs.reduce((n,r)=>n+amount(r.amount)+amount(r.max_fee),0n),cost=amount(this.policy.grant)+amount(this.policy.maxFee);
+  const daily=rows.filter(r=>this.policy.grantIntervalMs?requested(r)>stamp-86400000:r.day===Math.floor(stamp/86400000));
+  const users=new Set(rows.map(r=>r.user));
+  const budget=(!users.has(user)&&users.size>=this.policy.maxUsers)||spent(rows)+cost>amount(this.policy.total)||spent(daily)+cost>amount(this.policy.daily);
+  return {last:pending??last,nextEligibleAt:next,eligible:!pending&&(!last||!!this.policy.grantIntervalMs&&stamp>=next)&&!budget,budgetExhausted:budget};
+ }
  requestGrant(user){this.gate();const w=this.wallet(user);return atomic(this.db,()=>{
-  const old=this.db.prepare("SELECT id,state FROM judge_transfers WHERE kind='grant' AND user=?").get(user);if(old)return old;
-  const rows=this.db.prepare("SELECT amount,max_fee,day FROM judge_transfers WHERE kind='grant'").all(),day=Math.floor(this.now()/86400000),cost=amount(this.policy.grant)+amount(this.policy.maxFee);
-  const spent=rs=>rs.reduce((n,r)=>n+amount(r.amount)+amount(r.max_fee),0n);
-  if(rows.length>=this.policy.maxUsers||spent(rows)+cost>amount(this.policy.total)||spent(rows.filter(r=>r.day===day))+cost>amount(this.policy.daily))throw Error('Starter-funding budget exhausted.');
+  const status=this.grantStatus(user),old=status.last;
+  // Pending/uncertain requests retain the same immutable intent even after 24 hours.
+  if(old&&(old.state!=='confirmed'||!this.policy.grantIntervalMs||this.now()<status.nextEligibleAt))return {id:old.id,state:old.state};
+  if(!status.eligible)throw Error('Starter-funding budget exhausted.');
   this.adapter.authorize?.({kind:'grant',user,source:this.policy.treasuryAccount,destination:w.address,amount:this.policy.grant,memo:'VEIL TESTNET starter grant',max_fee:this.policy.maxFee});
-  const id=randomUUID();this.db.prepare("INSERT INTO judge_transfers(id,kind,user,source,destination,amount,memo,max_fee,day,state) VALUES(?,'grant',?,?,?,?,?,?,?,'queued')").run(id,user,this.policy.treasuryAccount,w.address,this.policy.grant,'VEIL TESTNET starter grant',this.policy.maxFee,day);return {id,state:'queued'};
+  const id=randomUUID(),stamp=this.now(),day=Math.floor(stamp/86400000);this.db.prepare("INSERT INTO judge_transfers(id,kind,user,source,destination,amount,memo,max_fee,day,state,requested_at) VALUES(?,'grant',?,?,?,?,?,?,?,'queued',?)").run(id,user,this.policy.treasuryAccount,w.address,this.policy.grant,'VEIL TESTNET starter grant',this.policy.maxFee,day,stamp);return {id,state:'queued'};
  });}
  async quote(user,auctionId,invoiceFor){this.gate();this.wallet(user);const invoice=await invoiceFor(user,auctionId);validateInvoice(invoice);const id=randomUUID();atomic(this.db,()=>{this.db.prepare('DELETE FROM judge_quotes WHERE expires<?').run(this.now());if(this.db.prepare('SELECT COUNT(*) n FROM judge_quotes').get().n>=200||this.db.prepare('SELECT COUNT(*) n FROM judge_quotes WHERE user=?').get(user).n>=5)throw Error('Payment-review capacity reached.');this.db.prepare('INSERT INTO judge_quotes VALUES(?,?,?,?,?,0)').run(id,user,JSON.stringify(invoice),this.policy.maxFee,this.now()+120000);});return {quoteId:id,network:'testnet',address:invoice.address,amount:invoice.amount,memo:invoice.memo,maxFee:this.policy.maxFee,expiresAt:this.now()+120000};}
  async pay(user,quoteId,affirmative,invoiceFor){this.gate();if(affirmative!==true)throw Error('Explicit Pay authorization required.');const w=this.wallet(user),q=this.db.prepare('SELECT * FROM judge_quotes WHERE id=? AND user=?').get(quoteId,user);if(!q||q.expires<this.now())throw Error('Expired payment review.');const invoice=JSON.parse(q.invoice),current=await invoiceFor(user,invoice.auctionId);if(JSON.stringify(current)!==q.invoice)throw Error('Invoice changed; review again.');
@@ -49,6 +66,10 @@ export class Treasury{
   });
  }
  async prepare(id){this.gate();const row=this.db.prepare('SELECT * FROM judge_transfers WHERE id=?').get(id);if(!row||row.state!=='queued')throw Error('Preparation cannot be retried.');this.adapter.authorize?.(row);await this.adapter.readiness();
+  if(row.kind==='grant'&&this.adapter.evidence==='live-zingolib-testnet'){
+   await this.adapter.refresh(row.source);const balance=await this.adapter.balance(row.source);
+   if(balance.network!=='testnet'||balance.account!==row.source||balance.synchronized!==true||amount(balance.confirmed)<amount(row.amount)+amount(row.max_fee))throw Error('Insufficient confirmed treasury funds; the retained grant remains queued.');
+  }
   if(!this.db.prepare("UPDATE judge_transfers SET state='preparing' WHERE id=? AND state='queued'").run(id).changes)throw Error('Concurrent preparation refused.');
   try{const p=await this.adapter.prepare(row);if(!p||p.source!==row.source||p.destination!==row.destination||p.amount!==row.amount||p.memo!==row.memo||amount(p.fee)>amount(row.max_fee)||!/^([a-f0-9]{2}){1,2000000}$/.test(p.rawHex)||!/^[a-f0-9]{64}$/.test(p.txid)||p.independentlyDecoded!==true)throw Error();if(this.adapter.evidence==='live-zingolib-testnet'&&(!Number.isInteger(p.output)||p.output<0||p.output>65535||!Number.isInteger(p.expiryHeight)))throw Error();this.db.prepare("UPDATE judge_transfers SET state='prepared',raw_hex=?,txid=?,fee=?,sapling_output=?,expiry_height=? WHERE id=?").run(p.rawHex,p.txid,p.fee,p.output??null,p.expiryHeight??null,id);return {state:'prepared'};}
   catch{this.db.prepare("UPDATE judge_transfers SET state='prepare-unknown' WHERE id=?").run(id);throw Error('Preparation uncertain; retained intent requires private reconciliation.');}
