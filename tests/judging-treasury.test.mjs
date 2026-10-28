@@ -91,10 +91,11 @@ test('a retained confirmed grant is explicitly a cooldown response, never a new 
 });
 
 // Explicit operator top-ups share the bounded treasury policy; no real transfer.
-test('operator top-ups consume the same grant budget and retain the request cooldown',async()=>{
- const f=await dailyFixture({daily:'20020000',total:'20020000'});try{
- const first=f.service.requestGrant('a');f.db.prepare("UPDATE judge_transfers SET kind='operator-topup',state='confirmed' WHERE id=?").run(first.id);
- assert.equal(f.service.grantStatus('a').eligible,false);assert.equal(f.service.requestGrant('a').id,first.id);
- f.setTime(f.getTime()+86400000);assert.throws(()=>f.service.requestGrant('a'),/budget exhausted/);
+test('operator top-ups share funding budgets without resetting or shortening the normal grant cooldown',async()=>{
+ const f=await dailyFixture({daily:'40040000',total:'40040000'});try{
+ const first=f.service.requestGrant('a'),stamp=f.getTime();f.db.prepare("UPDATE judge_transfers SET state='confirmed' WHERE id=?").run(first.id);
+ f.db.prepare("INSERT INTO judge_transfers(id,kind,user,source,destination,amount,memo,max_fee,day,state,requested_at) SELECT 'operator-extra','operator-topup',user,source,destination,amount,memo,max_fee,day,'confirmed',requested_at+3600000 FROM judge_transfers WHERE id=?").run(first.id);
+ assert.equal(f.service.grantStatus('a').nextEligibleAt,stamp+86400000);assert.equal(f.service.requestGrant('a').id,first.id);
+ f.setTime(stamp+86400000);assert.throws(()=>f.service.requestGrant('a'),/budget exhausted/);
  }finally{f.db.close();}
 });
