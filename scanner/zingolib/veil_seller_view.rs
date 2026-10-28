@@ -14,16 +14,18 @@ fn decrypt(root:&Path,name:&str)->Result<Vec<u8>>{
 }
 async fn run()->Result<()>{
  require(!std::io::stdout().is_terminal())?;
- let args:Vec<String>=std::env::args().collect();require(args.len()==2)?;
+ let args:Vec<String>=std::env::args().collect();
+ let inspect=args.len()==3&&args[2]=="address";require(args.len()==2||inspect)?;
  let root=PathBuf::from(&args[1]);require(root.is_absolute()&&root.canonicalize()?==root)?;
  let mut p=root.as_path();loop{let s=fs::symlink_metadata(p)?;require(s.is_dir()&&!s.file_type().is_symlink())?;if let Some(parent)=p.parent(){p=parent;}else{break;}}
  require(fs::metadata(&root)?.permissions().mode()&0o077==0)?;
  let identity=fs::symlink_metadata(root.join("identity.txt"))?;
  require(identity.is_file()&&!identity.file_type().is_symlink()&&identity.permissions().mode()&0o077==0)?;
- let mut input=String::new();std::io::stdin().take(513).read_to_string(&mut input)?;require(input.len()<=512)?;
- let input=json::parse(&input)?;require(input.len()==1)?;
- let expected=input["address"].as_str().ok_or("bound receiver required")?;
- require(expected.starts_with("ztestsapling1")&&expected.len()<200)?;
+ let mut input=String::new();
+ if !inspect{std::io::stdin().take(513).read_to_string(&mut input)?;require(input.len()<=512)?;}
+ let input=if inspect{json::object!{}}else{json::parse(&input)?};
+ let expected=if inspect{""}else{require(input.len()==1)?;input["address"].as_str().ok_or("bound receiver required")?};
+ if !inspect{require(expected.starts_with("ztestsapling1")&&expected.len()<200)?;}
  let config=ClientConfig::builder().set_chain_type(ChainType::Testnet).set_wallet_dir(root.clone()).set_wallet_name("NEVER_PLAINTEXT".into()).set_wallet_config(WalletConfig::Read).build()?;
  // No indexer URI, sync, persistence, proposal, signature or broadcast operation.
  let client=LightClient::from_bytes(decrypt(&root,"wallet.age")?,config).await?;
@@ -32,6 +34,10 @@ async fn run()->Result<()>{
  let birthday=backup["birthday"].as_u32().ok_or("original birthday required")?;
  require(birthday>=4_465_126)?;
  let w=client.wallet().read().await;require(w.unified_key_store.len()==1)?;
+ if inspect{
+  let receiver=w.unified_addresses().values().find_map(|ua|ua.sapling()).ok_or("Sapling receiver required")?;
+  println!("{}",json::object!{address:zcash_keys::encoding::encode_payment_address(ChainType::Testnet.hrp_sapling_payment_address(),receiver)});return Ok(());
+ }
  let bound=w.unified_addresses().values().filter_map(|ua|ua.sapling()).any(|a|zcash_keys::encoding::encode_payment_address(ChainType::Testnet.hrp_sapling_payment_address(),a)==expected);
  require(bound)?;
  let key=w.unified_key_store.get(&zip32::AccountId::ZERO).ok_or("isolated account required")?;
