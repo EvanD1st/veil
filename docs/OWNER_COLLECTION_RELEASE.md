@@ -24,8 +24,10 @@ cookie-file paths. No credentials belong in argv, source, public assets or logs.
 Run `node judging/owner-enrollment.mjs PRIVATE_CONFIG`. This derives the receiver
 from the private managed-wallet journal, checks the backup checkpoint, imports only
 the viewing key with its actual birthday, then requires two consecutive strict
-readiness observations. Existing node/wallet configuration is not reset or
-restarted. A diversified receiver can differ from the import RPC's default
+readiness observations and exact active-chain incoming-output verification against
+the owner’s retained confirmed starter-grant journal. Global readiness alone does
+not establish coverage for a newly imported account. If that historical receipt
+is unavailable, leave publishing closed; do not send a test payment automatically. A diversified receiver can differ from the import RPC's default
 address: both are checked against the same exported key. An uncertain import is
 resumed with that same key; it never creates another wallet. The private
 `owner-receiver.json` receipt contains no viewing/spending key or recovery phrase.
@@ -36,6 +38,17 @@ outstanding invoice coverage. Reconcile the owner's pending manual setup request
 to this same managed address; never change any published invoice destination.
 Confirm strict readiness and the running scanner's effective receiver list before
 allowing publication. Do not mark coverage ready merely because a process runs.
+
+The pinned import RPC does not force a rescan for an existing viewing key, even
+with `rescan: "yes"`. If the confirmed receipt is absent, first close this seller’s
+publishing map entry. Preserve other sellers and outstanding invoices. A controlled
+recovery may pause the scanner, cleanly stop the receiving wallet, take and verify
+a fresh consistent backup, then use the wallet’s supported `repair truncate-wallet`
+command at or before the original birthday. Let the unchanged wallet rescan the
+active chain; do not edit scan queues, advance birthdays, restore an older website
+database or change signing binaries. Reopen this seller only after exact historical
+output checks and strict readiness pass again. Restore temporary resource limits
+and resume the scanner. Record the actual selected checkpoint and service recovery.
 
 ## Publish and supervise
 
