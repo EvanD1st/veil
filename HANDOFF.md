@@ -1,5 +1,11 @@
 # VEIL — Implementation handoff
 
+## 28 October: operator-assisted paid seller enrollment (local)
+
+Seller Studio now has address-only enrollment, pending/ready status and an explicit status refresh. A bounded private request table (additive migration 0009) never accepts keys or grants publishing rights. Uploads, drafts and auction creation reject a requested receiver that disagrees with the private operator map. Existing enrolled sellers remain compatible. The brief seller copy accurately states view-only scanning; the private import/rescan/configuration sequence is in [seller setup](docs/SELLER_SETUP.md). The offline `digital-admin seller-requests` command lists the queue; no automatic wallet import/service change occurs.
+
+Local Node 24 checks passed: 14 native signup/auth/migration/seller-setup tests, JS syntax and TypeScript transpilation syntax. Scratch databases used E:. Full dependency-based typecheck, production build, browser checks, exact CI and live seller enrollment remain pending; the checkout has no installed dependency tree. CI includes the new setup tests and release metadata hashes migration 0009. No deployment, transfer, wallet import or service restart occurred. Pre-existing uncommitted auction/scanner/proof-asset changes are retained and are not claimed as validated by these onboarding tests.
+
 ## 27 October follow-up: managed checkout live validation and activation blocker
 
 PR #22 is merged in `main` at `e6b2076`. The approved 7e71a6f follow-up release is deployed at https://ve-il.duckdns.org after a fresh consistent SQLite backup; no migration was needed, integrity and foreign keys passed, existing table counts were preserved, and the VEIL-only interruption was 2.89 seconds. A real-clock expiry check hid the stale confirmation, preserved the earned digital download, and automatically refreshed the same confirmed output with exact matching file bytes. The approved one-time testnet invoice used one broadcast and received an acknowledged signed scanner report.

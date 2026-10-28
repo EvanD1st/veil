@@ -11,6 +11,7 @@ export const digitalDrafts=sqliteTable('digital_drafts',{
 export const auctions = sqliteTable('auctions', {
   id: text('id').primaryKey(), ownerId: text('owner_id').notNull(),
   digitalDraftId:text('digital_draft_id').references(()=>digitalDrafts.id),
+  auctionKind:text('auction_kind').notNull().default('legacy'),
   title: text('title').notNull(), description: text('description').notNull(),
   category: text('category').notNull(), artwork: text('artwork').notNull(), sellerName: text('seller_name').notNull(),
   reserve: text('reserve').notNull(), closesAt: integer('closes_at').notNull(), unlockRound: integer('unlock_round').notNull(),
@@ -18,7 +19,7 @@ export const auctions = sqliteTable('auctions', {
   paymentWindowHours: integer('payment_window_hours'),
   paymentAddress: text('payment_address'), result: text('result'),
   protocolVersion: integer('protocol_version').notNull().default(1), proofContext: text('proof_context'),
-},t=>[uniqueIndex('digital_auction_draft').on(t.digitalDraftId).where(sql`${t.digitalDraftId} IS NOT NULL`)]);
+},t=>[uniqueIndex('digital_auction_draft').on(t.digitalDraftId).where(sql`${t.digitalDraftId} IS NOT NULL`),check('auction_kind',sql`${t.auctionKind} IN ('legacy','practice','digital-download')`)]);
 export const bids = sqliteTable('bids', {
   sequence: integer('sequence').primaryKey({ autoIncrement: true }),
   id: text('id').notNull(), auctionId: text('auction_id').notNull().references(() => auctions.id),
@@ -52,3 +53,7 @@ export const digitalEntitlements=sqliteTable('digital_entitlements',{
 export const digitalEvents=sqliteTable('digital_events',{
  id:integer('id').primaryKey({autoIncrement:true}),auctionId:text('auction_id').notNull().references(()=>auctions.id),event:text('event').notNull(),recordedAt:integer('recorded_at').notNull(),bytes:integer('bytes'),
 },t=>[index('digital_events_auction').on(t.auctionId,t.id),check('digital_event_type',sql`${t.event} IN ('access-granted','chain-suspended','download-served','download-incomplete','download-unavailable','operator-reviewed')`)]);
+
+export const digitalSellerRequests=sqliteTable('digital_seller_requests',{
+ accountId:text('account_id').primaryKey(),receiver:text('receiver').unique().notNull(),requestedAt:integer('requested_at').notNull(),updatedAt:integer('updated_at').notNull(),
+},t=>[index('digital_seller_requests_updated').on(t.updatedAt,t.accountId)]);
