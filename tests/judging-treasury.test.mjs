@@ -79,3 +79,13 @@ test('live grant preparation cannot spend more than the fresh confirmed treasury
  await assert.rejects(live.prepare(grant.id),/Insufficient confirmed treasury/);assert.equal(prepared,false);assert.equal(live.status(grant.id).state,'queued');assert.equal(f.db.prepare('SELECT broadcast_attempts FROM judge_transfers WHERE id=?').get(grant.id).broadcast_attempts,0);
  }finally{f.db.close();}
 });
+
+test('a retained confirmed grant is explicitly a cooldown response, never a new funding acceptance',async()=>{
+ const f=await dailyFixture();try{
+ const first=f.service.requestGrant('a');assert.equal(first.created,true);assert.equal(first.reason,'queued');
+ f.db.prepare("UPDATE judge_transfers SET state='confirmed' WHERE id=?").run(first.id);
+ const blocked=f.service.requestGrant('a');assert.equal(blocked.created,false);assert.equal(blocked.reason,'cooldown');assert.equal(blocked.state,'confirmed');assert.equal(blocked.nextEligibleAt,f.getTime()+86400000);assert.equal(f.service.grantStatus('a').blockReason,'cooldown');
+ assert.equal(f.db.prepare('SELECT COUNT(*) n FROM judge_transfers').get().n,1);
+ f.db.prepare("UPDATE judge_transfers SET state='broadcast-unknown' WHERE id=?").run(first.id);const uncertain=f.service.requestGrant('a');assert.equal(uncertain.created,false);assert.equal(uncertain.reason,'pending');
+ }finally{f.db.close();}
+});

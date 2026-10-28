@@ -45,15 +45,16 @@ export class Treasury{
   const daily=rows.filter(r=>this.policy.grantIntervalMs?requested(r)>stamp-86400000:r.day===Math.floor(stamp/86400000));
   const users=new Set(rows.map(r=>r.user));
   const budget=(!users.has(user)&&users.size>=this.policy.maxUsers)||spent(rows)+cost>amount(this.policy.total)||spent(daily)+cost>amount(this.policy.daily);
-  return {last:pending??last,nextEligibleAt:next,eligible:!pending&&(!last||!!this.policy.grantIntervalMs&&stamp>=next)&&!budget,budgetExhausted:budget};
+  const blockReason=pending?'pending':last&&!this.policy.grantIntervalMs?'already-granted':last&&stamp<next?'cooldown':budget?'budget':null;
+  return {last:pending??last,nextEligibleAt:next,blockReason,eligible:!pending&&(!last||!!this.policy.grantIntervalMs&&stamp>=next)&&!budget,budgetExhausted:budget};
  }
  requestGrant(user){this.gate();const w=this.wallet(user);return atomic(this.db,()=>{
   const status=this.grantStatus(user),old=status.last;
   // Pending/uncertain requests retain the same immutable intent even after 24 hours.
-  if(old&&(old.state!=='confirmed'||!this.policy.grantIntervalMs||this.now()<status.nextEligibleAt))return {id:old.id,state:old.state};
+  if(old&&(old.state!=='confirmed'||!this.policy.grantIntervalMs||this.now()<status.nextEligibleAt))return {id:old.id,state:old.state,created:false,reason:old.state!=='confirmed'?'pending':this.policy.grantIntervalMs?'cooldown':'already-granted',nextEligibleAt:status.nextEligibleAt};
   if(!status.eligible)throw Error('Starter-funding budget exhausted.');
   this.adapter.authorize?.({kind:'grant',user,source:this.policy.treasuryAccount,destination:w.address,amount:this.policy.grant,memo:'VEIL TESTNET starter grant',max_fee:this.policy.maxFee});
-  const id=randomUUID(),stamp=this.now(),day=Math.floor(stamp/86400000);this.db.prepare("INSERT INTO judge_transfers(id,kind,user,source,destination,amount,memo,max_fee,day,state,requested_at) VALUES(?,'grant',?,?,?,?,?,?,?,'queued',?)").run(id,user,this.policy.treasuryAccount,w.address,this.policy.grant,'VEIL TESTNET starter grant',this.policy.maxFee,day,stamp);return {id,state:'queued'};
+  const id=randomUUID(),stamp=this.now(),day=Math.floor(stamp/86400000);this.db.prepare("INSERT INTO judge_transfers(id,kind,user,source,destination,amount,memo,max_fee,day,state,requested_at) VALUES(?,'grant',?,?,?,?,?,?,?,'queued',?)").run(id,user,this.policy.treasuryAccount,w.address,this.policy.grant,'VEIL TESTNET starter grant',this.policy.maxFee,day,stamp);return {id,state:'queued',created:true,reason:'queued',nextEligibleAt:this.policy.grantIntervalMs?stamp+this.policy.grantIntervalMs:null};
  });}
  async quote(user,auctionId,invoiceFor){this.gate();this.wallet(user);const invoice=await invoiceFor(user,auctionId);validateInvoice(invoice);const id=randomUUID();atomic(this.db,()=>{this.db.prepare('DELETE FROM judge_quotes WHERE expires<?').run(this.now());if(this.db.prepare('SELECT COUNT(*) n FROM judge_quotes').get().n>=200||this.db.prepare('SELECT COUNT(*) n FROM judge_quotes WHERE user=?').get(user).n>=5)throw Error('Payment-review capacity reached.');this.db.prepare('INSERT INTO judge_quotes VALUES(?,?,?,?,?,0)').run(id,user,JSON.stringify(invoice),this.policy.maxFee,this.now()+120000);});return {quoteId:id,network:'testnet',address:invoice.address,amount:invoice.amount,memo:invoice.memo,maxFee:this.policy.maxFee,expiresAt:this.now()+120000};}
  async pay(user,quoteId,affirmative,invoiceFor){this.gate();if(affirmative!==true)throw Error('Explicit Pay authorization required.');const w=this.wallet(user),q=this.db.prepare('SELECT * FROM judge_quotes WHERE id=? AND user=?').get(quoteId,user);if(!q||q.expires<this.now())throw Error('Expired payment review.');const invoice=JSON.parse(q.invoice),current=await invoiceFor(user,invoice.auctionId);if(JSON.stringify(current)!==q.invoice)throw Error('Invoice changed; review again.');
