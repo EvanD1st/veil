@@ -17,6 +17,7 @@ export type ProofBundle = { circuitId: string; proof: Record<string, unknown>; p
 export type PublicBid = { id: string; commitment: string; ciphertextHash: string; acceptedAt: number; sequence: number };
 export type BidEnvelope = PublicBid & { ciphertext: string };
 export type Auction = {
+  auctionKind?:'legacy'|'practice'|'digital-download';
   digital?:{category:string;license:string;edition:string;provenance:string;bytes:number;format:string;previewUrl:string;width?:number;height?:number}|null;
   paymentMode?:'direct'|'escrow-testnet';fulfillmentTerms?:Record<string,unknown>|null;
   id: string; title: string; description: string; category: string; artwork: string;

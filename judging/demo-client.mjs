@@ -4,6 +4,7 @@ import collection from './collection.json' with {type:'json'};
 import {readFile} from 'node:fs/promises';
 import {join} from 'node:path';
 import {createHash} from 'node:crypto';
+export const DEFAULT_GENESIS_STARTING_BID_ZATOSHIS='1000000'; // 0.01 ZEC on Zcash testnet.
 export async function demoClient(config){
  const origin=new URL(config.origin);if(origin.protocol!=='https:'&&!(config.allowLoopback===true&&origin.hostname==='127.0.0.1'&&origin.protocol==='http:'))throw Error('Clean HTTPS origin required.');if(origin.pathname!=='/'||origin.search||origin.hash||origin.username||origin.password)throw Error('Invalid origin.');
  const login=await fetch(new URL('/login',origin),{method:'POST',redirect:'manual',headers:{Origin:origin.origin,'Content-Type':'application/x-www-form-urlencoded'},body:new URLSearchParams({username:config.username,password:config.password}),signal:AbortSignal.timeout(30000)});
@@ -39,12 +40,24 @@ export async function seedFamily(client,config,slug){
  const draft=await client.request('/api/digital/drafts',{previewId:saved.previewId,fileId:saved.fileId,category:meta.category,license:meta.license,edition:`Testnet edition ${edition.edition} / up to 5; artwork reused`,provenance:meta.provenance});
  job.phase='creating-unknown';await state.write(name,job);
  // Exactly one create attempt. If response is uncertain, the next run only reads this ID.
- await client.request('/api/auctions',{id:job.auctionId,title:meta.title+' · Testnet #'+edition.edition,description:'VEIL Genesis — downloadable testnet edition. The winning buyer can download this frozen artwork after the exact incoming testnet payment is verified. The seller can see losing bids after reveal.',sellerName:config.sellerName??config.username,category:meta.category,artwork:'orbit',digitalDraftId:draft.draftId,paymentAddress:cfg.address,reserve:config.reserveZatoshis??'10000',closesAt:edition.closes_at,publicKey:job.publicKey,paymentWindowHours:24});
+ await client.request('/api/auctions',{auctionKind:'digital-download',id:job.auctionId,title:meta.title+' · Testnet #'+edition.edition,description:'VEIL Genesis — downloadable testnet edition. The winning buyer can download this frozen artwork after the exact incoming testnet payment is verified. The seller can see losing bids after reveal.',sellerName:config.sellerName??config.username,category:meta.category,artwork:'orbit',digitalDraftId:draft.draftId,paymentAddress:cfg.address,reserve:config.reserveZatoshis??DEFAULT_GENESIS_STARTING_BID_ZATOSHIS,closesAt:edition.closes_at,publicKey:job.publicKey,paymentWindowHours:24});
  await client.request('/api/judging/worker/bind',{id:edition.id});job.phase='open';await state.write(name,job);return job;
 }
 export function familiesToSeed(currentFamilies){
  const alreadyListed=new Set((currentFamilies??[]).filter(f=>f.current?.auctionId).map(f=>f.slug));
  return collection.filter(f=>!alreadyListed.has(f.slug)).map(f=>f.slug);
+}
+export function ownerSeedConfig(config){
+ if(typeof config.ownerUsername!=='string'||!config.ownerUsername.trim()||config.username!==config.ownerUsername)throw Error('Seed the Genesis collection only with the explicitly configured owner account.');
+ return {...config,sellerName:config.ownerUsername,reserveZatoshis:DEFAULT_GENESIS_STARTING_BID_ZATOSHIS,auctionWindowSeconds:3024000};
+}
+export async function verifyExistingOwnerAuctions(client,families,ownerUsername){
+ for(const family of families??[]){
+  const id=family.current?.auctionId;if(!id)continue;
+  const {auction}=await client.request('/api/auctions/'+id);
+  if(!auction?.isOwner||auction.sellerName!==ownerUsername||auction.auctionKind!=='digital-download'||auction.reserve!==DEFAULT_GENESIS_STARTING_BID_ZATOSHIS||auction.closesAt!==family.current.closesAt)
+   throw Error('An existing Genesis auction does not match the configured owner and 0.01 ZEC digital listing. Stop and review it before seeding.');
+ }
 }
 export async function seedCollection(client,config){
  const listing=await client.request('/api/judging/catalogue');
@@ -52,7 +65,8 @@ export async function seedCollection(client,config){
  const results=[];
  // Collection seeding always uses the requested 35-day deadline. Shorter
  // auctionWindowSeconds values are only for isolated single-family test fixtures.
- const productionConfig={...config,auctionWindowSeconds:3024000};
+ const productionConfig=ownerSeedConfig(config);
+ await verifyExistingOwnerAuctions(client,listing.families,productionConfig.ownerUsername);
  for(const slug of familiesToSeed(listing.families))results.push(await seedFamily(client,productionConfig,slug));
  return {createdOrRecovered:results.length,alreadyListed:collection.length-results.length,auctions:results};
 }
