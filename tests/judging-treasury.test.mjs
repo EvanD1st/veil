@@ -17,3 +17,65 @@ test('Pay is explicit, invoice-bound, user-bound and duplicate/concurrent author
  const another={...inv,invoiceId:'ad'.repeat(32)};const q2=await service.quote('a',inv.auctionId,async()=>another);await assert.rejects(service.pay('a',q2.quoteId,true,async()=>another),/pending/);
  adapter.prepare=async()=>{calls.push('prepare');throw Error('Lost preparation response');};await assert.rejects(service.prepare(first.id));await assert.rejects(service.prepare(first.id));assert.equal(calls.filter(x=>x==='prepare').length,1);assert.equal(service.status(first.id).state,'prepare-unknown');assert.equal((await service.reconcile(first.id)).state,'operator-review');
 }finally{db.close();}});
+
+// Daily-grant fixtures are synthetic journal transitions; they never sign or send.
+async function dailyFixture(overrides={}){
+ const f=setup();let stamp=3*86400000+12345;
+ const policy={...f.policy,grant:'20000000',maxFee:'20000',daily:'201000000',total:'201000000',grantIntervalMs:86400000,...overrides};
+ const service=new Treasury({db:f.db,adapter:f.adapter,policy,kill:()=>false,now:()=>stamp});
+ await service.activate('a');await service.confirmBackup('a','a');
+ return {...f,service,policy,setTime:n=>stamp=n,getTime:()=>stamp};
+}
+test('daily grant is exactly 0.2 TAZ, waits a rolling 24 hours and survives service restart',async()=>{
+ const f=await dailyFixture();try{
+ const first=f.service.requestGrant('a'),start=f.getTime();assert.equal(f.db.prepare('SELECT amount FROM judge_transfers WHERE id=?').get(first.id).amount,'20000000');
+ f.db.prepare("UPDATE judge_transfers SET state='confirmed' WHERE id=?").run(first.id);
+ f.setTime(start+86400000-1);assert.equal(f.service.requestGrant('a').id,first.id);assert.equal(f.service.grantStatus('a').eligible,false);
+ const restarted=new Treasury({db:f.db,adapter:f.adapter,policy:f.policy,kill:()=>false,now:()=>f.getTime()});assert.equal(restarted.requestGrant('a').id,first.id);
+ f.setTime(start+86400000);const second=restarted.requestGrant('a');assert.notEqual(second.id,first.id);assert.equal(restarted.requestGrant('a').id,second.id);assert.equal(f.db.prepare('SELECT COUNT(*) n FROM judge_transfers').get().n,2);
+ assert.equal(restarted.grantStatus('a').nextEligibleAt,start+2*86400000);
+ }finally{f.db.close();}
+});
+test('pending, uncertain or reorged grants block another daily grant even after the cooldown',async()=>{
+ const f=await dailyFixture();try{
+ const first=f.service.requestGrant('a');f.setTime(f.getTime()+3*86400000);
+ for(const state of ['queued','preparing','prepare-unknown','prepared','broadcast-unknown','submitted']){
+ f.db.prepare('UPDATE judge_transfers SET state=? WHERE id=?').run(state,first.id);assert.equal(f.service.requestGrant('a').id,first.id);assert.equal(f.service.grantStatus('a').eligible,false);
+ }
+ assert.equal(f.db.prepare('SELECT COUNT(*) n FROM judge_transfers').get().n,1);
+ }finally{f.db.close();}
+});
+test('daily funding counts distinct accounts and charges fee allowances to both rolling and lifetime budgets',async()=>{
+ const f=await dailyFixture({daily:'20020000',total:'40040000',maxUsers:2});try{
+ const first=f.service.requestGrant('a');f.db.prepare("UPDATE judge_transfers SET state='confirmed' WHERE id=?").run(first.id);
+ // Metadata-only second synthetic account: no real address/keys or funding.
+ f.db.prepare("INSERT INTO judge_private_wallets VALUES('b','op-b','ready','account-b','synthetic-b',1)").run();
+ assert.throws(()=>f.service.requestGrant('b'),/budget exhausted/);
+ f.setTime(f.getTime()+86400000);const second=f.service.requestGrant('a');assert.notEqual(second.id,first.id);
+ f.db.prepare("UPDATE judge_transfers SET state='confirmed' WHERE id=?").run(second.id);f.setTime(f.getTime()+86400000);
+ assert.throws(()=>f.service.requestGrant('a'),/budget exhausted/);assert.equal(f.db.prepare('SELECT COUNT(*) n FROM judge_transfers').get().n,2);
+ }finally{f.db.close();}
+});
+test('legacy grants retain their identity and conservatively wait from the end of their recorded day',async()=>{
+ const f=await dailyFixture();try{
+ const first=f.service.requestGrant('a');const row=f.db.prepare('SELECT day FROM judge_transfers WHERE id=?').get(first.id);
+ f.db.prepare("UPDATE judge_transfers SET state='confirmed',requested_at=NULL,broadcast_attempts=1 WHERE id=?").run(first.id);
+ const next=(row.day+2)*86400000;f.setTime(next-1);assert.equal(f.service.requestGrant('a').id,first.id);assert.equal(f.service.grantStatus('a').nextEligibleAt,next);
+ f.setTime(next);assert.notEqual(f.service.requestGrant('a').id,first.id);assert.equal(f.db.prepare('SELECT broadcast_attempts FROM judge_transfers WHERE id=?').get(first.id).broadcast_attempts,1);
+ }finally{f.db.close();}
+});
+test('a clock rollback and unsupported grant intervals never authorize an extra grant',async()=>{
+ const f=await dailyFixture();try{
+ const first=f.service.requestGrant('a');f.db.prepare("UPDATE judge_transfers SET state='confirmed' WHERE id=?").run(first.id);f.setTime(f.getTime()-1000);assert.equal(f.service.requestGrant('a').id,first.id);
+ assert.throws(()=>new Treasury({db:f.db,adapter:f.adapter,policy:{...f.policy,grantIntervalMs:3600000}}),/24-hour/);
+ }finally{f.db.close();}
+});
+
+test('live grant preparation cannot spend more than the fresh confirmed treasury balance',async()=>{
+ const f=await dailyFixture();try{
+ const grant=f.service.requestGrant('a');let prepared=false;
+ const adapter={...f.adapter,evidence:'live-zingolib-testnet',validated:true,async readiness(){},async refresh(){},async balance(account){return{network:'testnet',account,synchronized:true,confirmed:'20000000'};},async prepare(){prepared=true;throw Error('Must not sign');}};
+ const live=new Treasury({db:f.db,adapter,policy:f.policy,kill:()=>false,now:()=>f.getTime()});
+ await assert.rejects(live.prepare(grant.id),/Insufficient confirmed treasury/);assert.equal(prepared,false);assert.equal(live.status(grant.id).state,'queued');assert.equal(f.db.prepare('SELECT broadcast_attempts FROM judge_transfers WHERE id=?').get(grant.id).broadcast_attempts,0);
+ }finally{f.db.close();}
+});
