@@ -20,4 +20,4 @@ The source tree is organized independently of generated output. `scripts/source-
 
 New source modules should be placed on the appropriate side. If a new module must also be emitted as a legacy-compatible unbundled release module, add its mapping to `scripts/source-layout.json` and include it in the package list. Bundled application imports use explicit `@/frontend/`, `@/backend/` or `@/shared/` paths.
 
-For an operator-reviewed scanner/worker source archive, run `node scripts/package-service-source.mjs /absolute/path/veil-service-source.tar`. It emits the established `judging/`, `scanner/` and `escrow/` archive roots and embeds the source commit without touching any running service. Do not archive the relocated directories directly for an older installer.
+For an operator-reviewed scanner/worker source archive, run `node scripts/package-service-source.mjs /absolute/path/veil-service-source.tar`. It emits the established `judging/` and `scanner/` archive roots by default (optional root names can follow the output argument) and embeds the source commit without touching any running service. Do not archive the relocated directories directly for an older installer.
