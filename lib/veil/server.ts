@@ -81,7 +81,7 @@ export async function createAuction(input: Record<string, unknown>, userId: stri
   try{if(!await settings.VEIL_DIGITAL_VERIFY(digitalDraft,userId))throw Error();}catch{throw new ApiError('Your frozen files are unavailable or changed. Upload and validate them before publishing.',503);}
   if (!validZatoshis(input.reserve)) throw new ApiError('Invalid reserve price.');
   const closesAt = Number(input.closesAt), now = Date.now();
-  if (!Number.isSafeInteger(closesAt) || closesAt < now + 60000 || closesAt > now + 30 * 86400000) throw new ApiError('Choose a closing time between one minute and 30 days from now.');
+  if (!Number.isSafeInteger(closesAt) || closesAt < now + 60000 || closesAt > now + 35 * 86400000) throw new ApiError('Choose a closing time between one minute and 35 days from now.');
   const key = input.publicKey as JsonWebKey | undefined;
   if (!key || key.kty !== 'RSA' || key.e !== 'AQAB' || typeof key.n !== 'string' || key.n.length !== 342 || key.d || key.p || key.q || (key.key_ops && key.key_ops.join(',') !== 'encrypt')) throw new ApiError('A fresh public encryption key is required. Never upload the private key.');
   try { await crypto.subtle.importKey('jwk', key, { name: 'RSA-OAEP', hash: 'SHA-256' }, false, ['encrypt']); } catch { throw new ApiError('The public encryption key is invalid.'); }
