@@ -47,3 +47,15 @@ test('selector delivery reconciles a lost acknowledgement from the durable outbo
   f.setTime(130001);await f.app.tick();await f.app.idle();assert.equal(calls,2);assert.equal(seen.size,1);assert.equal(f.db.prepare('SELECT selector_ack FROM judge_transfers').get().selector_ack,1);
  }finally{f.app.close();f.db.close();}
 });
+
+test('wallet status shows the next daily request and refuses duplicate funding until exactly 24 hours',async()=>{
+ const policy={grant:'20000000',maxFee:'20000',daily:'201000000',total:'201000000',maxUsers:10,treasuryAccount:randomUUID(),grantIntervalMs:86400000};
+ const f=fixture({policy});try{
+ await f.app.dispatch('activate','a',{});await f.app.idle();const b=await f.app.dispatch('backup','a',{});await f.app.dispatch('confirm-backup','a',{answers:b.positions.map(index=>({index,word:'fixtureword'+(index-1)}))});
+ assert.equal((await f.app.state('a')).canRequestStarter,true);assert.equal((await f.app.state('a')).starterPolicy.intervalMs,86400000);
+ const grant=await f.app.dispatch('fund','a',{});assert.equal((await f.app.state('a')).canRequestStarter,false);
+ f.db.prepare("UPDATE judge_transfers SET state='confirmed' WHERE id=?").run(grant.id);const next=(await f.app.state('a')).starterNextEligibleAt;assert.equal(next,100000+86400000);
+ f.setTime(next-1);assert.equal((await f.app.state('a')).canRequestStarter,false);f.setTime(next);assert.equal((await f.app.state('a')).canRequestStarter,true);
+ assert.notEqual((await f.app.dispatch('fund','a',{})).id,grant.id);
+ }finally{f.app.close();f.db.close();}
+});
