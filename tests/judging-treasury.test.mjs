@@ -89,3 +89,12 @@ test('a retained confirmed grant is explicitly a cooldown response, never a new 
  f.db.prepare("UPDATE judge_transfers SET state='broadcast-unknown' WHERE id=?").run(first.id);const uncertain=f.service.requestGrant('a');assert.equal(uncertain.created,false);assert.equal(uncertain.reason,'pending');
  }finally{f.db.close();}
 });
+
+// Explicit operator top-ups share the bounded treasury policy; no real transfer.
+test('operator top-ups consume the same grant budget and retain the request cooldown',async()=>{
+ const f=await dailyFixture({daily:'20020000',total:'20020000'});try{
+ const first=f.service.requestGrant('a');f.db.prepare("UPDATE judge_transfers SET kind='operator-topup',state='confirmed' WHERE id=?").run(first.id);
+ assert.equal(f.service.grantStatus('a').eligible,false);assert.equal(f.service.requestGrant('a').id,first.id);
+ f.setTime(f.getTime()+86400000);assert.throws(()=>f.service.requestGrant('a'),/budget exhausted/);
+ }finally{f.db.close();}
+});
