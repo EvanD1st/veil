@@ -42,16 +42,16 @@ export function judgingHandler(db,origin,{managed=managedClient()}={}){
     return json(res,pay?202:200,await managed(pay?'pay':'quote',user.userId,pay?{invoice,quoteId:b.quoteId,affirmative:b.affirmative}:{invoice}));
    }
    if(url.pathname==='/api/judging/wallet/pay'||url.pathname==='/api/judging/wallet/fund')throw new JudgingError('Live spending and starter grants remain disabled pending isolated recovery, fee and outgoing-payment validation.',503);
-   if(url.pathname==='/api/judging/request-edition'){fields(['slug']);if(process.env.VEIL_DEMO_ENABLED!=='1')throw new JudgingError('New demo editions are paused.',503);return json(res,202,requestEdition(db,user.userId,b.slug));}
+   if(url.pathname==='/api/judging/request-edition'){fields(['slug']);if(process.env.VEIL_GENESIS_RECURRING!=='1')throw new JudgingError('This collection has one auction per artwork. Replacement editions are closed.',409);if(process.env.VEIL_DEMO_ENABLED!=='1')throw new JudgingError('New demo editions are paused.',503);return json(res,202,requestEdition(db,user.userId,b.slug));}
    if(!url.pathname.startsWith('/api/judging/worker/')||!process.env.VEIL_DEMO_SELLER_ID||user.userId!==process.env.VEIL_DEMO_SELLER_ID)throw new JudgingError('Demo seller authorization required.',403);
    if(process.env.VEIL_DEMO_ENABLED!=='1')throw new JudgingError('Automatic demo editions are paused.',503);
    const action=url.pathname.slice('/api/judging/worker/'.length);
-   if(action==='demand'){fields([]);const row=db.prepare("SELECT r.family FROM judging_edition_requests r WHERE NOT EXISTS(SELECT 1 FROM judging_editions e WHERE e.family=r.family AND e.state<>'verified') GROUP BY r.family ORDER BY MIN(r.requested_at) LIMIT 1").get();return json(res,200,{family:row?.family??null});}
+   if(action==='demand'){fields([]);if(process.env.VEIL_GENESIS_RECURRING!=='1')return json(res,200,{family:null});const row=db.prepare("SELECT r.family FROM judging_edition_requests r WHERE NOT EXISTS(SELECT 1 FROM judging_editions e WHERE e.family=r.family AND e.state<>'verified') GROUP BY r.family ORDER BY MIN(r.requested_at) LIMIT 1").get();return json(res,200,{family:row?.family??null});}
    if(action==='register'){
     fields(['slug','previewId','fileId']);const p=process.env.VEIL_GENESIS_IMPORT_FILE;if(!p?.startsWith('/'))throw new JudgingError('Private reviewed import manifest required.',503);const st=await fs.lstat(p);if(!st.isFile()||st.isSymbolicLink()||st.size>16384||(st.mode&0o022))throw new JudgingError('Private reviewed import manifest required.',503);
     return json(res,200,registerFamily(db,b,user.userId,JSON.parse(await fs.readFile(p,'utf8'))));
    }
-   if(action==='reserve'){fields(['slug','windowSeconds']);const seconds=b.windowSeconds===undefined?windowSeconds(process.env.VEIL_DEMO_WINDOW_SECONDS??'3024000'):windowSeconds(typeof b.windowSeconds==='number'&&Number.isSafeInteger(b.windowSeconds)?String(b.windowSeconds):b.windowSeconds);return json(res,200,reserveEdition(db,b.slug,{seconds}));}
+   if(action==='reserve'){fields(['slug','windowSeconds']);const seconds=b.windowSeconds===undefined?windowSeconds(process.env.VEIL_DEMO_WINDOW_SECONDS??'3024000'):windowSeconds(typeof b.windowSeconds==='number'&&Number.isSafeInteger(b.windowSeconds)?String(b.windowSeconds):b.windowSeconds);return json(res,200,reserveEdition(db,b.slug,{seconds,maxEditions:process.env.VEIL_GENESIS_RECURRING==='1'?5:1}));}
    if(action==='bind'){fields(['id']);return json(res,200,bindEdition(db,b.id,user.userId));}
    if(action==='claim'){fields([]);return json(res,200,{job:claimProof(db)});}
    if(action==='phase'){fields(['id','token','phase']);if(typeof b.token!=='string'||!/^[a-f0-9]{64}$/.test(b.token))throw new JudgingError('Invalid lease.',400);return json(res,200,finishProof(db,b.id,b.token,b.phase));}

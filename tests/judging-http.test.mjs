@@ -13,6 +13,8 @@ test('native judging endpoints keep private activation, reauthentication, CSRF, 
   assert.equal((await request('/api/judging/wallet/backup',{password:'wrong'})).status,403);
   const backup=await request('/api/judging/wallet/backup',{password:'judge-alpha-password'});assert.equal(backup.status,503);assert.doesNotMatch(await backup.text(),/secret-extended|mnemonic|seedfp|privateKey/);
   assert.equal((await request('/api/judging/worker/claim',{})).status,403);
+  assert.equal((await request('/api/judging/request-edition',{slug:'first-seal'})).status,409);
+  assert.equal(db.prepare('SELECT COUNT(*) n FROM judging_edition_requests').get().n,0);
   assert.equal((await request('/api/judging/wallet/pay',{pay:true})).status,503);
   assert.equal((await request('/api/scanner/jobs',{})).status,418,'Judging middleware must not intercept scanner bearer-token routes.');
   for(let n=0;n<25;n++)await request('/api/judging/wallet/activate',{});assert.equal((await request('/api/judging/wallet/activate',{})).status,429);
