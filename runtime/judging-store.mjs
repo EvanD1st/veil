@@ -19,14 +19,14 @@ export function registerFamily(db,{slug,previewId,fileId},seller,manifest,now=Da
  return atomic(db,()=>{const old=db.prepare('SELECT * FROM judging_families WHERE slug=?').get(slug);if(old){if(old.file_id!==fileId||old.preview_id!==previewId)fail('This family already has frozen files.');return {registered:true};}
  db.prepare('INSERT INTO judging_families VALUES(?,?,?,?)').run(slug,previewId,fileId,now);return {registered:true};});
 }
-export function reserveEdition(db,slug,{seconds=3024000,now=Date.now()}={}){
+export function reserveEdition(db,slug,{seconds=3024000,now=Date.now(),maxEditions=5}={}){
  windowSeconds(String(seconds));if(!collection.some(f=>f.slug===slug))fail('Unknown artwork.',404);
  return atomic(db,()=>{
   const family=db.prepare('SELECT * FROM judging_families WHERE slug=?').get(slug);if(!family)fail('The protected artwork is not imported.',503);
   const previous=db.prepare("SELECT * FROM judging_editions WHERE family=? AND state<>'verified'").get(slug);
   if(previous)return {...previous,reused:true,previewId:family.preview_id,fileId:family.file_id};
   const n=db.prepare('SELECT COALESCE(MAX(edition),0)+1 n FROM judging_editions WHERE family=?').get(slug).n;
-  if(n>5)fail('The five-edition test budget for this artwork is exhausted.',429);
+  if(n>maxEditions)fail('The edition budget for this artwork is exhausted.',429);
   const id=randomUUID(),auction=randomUUID();db.prepare("INSERT INTO judging_editions VALUES(?,?,?,?,?,'preparing',NULL,?)").run(id,slug,n,auction,now+seconds*1000,now);
   return {...db.prepare('SELECT * FROM judging_editions WHERE id=?').get(id),reused:false,previewId:family.preview_id,fileId:family.file_id};
  });
@@ -38,10 +38,11 @@ export function bindEdition(db,id,seller,now=Date.now()){
  if(e.state==='preparing'){db.prepare("UPDATE judging_editions SET state='open',updated_at=? WHERE id=?").run(now,id);db.prepare('DELETE FROM judging_edition_requests WHERE family=?').run(e.family);}return {bound:true,auctionId:a.id};});
 }
 export function catalogue(db,now=Date.now()){
- return collection.map(f=>{const e=db.prepare('SELECT e.*,a.result,(SELECT COUNT(*) FROM bids WHERE auction_id=a.id) bid_count FROM judging_editions e LEFT JOIN auctions a ON a.id=e.auction_id WHERE e.family=? ORDER BY e.edition DESC LIMIT 1').get(f.slug);
+ return collection.map(f=>{const e=db.prepare('SELECT e.*,a.result,a.seller_name,a.reserve,(SELECT COUNT(*) FROM bids WHERE auction_id=a.id) bid_count FROM judging_editions e LEFT JOIN auctions a ON a.id=e.auction_id WHERE e.family=? ORDER BY e.edition DESC LIMIT 1').get(f.slug);
   let result;try{result=e?.result?JSON.parse(e.result):null;}catch{}
-  return {...f,current:e?{auctionId:e.state==='preparing'?null:e.auction_id,edition:e.edition,closesAt:e.closes_at,
+  return {...f,current:e?{auctionId:e.state==='preparing'?null:e.auction_id,edition:e.edition,opensAt:e.created_at,closesAt:e.closes_at,
    state:result?.status==='zk-verified'?'verified':e.state==='open'&&now>=e.closes_at?'waiting':e.state,
+   sellerName:e.state==='preparing'?null:e.seller_name,startingBid:e.state==='preparing'?null:e.reserve,
    bidCount:e.bid_count??0,capacity:8,winningAmount:result?.status==='zk-verified'?result.amount:null,
    reason:e.state==='failed'?'Automatic reveal needs operator review. Every accepted bid is retained.':null}:null};
  });

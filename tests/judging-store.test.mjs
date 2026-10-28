@@ -33,3 +33,14 @@ test('wallet activation and lazy edition demand are bounded and idempotent; unkn
 }finally{db.close();}});
 test('a lost publication acknowledgement is reconciled from the accepted result after worker failure',()=>{const{db,meta,auction}=setup();try{const e=reserveEdition(db,meta.slug,{now:0,seconds:60});auction(e);const j=claimProof(db,{now:60000});finishProof(db,e.id,j.token,'failed',60000);db.prepare('UPDATE auctions SET result=? WHERE id=?').run(JSON.stringify({status:'zk-verified',amount:'20000'}),e.auction_id);assert.equal(claimProof(db,{now:60001}),null);assert.equal(db.prepare('SELECT state FROM judging_editions WHERE id=?').get(e.id).state,'verified');assert.equal(reserveEdition(db,meta.slug).edition,2);}finally{db.close();}});
 test('a full edition can queue a distinct successor without changing its deadline, capacity or accepted log',()=>{const{db,meta,auction}=setup();try{const e=reserveEdition(db,meta.slug,{now:0,seconds:60});auction(e);for(let n=0;n<8;n++)db.prepare('INSERT INTO bids(id,auction_id,bidder_id,commitment,ciphertext,ciphertext_hash,accepted_at) VALUES(?,?,?,?,?,?,?)').run(randomUUID(),e.auction_id,'fixture-user-'+n,'01'.repeat(32),'synthetic fixture ciphertext','ab'.repeat(32),n);assert.equal(requestEdition(db,'waiting-judge',meta.slug).state,'queued-after-current-edition');assert.equal(db.prepare('SELECT COUNT(*) n FROM judging_edition_requests').get().n,1);assert.equal(reserveEdition(db,meta.slug,{now:1000}).auction_id,e.auction_id);assert.equal(db.prepare('SELECT closes_at FROM auctions WHERE id=?').get(e.auction_id).closes_at,60000);assert.equal(db.prepare('SELECT COUNT(*) n FROM bids WHERE auction_id=?').get(e.auction_id).n,8);}finally{db.close();}});
+
+test('single-auction collection retains its completed edition and rejects a replacement reservation',()=>{
+ const {db,meta,auction}=setup();try{
+  const e=reserveEdition(db,meta.slug,{now:1000,seconds:3024000,maxEditions:1});auction(e);
+  const row=catalogue(db)[0].current;assert.equal(row.sellerName,'VEIL Platform Demo');assert.equal(row.startingBid,'10000');
+  assert.equal(reserveEdition(db,meta.slug,{now:2000,maxEditions:1}).closes_at,e.closes_at);
+  db.prepare("UPDATE judging_editions SET state='verified' WHERE id=?").run(e.id);
+  assert.throws(()=>reserveEdition(db,meta.slug,{maxEditions:1}),/exhausted/);
+  assert.equal(db.prepare('SELECT COUNT(*) n FROM judging_editions').get().n,1);
+ }finally{db.close();}
+});
