@@ -69,7 +69,10 @@ export async function verifyDraftFiles(db,id,user){
 }
 export function digitalHandler(db,origin,{root=process.env.VEIL_DIGITAL_ROOT,limits=LIMITS}={}){
  const expected=new URL(origin),rates=new Map(),running=new Map(),uploadingUsers=new Set();let uploads=0,downloads=0;
- function receiver(id){try{const r=JSON.parse(digitalSellers())[id];return isSaplingTestnet(r)?r:null;}catch{return null;}}
+ function configuredReceiver(id){try{const r=JSON.parse(digitalSellers())[id];return isSaplingTestnet(r)?r:null;}catch{return null;}}
+ function requestFor(id){return db.prepare('SELECT receiver,requested_at,updated_at FROM digital_seller_requests WHERE account_id=?').get(id)??null;}
+ function receiver(id){const configured=configuredReceiver(id),requested=requestFor(id);return configured&&(!requested||requested.receiver===configured)?configured:null;}
+ function setupFor(id){const requested=requestFor(id),approved=receiver(id);return {state:approved?'ready':requested?'pending':'not-requested',address:requested?.receiver??null,updatedAt:requested?.updated_at??null};}
  function throttle(user,preview=false){user=(preview?'preview:':'operation:')+user;const now=Date.now();for(const [k,v]of rates)if(v.until<now)rates.delete(k);let r=rates.get(user);if(!r){if(rates.size>=200)deny('Please retry shortly.',429);r={count:0,until:now+600000};rates.set(user,r);}if(++r.count>(preview?240:40))deny('Please wait before retrying.',429);}
  const info=l=>({auctionId:l.auction_id,category:l.category,license:l.license,edition:l.edition,provenance:l.provenance,bytes:l.bytes,format:l.format,previewUrl:'/api/digital/preview/'+l.auction_id});
  async function upload(req,res,user,url){
@@ -127,7 +130,21 @@ export function digitalHandler(db,origin,{root=process.env.VEIL_DIGITAL_ROOT,lim
   try{
    const user=sessionUser(db,req.headers.cookie??'');if(!user)deny('Authentication required.',401);const who=user.userId;
    if(!['GET','HEAD'].includes(req.method)&&(req.headers.origin!==expected.origin||req.headers['sec-fetch-site']==='cross-site'))deny('Cross-site requests are not accepted.',403);
-   if(url.pathname==='/api/digital/config'&&req.method==='GET'){const address=receiver(who),available=!!root&&process.env.VEIL_DIGITAL_PUBLISHING_ENABLED==='1';return json(res,200,{available,eligible:available&&!!address,address:available?address:null,categories,limits,explanation:'Only operator-approved sellers whose own receiver is observed by the scanner can publish automatic-delivery listings. Publishing may be paused; earned downloads remain available. No funds are redirected or held in escrow.'});}
+   if(url.pathname==='/api/digital/config'&&req.method==='GET'){const address=receiver(who),available=!!root&&process.env.VEIL_DIGITAL_PUBLISHING_ENABLED==='1';return json(res,200,{available,eligible:available&&!!address,address:available?address:null,setup:setupFor(who),categories,limits,explanation:'Seller setup is reviewed before paid listings are enabled. Existing auctions and downloads remain available.'});}
+   if(url.pathname==='/api/digital/receiver-request'&&req.method==='POST'){
+    if(!root||process.env.VEIL_DIGITAL_PUBLISHING_ENABLED!=='1')deny('Seller setup requests are temporarily unavailable.',503);
+    throttle(who);if(!req.headers['content-type']?.startsWith('application/json'))deny('JSON required.',415);const b=await smallBody(req);fields(b,['address']);
+    if(typeof b.address!=='string'||b.address.length>200||!isSaplingTestnet(b.address.trim()))deny('Enter a valid Sapling testnet receiving address.');const address=b.address.trim(),configured=configuredReceiver(who),existing=requestFor(who);
+    if(configured&&configured!==address)deny('A receiver is already in use for paid listings. Contact the operator before changing it.',409);
+    let map={};try{map=JSON.parse(digitalSellers());}catch{}if(Object.entries(map).some(([id,value])=>id!==who&&value===address))deny('This receiver is already assigned to another seller.',409);
+    if(existing?.receiver===address)return json(res,200,{setup:setupFor(who)});
+    if(existing&&Date.now()-existing.updated_at<600000)deny('You can update this request after 10 minutes.',429);
+    if(!existing&&db.prepare('SELECT COUNT(*) n FROM digital_seller_requests').get().n>=200)deny('Seller setup queue is full. Retry later.',429);
+    try{db.prepare(`INSERT INTO digital_seller_requests(account_id,receiver,requested_at,updated_at) VALUES(?,?,?,?)
+     ON CONFLICT(account_id) DO UPDATE SET receiver=excluded.receiver,updated_at=excluded.updated_at`).run(who,address,Date.now(),Date.now());}
+    catch{deny('This receiver is already assigned to another seller.',409);}
+    return json(res,201,{setup:setupFor(who)});
+   }
    if(!root)deny('Private digital storage is unavailable.',503);
    if(url.pathname==='/api/digital/uploads'&&req.method==='POST'){
     if(uploads>=2||uploadingUsers.has(who))deny('An upload is already running. Retry shortly.',429);

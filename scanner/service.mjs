@@ -1,12 +1,12 @@
 // Outbound HTTPS only. No listener and no remote wallet RPC interface.
 import {DatabaseSync} from 'node:sqlite';
-import {lstatSync,openSync,closeSync} from 'node:fs';
+import {lstatSync,openSync,closeSync,readFileSync} from 'node:fs';
 import {statfs,writeFile,rename} from 'node:fs/promises';
 import {isAbsolute,dirname} from 'node:path';
 import {pathToFileURL} from 'node:url';
 import {sign} from 'node:crypto';
 import {scanInvoice,reportMessage} from './scan.mjs';
-import {validateInvoice} from './invoice.mjs';
+import {validateInvoice,isSaplingTestnet} from './invoice.mjs';
 import {configuredClients,readSigningKey,readServiceToken} from './rpc.mjs';
 
 export function openOutbox(path){
@@ -15,6 +15,17 @@ export function openOutbox(path){
  catch(error){if(error.code!=='ENOENT')throw error;closeSync(openSync(path,'wx',0o600));}
  const db=new DatabaseSync(path);db.exec('PRAGMA journal_mode=WAL; PRAGMA synchronous=FULL; PRAGMA busy_timeout=5000; CREATE TABLE IF NOT EXISTS outbox(id TEXT PRIMARY KEY,payload TEXT NOT NULL,expires_at INTEGER NOT NULL);');
  return db;
+}
+export function configuredReceivers(env=process.env){
+ let values;
+ if(env.VEIL_SCANNER_RECEIVERS_FILE){
+  const path=env.VEIL_SCANNER_RECEIVERS_FILE;if(!isAbsolute(path))throw Error('Use an absolute private receiver-list path.');
+  const stat=lstatSync(path);if(!stat.isFile()||stat.isSymbolicLink()||stat.size>32768||(process.platform!=='win32'&&(stat.mode&0o077)))throw Error('Receiver list must be a private owner-only regular file.');
+  values=JSON.parse(readFileSync(path,'utf8'));
+ }else if(env.VEIL_SCANNER_RECEIVERS!==undefined)values=JSON.parse(env.VEIL_SCANNER_RECEIVERS);
+ else values=env.VEIL_SCANNER_RECEIVER?[env.VEIL_SCANNER_RECEIVER]:[];
+ if(!Array.isArray(values)||values.length<1||values.length>100||values.some(v=>!isSaplingTestnet(v))||new Set(values).size!==values.length)throw Error('Configure 1–100 distinct checksum-valid Sapling testnet receivers.');
+ return values;
 }
 export function transport(origin,token,fetcher=fetch,{allowLoopbackTest=false}={}){
  const base=new URL(origin);
@@ -29,7 +40,11 @@ export function transport(origin,token,fetcher=fetch,{allowLoopbackTest=false}={
  };
 }
 export class ScannerWorker {
- constructor({db,exchange,walletRpc,chainRpc,key,receiver,now=Date.now,scan=scanInvoice}){Object.assign(this,{db,exchange,walletRpc,chainRpc,key,receiver,now,scan});}
+ constructor({db,exchange,walletRpc,chainRpc,key,receiver,receivers,now=Date.now,scan=scanInvoice}){
+  const allowed=receivers??(receiver?[receiver]:[]);
+  if(!Array.isArray(allowed)||allowed.length<1||allowed.length>100||allowed.some(v=>!isSaplingTestnet(v))||new Set(allowed).size!==allowed.length)throw Error('Configure 1–100 distinct checksum-valid Sapling testnet receivers.');
+  Object.assign(this,{db,exchange,walletRpc,chainRpc,key,receivers:new Set(allowed),now,scan});
+ }
  async tick(){
   const now=this.now();
   this.db.prepare('DELETE FROM outbox WHERE expires_at<=?').run(now);
@@ -45,7 +60,7 @@ export class ScannerWorker {
   if(!job||typeof job.id!=='string'||typeof job.leaseId!=='string'||!Number.isSafeInteger(job.leaseUntil)||job.leaseUntil<=now||job.leaseUntil>now+630000)throw Error('Invalid job lease.');
   try{
    validateInvoice(job.invoice);
-   if(job.invoice.address!==this.receiver)throw Error('Wrong receiver.');
+   if(!this.receivers.has(job.invoice.address))throw Error('Wrong receiver.');
    const report=await this.scan(job.invoice,job.txid,job.output,this.walletRpc,this.chainRpc,now);
    if(report.expiresAt<=this.now()+15000||job.leaseUntil<=this.now())throw Error('Observation too old for delivery.');
    const signed={report,signature:sign(null,reportMessage(report),this.key).toString('hex')};
@@ -61,9 +76,10 @@ export class ScannerWorker {
 }
 async function main(){
  const env=process.env,path=env.VEIL_SCANNER_OUTBOX;
- if(!path||!env.VEIL_SCANNER_RECEIVER||!env.VEIL_WEBSITE_ORIGIN)throw Error('Missing scanner service configuration.');
+ if(!path||!env.VEIL_WEBSITE_ORIGIN)throw Error('Missing scanner service configuration.');
+ const receivers=configuredReceivers(env);
  const db=openOutbox(path),key=await readSigningKey(),{walletRpc,chainRpc}=await configuredClients();
- const worker=new ScannerWorker({db,key,walletRpc,chainRpc,receiver:env.VEIL_SCANNER_RECEIVER,exchange:transport(env.VEIL_WEBSITE_ORIGIN,await readServiceToken())});
+ const worker=new ScannerWorker({db,key,walletRpc,chainRpc,receivers,exchange:transport(env.VEIL_WEBSITE_ORIGIN,await readServiceToken())});
  let stopping=false,failures=0,wake;
  for(const signal of ['SIGINT','SIGTERM'])process.on(signal,()=>{stopping=true;wake?.();});
  try{while(!stopping){

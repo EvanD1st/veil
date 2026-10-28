@@ -7,10 +7,14 @@ import {constants} from 'node:fs';
 import {join,resolve} from 'node:path';
 import {createHash} from 'node:crypto';
 import {reviewableReport} from './digital-review.mjs';
+import {digitalSellers} from './digital-config.mjs';
 const [operation,arg]=process.argv.slice(2),db=openDatabase(process.env.VEIL_SQLITE_PATH),root=await privateRoot(process.env.VEIL_DIGITAL_ROOT);
 const digest=async path=>{const h=await fs.open(path,constants.O_RDONLY|constants.O_NOFOLLOW);try{const hash=createHash('sha256');for await(const c of h.createReadStream({autoClose:false}))hash.update(c);return hash.digest('hex');}finally{await h.close();}};
 try{
- if(operation==='audit'){
+ if(operation==='seller-requests'){
+  const sellers=JSON.parse(digitalSellers());
+  console.log(JSON.stringify(db.prepare('SELECT r.account_id,a.username,r.receiver,r.requested_at,r.updated_at FROM digital_seller_requests r JOIN veil_accounts a ON a.id=r.account_id ORDER BY r.requested_at LIMIT 200').all().map(r=>({...r,state:sellers[r.account_id]===r.receiver?'approved':'pending'})),null,2));
+ }else if(operation==='audit'){
   let bad=0;for(const a of db.prepare("SELECT * FROM digital_assets WHERE state='complete'").all()){try{if(await digest(join(root,'objects',a.id))!==a.sha256)bad++;}catch{bad++;}}
   console.log(JSON.stringify({assets:db.prepare('SELECT COUNT(*) n FROM digital_assets').get().n,unavailable:bad,entitlements:db.prepare('SELECT state,COUNT(*) n FROM digital_entitlements GROUP BY state').all()}));if(bad)process.exitCode=1;
  }else if(operation==='cleanup'){
@@ -38,5 +42,5 @@ try{
   const row=db.prepare('SELECT * FROM digital_entitlements WHERE auction_id=?').get(arg);if(!row)throw Error('Entitlement not found.');
   if(operation==='review-resume'&&process.env.VEIL_DIGITAL_REVIEW_CONFIRM!=='I reviewed current chain evidence and the exact frozen purchase')throw Error('Independent chain/payment review and explicit operator confirmation are required.');
   db.exec('BEGIN IMMEDIATE');try{if(operation==='review-resume'){const a=db.prepare('SELECT * FROM auctions WHERE id=?').get(arg),r=db.prepare('SELECT signed_report FROM payment_reports WHERE auction_id=?').get(arg);if(!r||!reviewableReport(JSON.parse(r.signed_report),row,a,process.env.VEIL_SCANNER_PUBLIC_KEY))throw Error('Current trusted confirmed evidence required.');}db.prepare('UPDATE digital_entitlements SET state=?,suspended_at=? WHERE auction_id=?').run(operation==='suspend'?'suspended':'active',operation==='suspend'?Date.now():null,arg);db.prepare("INSERT INTO digital_events(auction_id,event,recorded_at) VALUES(?,'operator-reviewed',?)").run(arg,Date.now());db.exec('COMMIT');}catch(e){db.exec('ROLLBACK');throw e;}console.log('Entitlement review recorded. Already downloaded files cannot be recalled.');
- }else throw Error('Choose audit, cleanup, backup, suspend or review-resume. Run cleanup/review while VEIL is stopped.');
+ }else throw Error('Choose seller-requests, audit, cleanup, backup, suspend or review-resume. Run cleanup/review while VEIL is stopped.');
 }catch{console.error('Digital operation failed. Inspect the private database/files; no complete backup or successful delivery is implied.');process.exitCode=1;}finally{db.close();}
