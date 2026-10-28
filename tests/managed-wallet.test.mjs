@@ -60,6 +60,6 @@ test('wallet status shows the next daily request and refuses duplicate funding u
  }finally{f.app.close();f.db.close();}
 });
 
-test('selector delivery cannot loop back into the managed wallet API port',()=>{
- assert.throws(()=>createManagedSelectorDelivery({websiteOrigin:'https://ve-il.duckdns.org',selectorUrl:'http://127.0.0.1:19070/api/judging/managed/selector',token:'a'.repeat(64)}),/Private selector tunnel/);
+test('selector delivery cannot loop back into the managed wallet API port',async()=>{
+ await assert.rejects(createManagedSelectorDelivery({websiteOrigin:'https://ve-il.duckdns.org',selectorUrl:'http://127.0.0.1:19070/api/judging/managed/selector',token:'a'.repeat(64)})({}),/Private selector tunnel/);
 });
