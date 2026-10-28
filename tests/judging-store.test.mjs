@@ -1,6 +1,6 @@
 // Store/state fixtures only. Fake result JSON below is NOT cryptographic or live-payment evidence.
 import test from 'node:test';import assert from 'node:assert/strict';import{DatabaseSync}from'node:sqlite';import{readFileSync,readdirSync}from'node:fs';import{randomUUID}from'node:crypto';
-import{COLLECTION,registerFamily,reserveEdition,bindEdition,catalogue,claimProof,finishProof,requestWallet,walletStatus,requestEdition}from'../runtime/judging-store.mjs';
+import{COLLECTION,registerFamily,reserveEdition,bindEdition,catalogue,claimProof,finishProof,requestWallet,walletStatus,requestEdition,windowSeconds}from'../runtime/judging-store.mjs';
 const receiver=JSON.parse(readFileSync('tests/fixtures/synthetic-receiver.json')).address;
 function setup(){const db=new DatabaseSync(':memory:');db.exec('PRAGMA foreign_keys=ON');for(const f of readdirSync('drizzle').filter(f=>f.endsWith('.sql')).sort())db.exec(readFileSync('drizzle/'+f,'utf8'));const meta=COLLECTION[0],p='01'.repeat(16),f='02'.repeat(16),seller='private-demo-account';
  for(const [id,kind,bytes]of[[p,'preview',100],[f,'deliverable',meta.bytes]])db.prepare("INSERT INTO digital_assets VALUES(?,?,?,'png','image/png','complete',?,?,?,0)").run(id,seller,kind,bytes,bytes,'ab'.repeat(32));
@@ -11,6 +11,9 @@ function setup(){const db=new DatabaseSync(':memory:');db.exec('PRAGMA foreign_k
 test('selected gallery is ten ordered individual works with actual dimensions and no protected paths/hashes',()=>{
  assert.equal(COLLECTION.length,10);assert.deepEqual(COLLECTION.map(f=>f.order),[1,2,3,4,5,6,7,8,9,10]);assert.equal(COLLECTION[0].width,640);assert.equal(COLLECTION[0].height,645);for(const f of COLLECTION){assert.ok(f.width>0&&f.height>0);assert.equal(f.category,'Digital Art');assert.ok(f.previewUrl.endsWith('.webp'));assert.ok(!('sha256'in f));}
 });
+test('artwork auction default is exactly 35 days and the configured maximum is bounded',()=>{
+ assert.equal(windowSeconds(),35*24*60*60);assert.equal(windowSeconds(String(35*24*60*60)),35*24*60*60);assert.throws(()=>windowSeconds(String(35*24*60*60+1)),/35 days/);assert.throws(()=>windowSeconds('59'),/35 days/);
+});
 test('family registration binds exact private original, normal file ownership and immutable IDs',()=>{const{db,meta,p,f,seller}=setup();try{assert.throws(()=>registerFamily(db,{slug:meta.slug,previewId:p,fileId:f},'outsider',{objects:[{slug:meta.slug,sha256:'ab'.repeat(32)}]}));assert.throws(()=>registerFamily(db,{slug:meta.slug,previewId:p,fileId:f},seller,{objects:[{slug:meta.slug,sha256:'bb'.repeat(32)}]}));assert.throws(()=>db.prepare('UPDATE judging_families SET file_id=?').run(p));}finally{db.close();}});
 test('one fixed deadline/current edition, restart reconciliation, verifier-required completion and numbered recurrence',()=>{const{db,meta,auction}=setup();try{
  for(let n=1;n<=5;n++){const e=reserveEdition(db,meta.slug,{now:n*100000,seconds:60});assert.equal(e.edition,n);assert.equal(reserveEdition(db,meta.slug,{now:n*100000+1000,seconds:300}).closes_at,e.closes_at);auction(e);assert.equal(claimProof(db,{now:e.closes_at-1}),null);
@@ -18,6 +21,7 @@ test('one fixed deadline/current edition, restart reconciliation, verifier-requi
   const recovered=claimProof(db,{now:e.closes_at+1800001});assert.equal(recovered.auctionId,e.auction_id);assert.notEqual(recovered.token,job.token);assert.throws(()=>finishProof(db,e.id,job.token,'publishing',e.closes_at+1800001));
   // Synthetic already-verifier-accepted DB observation, for store transition testing ONLY.
   db.prepare('UPDATE auctions SET result=? WHERE id=?').run(JSON.stringify({status:'zk-verified',amount:'20000',winnerId:randomUUID()}),e.auction_id);finishProof(db,e.id,recovered.token,'verified',e.closes_at+1800001);
+  const ended=catalogue(db,e.closes_at+1800002).find(f=>f.slug===meta.slug).current;assert.equal(ended.state,'verified');assert.equal(ended.winningAmount,'20000');assert.equal(ended.closesAt,e.closes_at);
  }
  assert.equal(db.prepare('SELECT COUNT(*) n FROM auctions').get().n,5);assert.throws(()=>reserveEdition(db,meta.slug),/exhausted/);
  const publicData=JSON.stringify(catalogue(db));for(const privateValue of ['private-demo-account',receiver,'ab'.repeat(32),'preview_id','file_id','winnerId','bidder_id'])assert.equal(publicData.includes(privateValue),false);
