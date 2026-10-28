@@ -1,5 +1,5 @@
 // Private loopback service; expose only through the authenticated SSH tunnel.
-import {createServer} from 'node:http';
+import {createServer,request} from 'node:http';
 import {timingSafeEqual,randomInt,randomUUID} from 'node:crypto';
 import {DatabaseSync} from 'node:sqlite';
 import {existsSync} from 'node:fs';
@@ -10,10 +10,17 @@ import {validateInvoice} from '../scanner/invoice.mjs';
 const hex=/^[a-f0-9]{64}$/;
 // 19070 is this wallet API; 19071 is the separate reverse tunnel to the website.
 const PRIVATE_SELECTOR_URL='http://127.0.0.1:19071/api/judging/managed/selector';
-export function createManagedSelectorDelivery({websiteOrigin,selectorUrl=PRIVATE_SELECTOR_URL,token,fetchImpl=fetch}){
+function selectorRequest(url,options,requestImpl){return new Promise((resolve,reject)=>{
+ const req=requestImpl(url,{method:options.method,headers:options.headers,signal:options.signal},res=>{
+  let size=0;const parts=[];
+  res.on('data',chunk=>{size+=chunk.length;if(size>16384){res.destroy(Error('Selector response exceeded limit.'));return;}parts.push(chunk);});
+  res.on('error',reject);res.on('end',()=>resolve({ok:res.statusCode>=200&&res.statusCode<300,json:async()=>JSON.parse(Buffer.concat(parts).toString('utf8'))}));
+ });req.on('error',reject);req.end(options.body);
+});}
+export function createManagedSelectorDelivery({websiteOrigin,selectorUrl=PRIVATE_SELECTOR_URL,token,requestImpl=request,fetchImpl=(url,options)=>selectorRequest(url,options,requestImpl)}){
  return async payload=>{
   if(websiteOrigin!=='https://ve-il.duckdns.org'||selectorUrl!==PRIVATE_SELECTOR_URL)throw Error('Private selector tunnel required.');
-  const r=await fetchImpl(selectorUrl,{method:'POST',redirect:'error',headers:{Authorization:'Bearer '+token,'Content-Type':'application/json'},body:JSON.stringify(payload),signal:AbortSignal.timeout(15000)});
+  const r=await fetchImpl(selectorUrl,{method:'POST',redirect:'error',headers:{Host:new URL(websiteOrigin).host,Authorization:'Bearer '+token,'Content-Type':'application/json'},body:JSON.stringify(payload),signal:AbortSignal.timeout(15000)});
   if(!r.ok||(await r.json()).accepted!==true)throw Error('Selector acknowledgement unavailable.');
  };
 }
