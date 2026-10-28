@@ -24,8 +24,10 @@ cookie-file paths. No credentials belong in argv, source, public assets or logs.
 Run `node judging/owner-enrollment.mjs PRIVATE_CONFIG`. This derives the receiver
 from the private managed-wallet journal, checks the backup checkpoint, imports only
 the viewing key with its actual birthday, then requires two consecutive strict
-readiness observations. Existing node/wallet configuration is not reset or
-restarted. A diversified receiver can differ from the import RPC's default
+readiness observations and exact active-chain incoming-output verification against
+the owner’s retained confirmed starter-grant journal. Global readiness alone does
+not establish coverage for a newly imported account. If that historical receipt
+is unavailable, leave publishing closed; do not send a test payment automatically. A diversified receiver can differ from the import RPC's default
 address: both are checked against the same exported key. An uncertain import is
 resumed with that same key; it never creates another wallet. The private
 `owner-receiver.json` receipt contains no viewing/spending key or recovery phrase.
@@ -36,6 +38,17 @@ outstanding invoice coverage. Reconcile the owner's pending manual setup request
 to this same managed address; never change any published invoice destination.
 Confirm strict readiness and the running scanner's effective receiver list before
 allowing publication. Do not mark coverage ready merely because a process runs.
+
+The pinned import RPC does not force a rescan for an existing viewing key, even
+with `rescan: "yes"`. If the confirmed receipt is absent, first close this seller’s
+publishing map entry. Preserve other sellers and outstanding invoices. A controlled
+recovery may pause the scanner, cleanly stop the receiving wallet, take and verify
+a fresh consistent backup, then use the wallet’s supported `repair truncate-wallet`
+command at or before the original birthday. Let the unchanged wallet rescan the
+active chain; do not edit scan queues, advance birthdays, restore an older website
+database or change signing binaries. Reopen this seller only after exact historical
+output checks and strict readiness pass again. Restore temporary resource limits
+and resume the scanner. Record the actual selected checkpoint and service recovery.
 
 ## Publish and supervise
 
@@ -49,7 +62,11 @@ allowing publication. Do not mark coverage ready merely because a process runs.
    originals and durable journal directories. It needs auction keys and its own
    native login only, never wallet/signing/scanner credentials. Use the existing
    memory admission, kernel flock and systemd resource caps; run no prover on the
-   small website host. Trial the worker on isolated test data first.
+   small website host. Trial the worker on isolated test data first. The default
+   admission is 3072 MiB; an assessed `proofAdmissionMiB: 2816` is allowed only
+   with the unchanged 1536 MiB worker cap and 1 GiB emergency browser guard.
+   This leaves at least 1280 MiB outside the worker cap and does not loosen
+   node/wallet limits.
 4. Run `node judging/run.mjs seed-all PRIVATE_WORKER_CONFIG` under the worker's
    identity. It preflights all ten original hashes before uploads, verifies the
    authenticated owner and exact managed receiver, and fixes each reservation to
@@ -57,7 +74,10 @@ allowing publication. Do not mark coverage ready merely because a process runs.
    publication. Resume retained journals after uncertainty; never replace keys,
    recreate an existing auction or extend its reserved closing time.
 5. Verify exactly ten distinct published IDs with `owner` as their actual account
-   owner, matching frozen originals, correct starting amounts and 35-day windows.
+   owner, matching frozen originals, correct starting amounts and the original 35-day reserved deadlines.
+   The public opening timestamp is the persisted auction creation time; the
+   pre-create reservation and durable RSA key write precede it by a bounded
+   interval (at most 30 seconds), without extending the reserved deadline.
    Back up the resulting private recovery journals before enabling the worker.
 6. Start the separately admitted proof worker with `recurring: false`. It reveals
    closed auctions and publishes only verifier-accepted results. Its native login

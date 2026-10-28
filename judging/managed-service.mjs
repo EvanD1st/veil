@@ -8,7 +8,8 @@ import {Treasury} from './treasury.mjs';
 import {ZingolibAdapter,privateJson} from './zingolib-adapter.mjs';
 import {validateInvoice} from '../scanner/invoice.mjs';
 const hex=/^[a-f0-9]{64}$/;
-const PRIVATE_SELECTOR_URL='http://127.0.0.1:19070/api/judging/managed/selector';
+// 19070 is this wallet API; 19071 is the separate reverse tunnel to the website.
+const PRIVATE_SELECTOR_URL='http://127.0.0.1:19071/api/judging/managed/selector';
 export function createManagedSelectorDelivery({websiteOrigin,selectorUrl=PRIVATE_SELECTOR_URL,token,fetchImpl=fetch}){
  return async payload=>{
   if(websiteOrigin!=='https://ve-il.duckdns.org'||selectorUrl!==PRIVATE_SELECTOR_URL)throw Error('Private selector tunnel required.');
@@ -31,7 +32,8 @@ export function createManagedService({db,adapter,policy,token,kill,now=Date.now,
  async function state(user){
   const w=wallet(user),balance=w?.wallet_account?adapter.cache?.get(w.wallet_account):null;
   const fresh=balance&&now()-balance.observedAt<120000;
-  return {state:w?.state??'not-activated',network:'testnet',custody:'managed',address:w?.address??null,balanceZatoshis:fresh&&balance.synchronized?balance.confirmed:null,starterFunds:db.prepare("SELECT state FROM judge_transfers WHERE user=? AND kind='grant'").get(user)?.state??'not-requested',starterPolicy:{grantZatoshis:policy.grant,maxFeeZatoshis:policy.maxFee,dailyCapZatoshis:policy.daily,totalCapZatoshis:policy.total,maxAccounts:policy.maxUsers},backupAvailable:!!w?.wallet_account,canPay:!!(w?.backup_confirmed&&fresh&&(adapter.validated||adapter.trialApproved)&&!kill()),reason:kill()?'Wallet operations are paused.':adapter.validated?'VEIL holds spending authority. Confirmed funds come from the synchronized testnet wallet.':adapter.trialApproved?'Isolated approved test transfers only; public funding is not active.':'Wallet recovery is available; funded signing and checkout validation is pending.'};
+  const grant=treasury.grantStatus(user);
+  return {state:w?.state??'not-activated',network:'testnet',custody:'managed',address:w?.address??null,balanceZatoshis:fresh&&balance.synchronized?balance.confirmed:null,starterFunds:grant.last?.state??'not-requested',starterNextEligibleAt:grant.nextEligibleAt,canRequestStarter:!!(grant.eligible&&w?.backup_confirmed&&w?.state==='ready'&&(adapter.validated||adapter.trialApproved)&&!kill()),starterPolicy:{grantZatoshis:policy.grant,maxFeeZatoshis:policy.maxFee,dailyCapZatoshis:policy.daily,totalCapZatoshis:policy.total,maxAccounts:policy.maxUsers,...(policy.grantIntervalMs?{intervalMs:policy.grantIntervalMs}:{})},backupAvailable:!!w?.wallet_account,canPay:!!(w?.backup_confirmed&&fresh&&(adapter.validated||adapter.trialApproved)&&!kill()),reason:kill()?'Wallet operations are paused.':adapter.validated?'VEIL holds spending authority. Confirmed funds come from the synchronized testnet wallet.':adapter.trialApproved?'Isolated approved test transfers only; public funding is not active.':'Wallet recovery is available; funded signing and checkout validation is pending.'};
  }
  async function dispatch(action,user,input){
   if(typeof user!=='string'||user.length<1||user.length>200||!input||Array.isArray(input)||typeof input!=='object')throw Error('Invalid request.');

@@ -44,3 +44,12 @@ test('single-auction collection retains its completed edition and rejects a repl
   assert.equal(db.prepare('SELECT COUNT(*) n FROM judging_editions').get().n,1);
  }finally{db.close();}
 });
+
+test('catalogue opening time comes from the persisted auction, not a nonexistent edition column',()=>{
+ const {db,meta,auction}=setup();try{
+ const e=reserveEdition(db,meta.slug,{now:1234,seconds:3024000});auction(e);
+ db.prepare('UPDATE auctions SET created_at=? WHERE id=?').run(1400,e.auction_id);
+ const current=catalogue(db,1500).find(f=>f.slug===meta.slug).current;
+ assert.equal(current.opensAt,1400);assert.equal(current.closesAt,e.closes_at);
+ }finally{db.close();}
+});
