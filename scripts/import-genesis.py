@@ -68,7 +68,7 @@ def main():
             items.append(dict(slug=slug, title=title, order=i, width=width, height=height,
                               format='png', bytes=len(data), category='Digital Art',
                               previewUrl='/images/genesis/' + slug + '.webp', license=LICENSE,
-                              provenance='AI-generated artwork supplied by the VEIL operator; no official Zcash endorsement.'))
+                              provenance='Artwork supplied by the VEIL operator; no official Zcash endorsement.'))
             objects.append(dict(slug=slug, file=slug + '.png', sha256=hashlib.sha256(data).hexdigest()))
         (repo / 'judging').mkdir(exist_ok=True)
         (repo / 'judging' / 'collection.json').write_text(json.dumps(items, indent=2) + '\n', encoding='utf-8')

@@ -13,7 +13,7 @@ test('private HTTP requires separate bearer auth, account backup challenge survi
  const request=(action,user,input={},auth=true)=>fetch(url,{method:'POST',headers:{'Content-Type':'application/json',...(auth?{Authorization:'Bearer '+'a'.repeat(64)}:{})},body:JSON.stringify({action,user,input})});
  try{
   assert.equal((await request('state','a',{},false)).status,401);
-  await request('activate','a');await f.app.idle();assert.equal((await f.app.state('a')).state,'backup-required');
+  await request('activate','a');await f.app.idle();assert.equal((await f.app.state('a')).state,'backup-required');assert.deepEqual((await f.app.state('a')).starterPolicy,{grantZatoshis:'200000',maxFeeZatoshis:'20000',dailyCapZatoshis:'220000',totalCapZatoshis:'220000',maxAccounts:2});
   assert.equal((await f.app.state('b')).address,null);await assert.rejects(f.app.dispatch('fund','b',{}));
   const backup=await f.app.dispatch('backup','a',{});assert.equal(new Set(backup.positions).size,3);
   const wrong=backup.positions.map(index=>({index,word:'wrong'}));await assert.rejects(f.app.dispatch('confirm-backup','a',{answers:wrong}));

@@ -3,3 +3,39 @@
 @media(max-width:600px){.genesis-grid{grid-template-columns:minmax(0,1fr);gap:18px}.genesis-collection{padding:25px 0}.genesis-card h3{font-size:27px}.genesis-heading{font-size:25px}.genesis-detail-frame{height:min(44vh,360px)}}
 .card-image img[src^="/api/digital/preview/"],.auction-detail-head>img[src^="/api/digital/preview/"]{object-fit:contain;background:#eee7d9;padding:8px}
 .genesis-frame{position:relative}.genesis-frame img{position:absolute;inset:12px;width:calc(100% - 24px);height:calc(100% - 24px);object-fit:contain}
+
+/* Backup confirmation stays readable at desktop and phone widths. */
+.backup-confirmation{display:grid;gap:14px;min-width:0}
+.backup-confirmation>p{max-width:72ch;color:#6f6758;font-size:13px;line-height:1.7}
+.wallet-recovery{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px 16px;list-style:none;margin:0;padding:16px;background:#f4f0e7;border:1px solid var(--line);border-radius:10px}
+.wallet-recovery li{display:flex;gap:6px;min-width:0;overflow-wrap:anywhere;font-variant-numeric:tabular-nums}
+.wallet-recovery li span{color:#8b806e;flex:none}
+.backup-answers{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;min-width:0}
+.backup-answers label{display:grid;align-content:start;gap:6px;min-width:0;font-size:12px;color:#5f675b}
+.backup-answers input{width:100%;min-width:0;border:1px solid #cfd4c8;border-radius:8px;background:#fffdf8;padding:10px 12px;min-height:44px}
+.backup-actions{display:flex;align-items:center;gap:18px;flex-wrap:wrap}
+.button-activated{background:#e6eddf;color:#43573a;border:1px solid #b9c8ac}
+.auction-winning-amount{font-weight:600;color:#68521d!important}
+.account-menu{position:relative;flex:none;z-index:25}
+.account-menu summary{display:flex;align-items:center;gap:8px;min-height:40px;padding:8px 12px;border:1px solid #ded8ca;border-radius:8px;background:#faf7f0;color:#344332;font-size:12px;cursor:pointer;list-style:none;white-space:nowrap}
+.account-menu summary::-webkit-details-marker{display:none}
+.account-menu summary:focus-visible{outline:2px solid #798f50;outline-offset:3px}
+.account-menu[open] summary{background:#f0ecdf}
+.account-menu-chevron{font-size:16px;line-height:1;transition:transform .15s}
+.account-menu[open] .account-menu-chevron{transform:rotate(180deg)}
+.account-popover{position:absolute;top:calc(100% + 8px);right:0;width:min(280px,calc(100vw - 32px));padding:16px;display:grid;gap:7px;background:#fffdf8;border:1px solid #e4ddcf;border-radius:10px;box-shadow:0 14px 36px #3026151f}
+.account-menu-label{font-size:10px;color:#777263}
+.account-menu-username{max-width:100%;overflow-wrap:anywhere;color:#243a2d}
+.account-menu .account-logout{margin-top:6px;padding-top:10px;border-top:1px solid #eee7d9;color:#324734;text-decoration:underline;text-underline-offset:3px;font-size:12px}
+.section-menu{display:none;position:relative;z-index:24;flex:none}
+.section-menu summary{display:flex;align-items:center;justify-content:space-between;gap:12px;min-height:42px;min-width:150px;padding:9px 12px;border:1px solid #ded8ca;border-radius:8px;background:#faf7f0;color:#344332;font-size:12px;cursor:pointer;list-style:none}
+.section-menu summary::-webkit-details-marker{display:none}
+.section-menu summary:focus-visible{outline:2px solid #798f50;outline-offset:3px}
+.section-menu-options{position:absolute;top:calc(100% + 8px);left:0;width:min(240px,calc(100vw - 40px));padding:7px;display:grid;gap:3px;background:#fffdf8;border:1px solid #e4ddcf;border-radius:10px;box-shadow:0 14px 36px #3026151f}
+.section-menu-options button{min-height:42px;padding:9px 11px;border-radius:6px;text-align:left;color:#525d4d;font-size:12px}
+.section-menu-options button:hover,.section-menu-options button.nav-active{background:#f0ecdf;color:#243a2d}
+.section-menu-options button:focus-visible{outline:2px solid #798f50;outline-offset:1px}
+.button-activated{opacity:1!important}
+@media(max-width:1100px){.site-header nav{display:none}.section-menu{display:block;order:3;width:100%}.section-menu summary{width:100%}.section-menu-options{width:min(320px,calc(100vw - 40px))}.site-header .how-link{display:none}}
+@media(max-width:640px){.wallet-recovery{grid-template-columns:repeat(2,minmax(0,1fr));gap:8px 12px;padding:12px}.backup-answers{grid-template-columns:1fr;gap:10px}.backup-actions{align-items:stretch;flex-direction:column}.account-popover{right:0}}
+.funding-policy{margin:10px 0 18px;padding:12px 14px;border-left:3px solid #9a7b35;background:#f4f0e7;color:#625944}
