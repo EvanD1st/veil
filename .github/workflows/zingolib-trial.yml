@@ -1,7 +1,7 @@
 name: Isolated Zingolib trial artifacts
 on:
   push:
-    branches: [zingolib-testnet-trial, managed-zingolib-checkout]
+    branches: [zingolib-testnet-trial, managed-zingolib-checkout, feat/live-owner-artwork-auctions]
     paths: ['scanner/zingolib/**', '.github/workflows/zingolib-trial.yml']
   workflow_dispatch:
 permissions:
@@ -66,6 +66,7 @@ jobs:
           mkdir -p zingolib/src/bin
           cp "$GITHUB_WORKSPACE/scanner/zingolib/veil_trial.rs" zingolib/src/bin/veil-trial.rs
           cp "$GITHUB_WORKSPACE/scanner/zingolib/veil_managed.rs" zingolib/src/bin/veil-managed.rs
+          cp "$GITHUB_WORKSPACE/scanner/zingolib/veil_seller_view.rs" zingolib/src/bin/veil-seller-view.rs
       - name: Locked SDK build and independent encrypted offline recovery
         shell: bash
         run: |
@@ -73,6 +74,7 @@ jobs:
           cd /tmp/veil-zingolib
           cargo +1.99.0 build --locked --release -p zingolib --bin veil-trial
           cargo +1.99.0 build --locked --release -p zingolib --bin veil-managed
+          cargo +1.99.0 build --locked --release -p zingolib --bin veil-seller-view
           git diff --exit-code -- Cargo.lock
           mkdir -p "$GITHUB_WORKSPACE/trial-artifact"
           umask 077
@@ -81,6 +83,8 @@ jobs:
           if target/release/veil-trial send /tmp/veil-offline-wallet-test 4546000; then exit 1; fi
           printf '{}' | target/release/veil-managed offline /tmp/veil-managed-offline-test 4546000 > "$GITHUB_WORKSPACE/trial-artifact/managed-offline-evidence.json"
           if printf '{}' | target/release/veil-managed offline /tmp/veil-managed-offline-test 4546000; then exit 1; fi
+          target/release/veil-seller-view /tmp/veil-managed-offline-test address | target/release/veil-seller-view /tmp/veil-managed-offline-test | python3 -c 'import sys,json; d=json.load(sys.stdin); assert d["network"]=="testnet" and d["viewingKey"].startswith("zxviewtestsapling1") and d["address"].startswith("ztestsapling1") and set(d)=={"network","address","defaultAddress","birthday","viewingKey"}; print("Private read-only Sapling export passed; no seed exported")'
+          cp target/release/veil-seller-view "$GITHUB_WORKSPACE/trial-artifact/"
           cp target/release/veil-trial "$GITHUB_WORKSPACE/trial-artifact/"
           cp target/release/veil-managed "$GITHUB_WORKSPACE/trial-artifact/"
           rustc +1.99.0 --version > "$GITHUB_WORKSPACE/trial-artifact/zingolib-toolchain.txt"
@@ -89,6 +93,7 @@ jobs:
           cd "$GITHUB_WORKSPACE/trial-artifact"
           sha256sum veil-trial > veil-trial.sha256
           sha256sum veil-managed > veil-managed.sha256
+          sha256sum veil-seller-view > veil-seller-view.sha256
       - uses: actions/upload-artifact@v7
         with:
           name: veil-zingolib-trial-${{ github.sha }}
