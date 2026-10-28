@@ -75,7 +75,7 @@ export async function verifyExistingOwnerAuctions(client,families,ownerUsername)
  for(const family of families??[]){
   const id=family.current?.auctionId;if(!id)continue;
   const {auction}=await client.request('/api/auctions/'+id);
-  if(!auction?.isOwner||auction.sellerName!==ownerUsername||auction.auctionKind!=='digital-download'||auction.reserve!==DEFAULT_GENESIS_STARTING_BID_ZATOSHIS||auction.closesAt!==family.current.closesAt||!Number.isSafeInteger(family.current.opensAt)||family.current.opensAt<0||family.current.closesAt-family.current.opensAt!==3024000000)
+  if(!auction?.isOwner||auction.sellerName!==ownerUsername||auction.auctionKind!=='digital-download'||auction.reserve!==DEFAULT_GENESIS_STARTING_BID_ZATOSHIS||auction.closesAt!==family.current.closesAt||!Number.isSafeInteger(family.current.opensAt)||family.current.opensAt<0||family.current.closesAt-family.current.opensAt>3024000000||family.current.closesAt-family.current.opensAt<3023970000)
    throw Error('An existing Genesis auction does not match the configured owner and 0.01 ZEC digital listing. Stop and review it before seeding.');
  }
 }
