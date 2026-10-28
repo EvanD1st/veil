@@ -4,3 +4,7 @@
 
 /backend/scanner/testnet/*.sh text eol=lf
 /backend/scanner/testnet/patches/*.patch text eol=lf
+
+# Relocated public files and migration bytes retain their original hashes.
+/frontend/public/** -text
+/backend/drizzle/*.sql -text
