@@ -7,6 +7,7 @@ async function walk(dir){for(const e of await readdir(dir,{withFileTypes:true}))
 await walk(root);const release=JSON.parse(await readFile(root+'/release.json','utf8'));assert.equal(release.digitalMigrationSha256,createHash('sha256').update(await readFile(root+'/drizzle/0006_digital_delivery.sql')).digest('hex'));assert.equal(release.sharp,'0.35.4');assert.equal(release.assetsSha256,createHash('sha256').update(await readFile(root+'/proof-assets.json')).digest('hex'));
 console.log('Public artifact excludes private databases, originals, wallet/key files and external links; migration provenance matches.');
 assert.equal(release.judgingMigrationSha256,createHash('sha256').update(await readFile(root+'/drizzle/0007_judging.sql')).digest('hex'));
+assert.equal(release.sellerSetupMigrationSha256,createHash('sha256').update(await readFile(root+'/drizzle/0009_digital_seller_setup.sql')).digest('hex'));
 const collection=JSON.parse(await readFile(root+'/judging/collection.json','utf8'));assert.equal(collection.length,10);
 const previews=await readdir(root+'/dist/client/images/genesis');assert.deepEqual(previews.sort(),collection.map(f=>f.slug+'.webp').sort());
 assert.ok(collection.every(f=>!('sha256'in f)&&!('file'in f)),'Collection catalogue must not publish private original hashes/paths.');

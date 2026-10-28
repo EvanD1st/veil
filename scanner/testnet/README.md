@@ -51,7 +51,7 @@ zallet-zebra --version
 
 Builds do not start services, initialize a wallet, deploy VEIL or send funds. `build-manifest.json` records source pins and actual binary SHA-256 hashes. Keep it with the private evidence. Keep launcher and backend from the same build. A failed build leaves its lab directory intact for inspection; choose a new directory for a clean attempt instead of overwriting it.
 
-The generator writes `zebrad.toml`, separate `receiver/zallet.toml` and `sender/zallet.toml`, and `scanner.env`. It refuses existing configs or nonempty wallet/state directories. Review the generated files before startup:
+The generator writes `zebrad.toml`, separate `receiver/zallet.toml` and `sender/zallet.toml`, and scanner configs. It refuses existing configs or nonempty wallet/state directories. `service.env` points to an owner-only `private/scanner-receivers.json` file. That file must contain a JSON array of the exact seller Sapling receivers the receiver wallet has imported; keep it in sync with the website's `VEIL_DIGITAL_SELLERS_FILE`. The scanner accepts at most 100 distinct checksum-valid testnet receivers and fails closed on malformed config. Add a receiver only after importing its dedicated viewing account and waiting for the wallet rescan to finish. Review the generated files before startup:
 
 | Service | Binding/config |
 | --- | --- |
