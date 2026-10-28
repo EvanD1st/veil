@@ -74,7 +74,7 @@ test('practice auction creation is open to authenticated accounts but never acce
  try{
   const id=crypto.randomUUID(),input={auctionKind:'practice',id,title:'Judge practice lot',description:'A no-checkout test auction for judges to exercise sealed bidding.',sellerName:'Judge seller',category:'Digital Art',artwork:'orbit',reserve:'1000000',closesAt:Date.now()+3600000,publicKey:keys.publicKey,paymentAddress:null};
   const auction=await server.createAuction(input,'newly-registered-judge');assert.equal(auction.auctionKind,'practice');assert.equal(auction.isOwner,true);assert.equal(auction.paymentAddress,null);assert.equal(auction.digital,null);
-  const row=db.prepare('SELECT auction_kind,digital_draft_id,payment_address FROM auctions WHERE id=?').get(id);assert.deepEqual(row,{auction_kind:'practice',digital_draft_id:null,payment_address:null});
+  const row=db.prepare('SELECT auction_kind,digital_draft_id,payment_address FROM auctions WHERE id=?').get(id);assert.deepEqual({...row},{auction_kind:'practice',digital_draft_id:null,payment_address:null});
   await assert.rejects(server.createAuction({...input,id:crypto.randomUUID(),paymentAddress:bech32Fixture()},'newly-registered-judge'),/cannot attach downloads or payment addresses/);
  }finally{if(previous===undefined)delete env.VEIL_DIGITAL_PUBLISHING_ENABLED;else env.VEIL_DIGITAL_PUBLISHING_ENABLED=previous;}
 });
