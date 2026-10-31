@@ -1,5 +1,5 @@
 // Source-derived SYNTHETIC Zallet PCZT fixtures, not actual wallet transaction evidence.
-import test from 'node:test';import assert from 'node:assert/strict';import{DatabaseSync}from'node:sqlite';import{readFile}from'node:fs/promises';import{PcztAdapter,verifyInspection}from'../escrow/pczt-adapter.mjs';import{executorRpc}from'../escrow/rpc.mjs';
+import test from 'node:test';import assert from 'node:assert/strict';import{DatabaseSync}from'node:sqlite';import{readFile}from'node:fs/promises';import{PcztAdapter,verifyInspection}from'../backend/escrow/pczt-adapter.mjs';import{executorRpc}from'../backend/escrow/rpc.mjs';
 const receiver=JSON.parse(await readFile('tests/fixtures/synthetic-receiver.json','utf8')).address,now=1792742400000,txid='bb'.repeat(32),block='cc'.repeat(32),tip='dd'.repeat(32),payout='ee'.repeat(32),auctionId='11111111-1111-4111-8111-111111111111',bidId='22222222-2222-4222-8222-222222222222';
 function fixture(){
  const invoice={version:1,network:'testnet',invoiceId:'aa'.repeat(32),auctionId,bidId,address:receiver,amount:'120000000',memo:`VEIL:${auctionId}:${bidId}`};

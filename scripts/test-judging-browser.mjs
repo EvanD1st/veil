@@ -3,9 +3,9 @@
 import {chromium,expect} from '@playwright/test';
 import {mkdtemp,mkdir,writeFile,readFile,readdir} from 'node:fs/promises';
 import {tmpdir} from 'node:os';import {join,resolve} from 'node:path';import {createHash,generateKeyPairSync,randomBytes} from 'node:crypto';import {spawn} from 'node:child_process';import {crc32} from 'node:zlib';import sharp from 'sharp';
-import {initializeDatabase,openDatabase} from '../runtime/database.mjs';import {createAccount} from '../runtime/accounts.mjs';
-import {demoClient,seedFamily} from '../judging/demo-client.mjs';import {proveDemoJob} from '../judging/proof-worker.mjs';import {PrivateState} from '../judging/private-state.mjs';
-import collection from '../judging/collection.json' with {type:'json'};import {openOutbox,ScannerWorker,transport} from '../scanner/service.mjs';
+import {initializeDatabase,openDatabase} from '../backend/runtime/database.mjs';import {createAccount} from '../backend/runtime/accounts.mjs';
+import {demoClient,seedFamily} from '../backend/judging/demo-client.mjs';import {proveDemoJob} from '../backend/judging/proof-worker.mjs';import {PrivateState} from '../backend/judging/private-state.mjs';
+import collection from '../shared/judging/collection.json' with {type:'json'};import {openOutbox,ScannerWorker,transport} from '../backend/scanner/service.mjs';
 const root=resolve('dist/standalone'),dir=await mkdtemp(join(tmpdir(),'veil-judge-browser-')),path=join(dir,'db.sqlite'),originals=join(dir,'synthetic-originals'),journal=join(dir,'private-keys'),sellers=join(dir,'sellers.json'),importPath=join(originals,'import.json'),origin='http://127.0.0.1:5189',meta=collection[0];
 await mkdir(originals,{mode:0o700});await mkdir(journal,{mode:0o700});initializeDatabase(path,join(root,'drizzle'));const db=openDatabase(path),seller=await createAccount(db,'platform-demo-ci','ci-only-platform-seller-password');db.close();
 const receiver=JSON.parse(await readFile('tests/fixtures/synthetic-receiver.json','utf8')).address;await writeFile(sellers,JSON.stringify({[seller]:receiver}),{mode:0o600});

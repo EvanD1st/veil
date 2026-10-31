@@ -12,7 +12,7 @@ try{
  assert.equal((await fetch(new URL('/api/auctions',origin),{headers})).status,200);
  assert.equal((await fetch(new URL('/api/auctions',origin),{headers:{'oai-authenticated-user-id':'forged'}})).status,401);
  assert.equal((await fetch(new URL('/api/scanner/jobs',origin),{method:'POST',headers:{'Content-Type':'application/json'},body:'{"action":"claim"}'})).status,401);
- const manifest=JSON.parse(await readFile(new URL('../lib/veil/zk/assets.json',import.meta.url),'utf8'));
+ const manifest=JSON.parse(await readFile(new URL('../shared/veil/zk/assets.json',import.meta.url),'utf8'));
  await checkDeployedAssets(origin.href,manifest,(url,options)=>fetch(url,{...options,headers}),()=>{});
  console.log('PASS authenticated HTTPS proof assets: all six parts; API authentication and scanner rejection.');
 }finally{

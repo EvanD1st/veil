@@ -1,2 +1,3 @@
-import { actor, body, declareResult, handle, json } from '@/lib/veil/server';
-export async function POST(request: Request, context: { params: Promise<{ id: string }> }) { return handle(async () => { const { id } = await context.params; const user = await actor(request, true); return json({ result: await declareResult(id, await body(request), user) }); }); }
+// Framework route entrypoint; implementation is kept in the source tree.
+export {POST} from '@/backend/routes/auctions/[id]/result/route';
+export const dynamic = 'force-dynamic';

@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import collection from '../judging/collection.json' with {type:'json'};
-import {familiesToSeed,ownerSeedConfig,verifyExistingOwnerAuctions,DEFAULT_GENESIS_STARTING_BID_ZATOSHIS,verifyCollectionOriginals,verifyOwnerReceiver,seedCollection,verifyCollectionRecovery} from '../judging/demo-client.mjs';
+import collection from '../shared/judging/collection.json' with {type:'json'};
+import {familiesToSeed,ownerSeedConfig,verifyExistingOwnerAuctions,DEFAULT_GENESIS_STARTING_BID_ZATOSHIS,verifyCollectionOriginals,verifyOwnerReceiver,seedCollection,verifyCollectionRecovery} from '../backend/judging/demo-client.mjs';
 
 test('seed-all selects every missing uploaded artwork and skips any already-created auction',()=>{
  const existing=[{slug:collection[2].slug,current:{auctionId:'existing-auction',state:'open'}}];

@@ -10,7 +10,7 @@ After approval, Check setup status enables uploads and paid publishing. Existing
 
 ## Operator procedure
 
-Run `node runtime/digital-admin.mjs seller-requests` locally using the configured native database/private-file environment. This lists at most 200 private account IDs, usernames, requested addresses and states. Keep its output private. The command does not approve requests, import keys or change services.
+Run `node backend/runtime/digital-admin.mjs seller-requests` locally using the configured native database/private-file environment. This lists at most 200 private account IDs, usernames, requested addresses and states. Keep its output private. The command does not approve requests, import keys or change services.
 
 1. Authenticate the seller and verify control of the dedicated account and consent to view-only scanning. Use an authenticated private handoff to the scanner operator. Never obtain a seed or spending key; do not put viewing keys in website storage, allowlists, logs, issue comments or ordinary chat.
 2. Follow the pinned wallet's supported viewing-key import procedure. Import only the dedicated Sapling extended full viewing key into a view-only account. Use its verified birthday or full account history if unknown; never advance the birthday merely to pass readiness. Confirm the account derives/owns the exact requested receiver and finishes rescanning and strict synchronization.

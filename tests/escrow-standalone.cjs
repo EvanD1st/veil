@@ -1,6 +1,6 @@
 // Explicit synthetic custody fixtures; actual production SQL and report cryptography.
 const {test}=require('node:test'),assert=require('node:assert/strict'),fs=require('node:fs'),{DatabaseSync}=require('node:sqlite'),Module=require('node:module');
-const db=new DatabaseSync(':memory:');db.exec('PRAGMA foreign_keys=ON');for(const f of fs.readdirSync('drizzle').filter(x=>x.endsWith('.sql')).sort())db.exec(fs.readFileSync('drizzle/'+f,'utf8'));
+const db=new DatabaseSync(':memory:');db.exec('PRAGMA foreign_keys=ON');for(const f of fs.readdirSync('backend/drizzle').filter(x=>x.endsWith('.sql')).sort())db.exec(fs.readFileSync('backend/drizzle/'+f,'utf8'));
 const env={DB:{prepare(sql){const st=db.prepare(sql);let args=[];return {bind(...a){args=a;return this;},async first(){return st.get(...args)??null;},async all(){return {results:st.all(...args)};},async run(){return {meta:{changes:Number(st.run(...args).changes)}};}};}}};
 const load=Module._load;Module._load=function(id,...args){if(id==='cloudflare:workers')return {env};if(id==='@/app/chatgpt-auth')return {getChatGPTUser:async()=>null};return load.call(this,id,...args);};
 const server=require('../.sites-runtime/test-build/lib/veil/server.js'),core=require('../.sites-runtime/test-build/lib/veil/core.js');const auctionId=crypto.randomUUID(),receiver=require('./fixtures/synthetic-receiver.json').address;

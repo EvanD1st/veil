@@ -1,7 +1,7 @@
 // Real native authentication and forms, synthetic private wallet transport only.
 import {chromium,expect} from '@playwright/test';
 import {mkdtemp,writeFile,readFile} from 'node:fs/promises';import {tmpdir} from 'node:os';import {join,resolve} from 'node:path';import {spawn} from 'node:child_process';import {randomBytes} from 'node:crypto';import {DatabaseSync} from 'node:sqlite';
-import {initializeDatabase} from '../runtime/database.mjs';import {createManagedService} from '../judging/managed-service.mjs';
+import {initializeDatabase} from '../backend/runtime/database.mjs';import {createManagedService} from '../backend/judging/managed-service.mjs';
 const root=resolve('dist/standalone'),dir=await mkdtemp(join(tmpdir(),'veil-managed-browser-')),dbPath=join(dir,'website.sqlite'),tokenPath=join(dir,'token'),token=randomBytes(32).toString('hex');await writeFile(tokenPath,token,{mode:0o600});initializeDatabase(dbPath,join(root,'drizzle'));
 const receiver=JSON.parse(await readFile('tests/fixtures/synthetic-receiver.json','utf8')).address;
 const privateDb=new DatabaseSync(':memory:'),adapter={evidence:'synthetic-ci-only',validated:true,cache:new Map(),async provision({operation}){this.cache.set(operation,{confirmed:'1000000',observedAt:Date.now(),synchronized:true});return {account:operation,address:receiver,independentAuthority:true};},async backup(){return {seed:Array.from({length:24},(_,n)=>'fixtureword'+n).join(' '),birthday:4546000,address:receiver};},async confirmIndividualBackup(_account,answers){return answers.every(a=>a.word==='fixtureword'+(a.index-1));},async refresh(){}};

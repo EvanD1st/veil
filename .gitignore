@@ -57,3 +57,10 @@ next-env.d.ts
 /outputs/
 /work/
 __pycache__/
+
+# Source-local build tools and generated files.
+/frontend/node_modules/
+/backend/node_modules/
+/frontend/.next/
+/frontend/dist/
+/backend/dist/

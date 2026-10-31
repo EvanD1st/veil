@@ -1,2 +1,2 @@
-import EscrowOrder from '@/app/escrow-order';
-export default async function Page({params}:{params:Promise<{id:string}>}){return <main className="page-content"><EscrowOrder id={(await params).id}/></main>;}
+// Framework route entrypoint; implementation is kept in the source tree.
+export {default} from '@/frontend/app/orders/[id]/page';

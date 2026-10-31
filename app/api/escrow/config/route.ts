@@ -1,3 +1,3 @@
-import {actor,handle,json} from '@/lib/veil/server';
-import {escrowConfiguration} from '@/lib/veil/escrow';
-export async function GET(request:Request){return handle(async()=>{await actor(request);return json(escrowConfiguration());});}
+// Framework route entrypoint; implementation is kept in the source tree.
+export {GET} from '@/backend/routes/escrow/config/route';
+export const dynamic = 'force-dynamic';

@@ -16,7 +16,7 @@ const app = await readFile(`${directory}/${appFile}`, 'utf8');
 assert.ok(app.includes('BEGIN AGE ENCRYPTED FILE'), 'Encryption code must be present in the initial app bundle.');
 // Exercise the same crypto source through Vite's browser bundler. This isolates
 // the WebCrypto branch without starting a browser or replacing its DOM APIs.
-await build({ configFile: false, logLevel: 'error', build: { lib: { entry: 'lib/veil/crypto.ts', formats: ['es'], fileName: () => 'crypto-check.mjs' }, outDir: '.sites-runtime/crypto-browser-build', emptyOutDir: true, minify: true } });
+await build({ configFile: false, logLevel: 'error', build: { lib: { entry: 'frontend/veil/crypto.ts', formats: ['es'], fileName: () => 'crypto-check.mjs' }, outDir: '.sites-runtime/crypto-browser-build', emptyOutDir: true, minify: true } });
 globalThis.window = { crypto: globalThis.crypto };
 globalThis.location = { origin: 'https://veil.test' };
 globalThis.fetch = async url => { assert.equal(String(url), 'https://veil.test/api/drand/public/1000'); return Response.json(fixture); };

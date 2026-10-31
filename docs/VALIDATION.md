@@ -39,15 +39,15 @@ Reviewed main `9853bdc7751ab7a89b2b1c4e55f3c7e71bcab128`: [post-merge run 398842
 | `node scripts/test-bundle.mjs` | Passed real seal/signature/reveal |
 | `node scripts/test-prover-worker.mjs` | Passed real shipped-runtime proof and fixed-key verification |
 | `node scripts/check-production-boundary.mjs` | Passed; expected local-test config rejection |
-| Git Bash `bash -n scanner/testnet/build.sh` and `--help` | Passed syntax/help only; NOT a Linux Rust build |
-| `node scanner/scan.mjs preflight` with current environment | Correctly failed: missing ZALLET_RPC_URL; no key/RPC/payment details printed |
+| Git Bash `bash -n backend/scanner/testnet/build.sh` and `--help` | Passed syntax/help only; NOT a Linux Rust build |
+| `node backend/scanner/scan.mjs preflight` with current environment | Correctly failed: missing ZALLET_RPC_URL; no key/RPC/payment details printed |
 | Read-only deployed-asset check on existing Site | First WASM request returned HTTP **401**; authenticated integrity validation remains pending |
 | Windows external drive | E: FAT32, approximately 3.7 GB free; test temporary files used E:\VEIL-test-artifacts. No live node/wallet stored there |
 | Protocol/UI/authentication preservation | No changes to app UI, circuits, encryption, fixed verifier/key, pinned assets, signatures/report verification, service permissions or schema migrations |
 
 The new tests are **synthetic, source-derived response shapes**, including a local HTTP stub for cookie authentication/rotation and error redaction. They are not sanitized actual wallet/node recordings. All existing report signature, replay/output reuse, key rotation, expiry, permission and reorg regressions still pass. No new dependencies or lockfile changes were needed. Browser behavior is unchanged; the follow-up PR CI runs the full browser suite again.
 
-Pinned source comparison found beta.3/current Zallet main using zebra-state 12.0.1/v28, incompatible with Zebra 7's v29 state. The selected NU7 Zallet commit uses zebra-state 16.0.0 like Zebra 7.0.0, but remains in an unmerged upstream PR with failed required audits at inspection. Source compatibility is not live validation or audit acceptance. See [exact pins/setup](../scanner/testnet/README.md) and [live/release gates](LIVE_TESTNET.md).
+Pinned source comparison found beta.3/current Zallet main using zebra-state 12.0.1/v28, incompatible with Zebra 7's v29 state. The selected NU7 Zallet commit uses zebra-state 16.0.0 like Zebra 7.0.0, but remains in an unmerged upstream PR with failed required audits at inspection. Source compatibility is not live validation or audit acceptance. See [exact pins/setup](../backend/scanner/testnet/README.md) and [live/release gates](LIVE_TESTNET.md).
 
 **Still pending:** Linux candidate build, upstream acceptance decision, actual wallet/node responses/sync, future-round ordinary-flow drand, a separately authorized shielded Testnet transfer, authenticated deployed asset hashes and physical-device tests. No deployment, audience change or funds movement occurred.
 
@@ -103,7 +103,7 @@ These are observations from one constrained workstation, not a hardware-independ
 - [ ] Independent circuit/verifier security audit and any resulting protocol work.
 - [ ] Current event/submission-rule verification and final recorded submission materials.
 
-No deployment, audience change, mainnet/testnet transaction or movement of funds was performed. No live wallet RPC endpoints, scanner signing key file or trusted public key are configured on this workstation; Zallet/Zebra executables were not detected on PATH. Follow `PAYMENTS.md` and `scanner/README.md` for the exact external validation procedure. Do not substitute a synthetic receiver, fixture RPC report, proof success or payment QR for a live transfer.
+No deployment, audience change, mainnet/testnet transaction or movement of funds was performed. No live wallet RPC endpoints, scanner signing key file or trusted public key are configured on this workstation; Zallet/Zebra executables were not detected on PATH. Follow `PAYMENTS.md` and `backend/scanner/README.md` for the exact external validation procedure. Do not substitute a synthetic receiver, fixture RPC report, proof success or payment QR for a live transfer.
 
 
 ## Remaining operator actions for full live validation

@@ -13,11 +13,11 @@ Prepared 23 October 2026 from reviewed `main` **9853bdc7751ab7a89b2b1c4e55f3c7e7
 - [ ] Ordinary separate-account auction with future-round live drand, followed by an actual shielded Testnet payment, report import/expiry/refresh.
 - [ ] Physical-device measurements and accessibility checks.
 
-Do not fill these unchecked boxes from synthetic tests or upstream CI. [The setup guide](../scanner/testnet/README.md) documents the source-compatible experimental pair and why the published Zallet beta.3 artifact cannot be used with Zebra 7's state. This Windows workstation has no configured live RPC endpoints/signing key and no synchronized node. Its external drive has only about 3.7 GB free on FAT32. A sufficiently provisioned Linux lab and the upstream acceptance decision are external blockers.
+Do not fill these unchecked boxes from synthetic tests or upstream CI. [The setup guide](../backend/scanner/testnet/README.md) documents the source-compatible experimental pair and why the published Zallet beta.3 artifact cannot be used with Zebra 7's state. This Windows workstation has no configured live RPC endpoints/signing key and no synchronized node. Its external drive has only about 3.7 GB free on FAT32. A sufficiently provisioned Linux lab and the upstream acceptance decision are external blockers.
 
 ## Release preparation — operator actions, not executed here
 
-1. Select the reviewed PR/merged commit and verify green CI **for that exact SHA**. Record `git rev-parse HEAD`, clean `git status`, Node/pnpm versions and build command in a private release log. Preserve the frozen lockfile. Run `pnpm typecheck`, `pnpm test`, `pnpm build`, the bundle/prover and production-boundary checks; browser CI remains required. Keep an integrity hash of the build artifact, source SHA and `lib/veil/zk/assets.json` together. Do not mix an older artifact with a newer release label.
+1. Select the reviewed PR/merged commit and verify green CI **for that exact SHA**. Record `git rev-parse HEAD`, clean `git status`, Node/pnpm versions and build command in a private release log. Preserve the frozen lockfile. Run `pnpm typecheck`, `pnpm test`, `pnpm build`, the bundle/prover and production-boundary checks; browser CI remains required. Keep an integrity hash of the build artifact, source SHA and `shared/veil/zk/assets.json` together. Do not mix an older artifact with a newer release label.
 2. Preserve `.openai/hosting.json`, Site project `appgprj_6ad60ddb6cc08191adf85da59c23c6aa`, D1 binding `DB`, and its existing migration history. In the authorized Sites workflow, identify the actual bound D1 database, export a backup and verify it is readable before applying schema changes. Inspect unapplied migrations in order, including **0003_payment_followup.sql**: nullable `payment_window_hours` plus private `payment_followups`, with existing auction/bid/result rows retained. Apply each once through that actual database's migration mechanism; record the migration ledger and pre/post row counts. A failed migration stops release. Never target production with the placeholder ID in `wrangler.local.json` or the hardcoded local migration script.
 3. Synchronize/build the selected source through the **existing** Sites project only after separate deployment authorization. GitHub push/CI does not deploy or migrate it. Preserve its audience. A genuine two-account hosted test needs both intended identities to have already-authorized access; owner-only access is a blocker, not permission to change audience. An ordinary loopback dev server may be used for live drand timing, but its single mock user is not multi-user production-auth evidence.
 4. Confirm the trusted gateway authenticates users and strips/overwrites caller-supplied `oai-authenticated-*` headers. Verify unsigned/forged identity requests do not gain seller/winner access. Never expose a standalone raw Worker/preview relying on those headers. Keep `VEIL_LOCAL_TEST` unset; production must reject that flag and exclude test identities, clock, old beacon fixture endpoints and local mock sign-in. No synthetic receiver, fixture invoice/report, auction private key or test database may be seeded into the release.
@@ -43,7 +43,7 @@ Keep a private log with exact source/build/pins, actor roles, UTC observation ti
 
 ## Sending path and ZIP 321
 
-[Current ZIP 321](https://zips.z.cash/zip-0321) uses decimal **ZEC** with at most eight fractional digits, and shielded memo bytes as **unpadded base64url** in the URI (`-` and `_`; no `+`, `/` or `=`). A short memo is zero-filled to 512 bytes in the transaction. The UI already follows that format; no UI or protocol change is needed. `scanner/invoice.mjs` independently verifies the offline path and preserves the existing stricter 1..100,000,000,000,000-zatoshi application bound.
+[Current ZIP 321](https://zips.z.cash/zip-0321) uses decimal **ZEC** with at most eight fractional digits, and shielded memo bytes as **unpadded base64url** in the URI (`-` and `_`; no `+`, `/` or `=`). A short memo is zero-filled to 512 bytes in the transaction. The UI already follows that format; no UI or protocol change is needed. `backend/scanner/invoice.mjs` independently verifies the offline path and preserves the existing stricter 1..100,000,000,000,000-zatoshi application bound.
 
 A source-verified testnet-capable sending path is the **same pinned Zallet build**, separate `sender` datadir and explicit testnet config. It supports `z_sendmany` with a Sapling recipient, decimal-ZEC amount and hexadecimal memo. [Pinned payment parser](https://github.com/zcash/zallet/blob/0d433b322408c30ee48765a98a81af9001108e7d/zallet-core/src/components/json_rpc/payments.rs) and [send implementation](https://github.com/zcash/zallet/blob/0d433b322408c30ee48765a98a81af9001108e7d/zallet-core/src/components/json_rpc/methods/z_send_many.rs). **This sending path has not been executed here.** No mobile-wallet QR compatibility is claimed.
 
@@ -51,7 +51,7 @@ Offline preparation (does not contact a wallet):
 
 ```sh
 umask 077
-node scanner/prepare-send.mjs "$VEIL_LAB_ROOT/private/invoice.json" "$VEIL_LAB_ROOT/private/recipients.json"
+node backend/scanner/prepare-send.mjs "$VEIL_LAB_ROOT/private/invoice.json" "$VEIL_LAB_ROOT/private/recipients.json"
 ```
 
 It creates recipients JSON plus `recipients.json.uri`, both private and exclusive. Decimal literals are built with integer arithmetic; memo hex is made from the same UTF-8 invoice memo. Review all three values against the original invoice. Do not put base64url URI memo text into the RPC's hexadecimal `memo` field, add a trailing newline to memo text, round the amount or subtract the fee from the recipient amount.
@@ -71,8 +71,8 @@ Use a private trusted terminal: arguments contain payment metadata, though no RP
 
 ```sh
 . "$VEIL_LAB_ROOT/scanner.env"
-node scanner/scan.mjs preflight "$VEIL_LAB_ROOT/private/invoice.json" TXID SAPLING_OUTPUT_INDEX
-node scanner/scan.mjs scan "$VEIL_LAB_ROOT/private/invoice.json" TXID SAPLING_OUTPUT_INDEX "$VEIL_LAB_ROOT/private/report-001.json"
+node backend/scanner/scan.mjs preflight "$VEIL_LAB_ROOT/private/invoice.json" TXID SAPLING_OUTPUT_INDEX
+node backend/scanner/scan.mjs scan "$VEIL_LAB_ROOT/private/invoice.json" TXID SAPLING_OUTPUT_INDEX "$VEIL_LAB_ROOT/private/report-001.json"
 ```
 
 VEIL remains **Sapling testnet only**. These instructions add no Unified Address/Orchard destinations, split/overpayment matching, automatic payment, escrow, refunds, delivery enforcement or background monitoring.

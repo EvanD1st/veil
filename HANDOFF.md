@@ -67,7 +67,7 @@ Current baseline: merged PR #2, main `73e1aa4b2c4057481c78b16c16622631268ed4c5`;
 
 ## Previous live testnet preparation follow-up
 
-Reviewed main `9853bdc7751ab7a89b2b1c4e55f3c7e71bcab128`; its post-merge CI passed (run 39884208213). Historical merged work used `live-testnet-setup` (do not continue it) with pinned experimental Linux lab scripts, read-only scanner preflight, Zebra cookie authentication and stricter node/invoice/schema checks. See [LIVE_TESTNET.md](docs/LIVE_TESTNET.md) and [scanner/testnet/README.md](scanner/testnet/README.md) for exact pins and gates. The Zallet NU7 source is an unmerged upstream PR with failed required audit checks at inspection; published beta.3 must not be paired with Zebra 7’s v29 state. No live build/sync/payment or deployment is claimed. Existing UI/crypto/assets/authentication/report trust remain unchanged.
+Reviewed main `9853bdc7751ab7a89b2b1c4e55f3c7e71bcab128`; its post-merge CI passed (run 39884208213). Historical merged work used `live-testnet-setup` (do not continue it) with pinned experimental Linux lab scripts, read-only scanner preflight, Zebra cookie authentication and stricter node/invoice/schema checks. See [LIVE_TESTNET.md](docs/LIVE_TESTNET.md) and [backend/scanner/testnet/README.md](backend/scanner/testnet/README.md) for exact pins and gates. The Zallet NU7 source is an unmerged upstream PR with failed required audit checks at inspection; published beta.3 must not be paired with Zebra 7’s v29 state. No live build/sync/payment or deployment is claimed. Existing UI/crypto/assets/authentication/report trust remain unchanged.
 
 ## Previous implementation scope
 
@@ -127,7 +127,7 @@ Preserve `.openai/hosting.json`, Site identity, D1 `DB` binding, private audienc
 
 1. Validate future-round/live drand availability through the ordinary hosted/local flow. The deterministic suite verifies a real old signature but intentionally controls availability and clock.
 2. Measure actual mobile-device proof time, memory and keyboard/accessibility behavior. Viewport checks alone do not satisfy this.
-3. Complete one actual shielded testnet payment with synchronized Zallet/Zebra, a real receiving address, compatible sending wallet and trusted scanner key. This workstation has no such RPC/key configuration or executables detected on PATH. Follow [the private operator procedure](docs/PAYMENTS.md) and `scanner/README.md`; record actual software versions and do not commit sensitive payment data. No funds are moved by this implementation task.
+3. Complete one actual shielded testnet payment with synchronized Zallet/Zebra, a real receiving address, compatible sending wallet and trusted scanner key. This workstation has no such RPC/key configuration or executables detected on PATH. Follow [the private operator procedure](docs/PAYMENTS.md) and `backend/scanner/README.md`; record actual software versions and do not commit sensitive payment data. No funds are moved by this implementation task.
 4. Independently review/audit the circuit and adapted PLONK verifier before adversarial use. Existing comparison fixtures and passing tests are not an audit.
 5. Confirm the current hackathon's rules/category/submission requirements before submission. Record a demo video and the actual external test evidence. No final submission is made here.
 
@@ -143,7 +143,7 @@ Preserve `.openai/hosting.json`, Site identity, D1 `DB` binding, private audienc
 
 ## Source and license map
 
-UI: `app/veil-app.tsx`, `app/payment-status.tsx`, `app/globals.css`. Service/permissions: `lib/veil/server.ts`, `app/chatgpt-auth.ts`. Recovery: `lib/veil/publication.ts`. Proof: `lib/veil/zk/`, `public/zk/prover-worker.js`, `circuits/auction.circom`. Scanner: `scanner/scan.mjs`. Database: `db/schema.ts`, `drizzle/`. Tests: `tests/`, `scripts/test*.mjs`.
+UI: `frontend/app/veil-app.tsx`, `frontend/app/payment-status.tsx`, `frontend/app/globals.css`. Service/permissions: `backend/veil/server.ts`, `backend/auth/chatgpt-auth.ts`. Recovery: `frontend/veil/publication.ts`. Proof: `shared/veil/zk/`, `frontend/public/zk/prover-worker.js`, `circuits/auction.circom`. Scanner: `backend/scanner/scan.mjs`. Database: `backend/db/schema.ts`, `backend/drizzle/`. Tests: `tests/`, `scripts/test*.mjs`.
 
 Public proving-key chunks, verification key and WASM are deliberately committed public artifacts. Keep their size/hash checks and pinned public ceremony. Do not replace them with a new trusted setup under the old circuit ID.
 

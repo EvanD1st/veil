@@ -4,7 +4,7 @@ import assert from 'node:assert/strict';
 import {DatabaseSync} from 'node:sqlite';
 import {generateKeyPairSync,sign} from 'node:crypto';
 import {readFileSync} from 'node:fs';
-import {validateManagedEvidence} from '../judging/live-evidence.mjs';
+import {validateManagedEvidence} from '../backend/judging/live-evidence.mjs';
 
 const address=JSON.parse(readFileSync('tests/fixtures/synthetic-receiver.json','utf8')).address;
 function fixture(){

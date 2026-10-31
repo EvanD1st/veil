@@ -1,9 +1,23 @@
 // Synthetic transport/key fixtures only. These tests never claim live funds.
 import test from 'node:test';import assert from 'node:assert/strict';
 import {DatabaseSync} from 'node:sqlite';import {readFileSync} from 'node:fs';import {randomUUID} from 'node:crypto';
-import {createManagedService,createManagedSelectorDelivery} from '../judging/managed-service.mjs';
-import {canonicalManagedInvoice,acceptManagedSelector} from '../judging/managed-client.mjs';
+import {createManagedService,createManagedSelectorDelivery} from '../backend/judging/managed-service.mjs';
+import {canonicalManagedInvoice,acceptManagedSelector} from '../backend/judging/managed-client.mjs';
+import {authenticationHandler} from '../backend/runtime/http-auth.mjs';
+import {createServer,request} from 'node:http';
 const address=JSON.parse(readFileSync('tests/fixtures/synthetic-receiver.json')).address;
+test('selector traverses the native website Host boundary over its private tunnel',async()=>{
+ const db=new DatabaseSync(':memory:');
+ db.exec('CREATE TABLE veil_sessions(token_hash TEXT PRIMARY KEY,account_id TEXT,expires_at INTEGER); CREATE TABLE veil_accounts(id TEXT PRIMARY KEY,username TEXT,disabled INTEGER);');
+ const auth=authenticationHandler(db,'https://ve-il.duckdns.org');let accepted=0;
+ const server=createServer((req,res)=>auth(req,res,()=>{assert.equal(req.headers.authorization,'Bearer '+'a'.repeat(64));accepted++;res.writeHead(200,{'Content-Type':'application/json'});res.end(JSON.stringify({accepted:true}));}));
+ await new Promise(r=>server.listen(0,'127.0.0.1',r));const local='http://127.0.0.1:'+server.address().port+'/api/judging/managed/selector';
+ try{
+  assert.equal((await fetch(local,{method:'POST'})).status,400);
+  const deliver=createManagedSelectorDelivery({websiteOrigin:'https://ve-il.duckdns.org',token:'a'.repeat(64),requestImpl:(_url,options,callback)=>request(local,options,callback)});
+  await deliver({txid:'b'.repeat(64)});assert.equal(accepted,1);
+ }finally{await new Promise(r=>server.close(r));db.close();}
+});
 test('selector bearer is restricted to the private reverse-tunnel URL',async()=>{let seen;const deliver=createManagedSelectorDelivery({websiteOrigin:'https://ve-il.duckdns.org',token:'a'.repeat(64),fetchImpl:async(url,options)=>{seen={url,options};return{ok:true,json:async()=>({accepted:true})};}});await deliver({txid:'b'.repeat(64)});assert.equal(seen.url,'http://127.0.0.1:19071/api/judging/managed/selector');assert.equal(seen.options.redirect,'error');assert.equal(seen.options.headers.Authorization,'Bearer '+'a'.repeat(64));await assert.rejects(createManagedSelectorDelivery({websiteOrigin:'https://ve-il.duckdns.org',selectorUrl:'https://ve-il.duckdns.org/api/judging/managed/selector',token:'a'.repeat(64)} )({}),/private selector tunnel/i);});
 function fixture(options={}){const db=new DatabaseSync(':memory:');let stamp=100000,valid=true;
  const adapter={evidence:'synthetic-ci-only',validated:true,cache:new Map(),async provision({operation}){this.cache.set(operation,{observedAt:stamp,confirmed:'1000000',synchronized:true});return {account:operation,address,independentAuthority:true};},async backup(){return {seed:Array.from({length:24},(_,n)=>'fixtureword'+n).join(' '),birthday:4546000,address};},async confirmIndividualBackup(_account,answers){return answers.every(a=>a.word==='fixtureword'+(a.index-1));},async balance(account){return {network:'testnet',account,confirmed:'1000000',synchronized:true};},async readiness(){},async refresh(account){this.cache.set(account,{observedAt:stamp,confirmed:'1000000',synchronized:true});}};
@@ -29,7 +43,7 @@ test('a declared live adapter cannot spend merely because an environment or brow
  const f=fixture();try{f.adapter.evidence='live-zingolib-testnet';f.adapter.validated=false;await f.app.dispatch('activate','a',{});await f.app.idle();const b=await f.app.dispatch('backup','a',{});await f.app.dispatch('confirm-backup','a',{answers:b.positions.map(index=>({index,word:'fixtureword'+(index-1)}))});assert.equal((await f.app.state('a')).canPay,false);await assert.rejects(f.app.dispatch('fund','a',{}),/validation/);}finally{f.app.close();f.db.close();}
 });
 test('canonical checkout and narrow selector callback enforce winner, memo/hash binding and durable idempotence without confirming payment',()=>{
- const db=new DatabaseSync(':memory:'),auctionId=randomUUID(),bidId=randomUUID();db.exec(`CREATE TABLE auctions(id TEXT PRIMARY KEY,owner_id TEXT,payment_address TEXT,payment_mode TEXT,result TEXT);CREATE TABLE bids(id TEXT,auction_id TEXT,bidder_id TEXT);CREATE TABLE payment_reports(auction_id TEXT,signed_report TEXT);`);db.exec(readFileSync('drizzle/0004_payment_scan_queue.sql','utf8'));
+ const db=new DatabaseSync(':memory:'),auctionId=randomUUID(),bidId=randomUUID();db.exec(`CREATE TABLE auctions(id TEXT PRIMARY KEY,owner_id TEXT,payment_address TEXT,payment_mode TEXT,result TEXT);CREATE TABLE bids(id TEXT,auction_id TEXT,bidder_id TEXT);CREATE TABLE payment_reports(auction_id TEXT,signed_report TEXT);`);db.exec(readFileSync('backend/drizzle/0004_payment_scan_queue.sql','utf8'));
  db.prepare('INSERT INTO auctions VALUES(?,?,?,?,?)').run(auctionId,'seller',address,'direct',JSON.stringify({winnerId:bidId,status:'zk-verified',amount:'20000',snapshotHash:'b'.repeat(64),declaredAt:100}));db.prepare('INSERT INTO bids VALUES(?,?,?)').run(bidId,auctionId,'winner');
  try{
   for(const who of ['seller','loser','observer'])assert.throws(()=>canonicalManagedInvoice(db,who,auctionId));

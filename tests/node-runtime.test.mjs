@@ -1,14 +1,14 @@
 import test from 'node:test';import assert from 'node:assert/strict';
 import {mkdtemp,readFile,stat,readdir,copyFile,mkdir} from 'node:fs/promises';import{tmpdir}from'node:os';import{join,resolve}from'node:path';import{createServer}from'node:http';
-import{initializeDatabase,openDatabase,d1Adapter}from'../runtime/database.mjs';
-import{createAccount,authenticate,sessionUser,sessionCookie,revokeSession,COOKIE,safeReturn}from'../runtime/accounts.mjs';
-import{authenticationHandler}from'../runtime/http-auth.mjs';
+import{initializeDatabase,openDatabase,d1Adapter}from'../backend/runtime/database.mjs';
+import{createAccount,authenticate,sessionUser,sessionCookie,revokeSession,COOKIE,safeReturn}from'../backend/runtime/accounts.mjs';
+import{authenticationHandler}from'../backend/runtime/http-auth.mjs';
 import{loopbackFetch as fetch}from'./loopback-http.mjs';
-import{reviewMigrations,migrateOffline}from'../runtime/migrations.mjs';
-async function database(){const dir=await mkdtemp(join(tmpdir(),'veil-native-')),path=join(dir,'veil.sqlite');initializeDatabase(path,resolve('drizzle'));return {db:openDatabase(path),path};}
+import{reviewMigrations,migrateOffline}from'../backend/runtime/migrations.mjs';
+async function database(){const dir=await mkdtemp(join(tmpdir(),'veil-native-')),path=join(dir,'veil.sqlite');initializeDatabase(path,resolve('backend/drizzle'));return {db:openDatabase(path),path};}
 test('standalone migrations preserve D1 integer/atomic/constraint behavior and refuse overwrite',async()=>{
- const migrationCount=(await readdir('drizzle')).filter(f=>/^\d+.*\.sql$/.test(f)).length;
- const {db,path}=await database();try{assert.equal(db.prepare('SELECT COUNT(*) n FROM veil_migrations').get().n,migrationCount);assert.throws(()=>initializeDatabase(path,resolve('drizzle')));const d1=d1Adapter(db);
+ const migrationCount=(await readdir('backend/drizzle')).filter(f=>/^\d+.*\.sql$/.test(f)).length;
+ const {db,path}=await database();try{assert.equal(db.prepare('SELECT COUNT(*) n FROM veil_migrations').get().n,migrationCount);assert.throws(()=>initializeDatabase(path,resolve('backend/drizzle')));const d1=d1Adapter(db);
  await d1.prepare('CREATE TABLE adapter_test(id INTEGER PRIMARY KEY,value TEXT UNIQUE)').run();assert.equal((await d1.prepare('INSERT INTO adapter_test VALUES (?,?)').bind(1,'a').run()).meta.changes,1);assert.equal((await d1.prepare('SELECT * FROM adapter_test WHERE id=?').bind(1).first()).value,'a');assert.equal((await d1.prepare('SELECT * FROM adapter_test').all()).results.length,1);await assert.rejects(d1.prepare('INSERT INTO adapter_test VALUES (?,?)').bind(2,'a').run());
  }finally{db.close();}
 });
@@ -38,16 +38,16 @@ test('HTTP auth rejects forged identity/host/origin, rate limits, and keeps retu
  }finally{await new Promise(r=>server.close(r));db.close();}
 });
 test('explicit migration reviews hashes, preserves existing data and saves a consistent rollback copy',async()=>{
- const files=(await readdir('drizzle')).filter(f=>/^\d+.*\.sql$/.test(f)).sort(),latest=files.at(-1);
- const dir=await mkdtemp(join(tmpdir(),'veil-migration-')),older=join(dir,'older'),path=join(dir,'veil.sqlite');await mkdir(older);for(const file of files)if(file!==latest)await copyFile(join('drizzle',file),join(older,file));initializeDatabase(path,older);const db=openDatabase(path);
+ const files=(await readdir('backend/drizzle')).filter(f=>/^\d+.*\.sql$/.test(f)).sort(),latest=files.at(-1);
+ const dir=await mkdtemp(join(tmpdir(),'veil-migration-')),older=join(dir,'older'),path=join(dir,'veil.sqlite');await mkdir(older);for(const file of files)if(file!==latest)await copyFile(join('backend/drizzle',file),join(older,file));initializeDatabase(path,older);const db=openDatabase(path);
  db.exec("CREATE TABLE migration_sentinel(id INTEGER PRIMARY KEY,value TEXT); INSERT INTO migration_sentinel VALUES(1,'preserved old state');");
- assert.deepEqual(reviewMigrations(db,resolve('drizzle')).map(m=>m.name),[latest]);db.close();
- const backup=path+'.before';assert.deepEqual(await migrateOffline(path,resolve('drizzle'),backup),[latest]);
+ assert.deepEqual(reviewMigrations(db,resolve('backend/drizzle')).map(m=>m.name),[latest]);db.close();
+ const backup=path+'.before';assert.deepEqual(await migrateOffline(path,resolve('backend/drizzle'),backup),[latest]);
  const current=openDatabase(path),old=openDatabase(backup);
  try{
   assert.equal(current.prepare('SELECT value FROM migration_sentinel').get().value,'preserved old state');
   assert.equal(old.prepare('SELECT value FROM migration_sentinel').get().value,'preserved old state');
   assert.equal(old.prepare('SELECT COUNT(*) n FROM veil_migrations').get().n,files.length-1);assert.equal(current.prepare('SELECT COUNT(*) n FROM veil_migrations').get().n,files.length);
-  current.prepare("UPDATE veil_migrations SET sha256='tampered' WHERE name='0004_payment_scan_queue.sql'").run();assert.throws(()=>reviewMigrations(current,resolve('drizzle')),/hash/);
+  current.prepare("UPDATE veil_migrations SET sha256='tampered' WHERE name='0004_payment_scan_queue.sql'").run();assert.throws(()=>reviewMigrations(current,resolve('backend/drizzle')),/hash/);
  }finally{current.close();old.close();}
 });

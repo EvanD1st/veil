@@ -5,9 +5,9 @@ import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 import { spawnSync } from 'node:child_process';
 import { generateKeyPairSync } from 'node:crypto';
-import { scanInvoice, checkReadiness, preflight, reportMessage } from '../scanner/scan.mjs';
-import { rpc, configuredClients, readSigningKey } from '../scanner/rpc.mjs';
-import { validateInvoice, paymentRequest, sendingRecipients, decimalZec } from '../scanner/invoice.mjs';
+import { scanInvoice, checkReadiness, preflight, reportMessage } from '../backend/scanner/scan.mjs';
+import { rpc, configuredClients, readSigningKey } from '../backend/scanner/rpc.mjs';
+import { validateInvoice, paymentRequest, sendingRecipients, decimalZec } from '../backend/scanner/invoice.mjs';
 // Synthetic source-derived response shapes, NOT recordings from a wallet or node.
 const receiver=JSON.parse(await readFile(new URL('./fixtures/synthetic-receiver.json',import.meta.url))).address;
 const now=1792742400000,txid='bb'.repeat(32),block='cc'.repeat(32),tip='dd'.repeat(32);
@@ -93,13 +93,13 @@ test('configuration, signing keys and CLI diagnostics are read-only and do not e
  const env={...process.env,ZALLET_RPC_URL:'http://127.0.0.1:1',ZEBRA_RPC_URL:'http://127.0.0.1:2',ZALLET_COOKIE_FILE:cookie,ZEBRA_COOKIE_FILE:cookie,VEIL_SCANNER_KEY_FILE:keyPath};
  delete env.ZALLET_RPC_AUTH;delete env.ZEBRA_RPC_AUTH;
  await configuredClients(env);
- const result=spawnSync(process.execPath,['scanner/scan.mjs','preflight'],{env,encoding:'utf8'});
+ const result=spawnSync(process.execPath,['backend/scanner/scan.mjs','preflight'],{env,encoding:'utf8'});
  assert.equal(result.status,1);assert.match(result.stderr,/RPC unavailable/);assert.ok(!result.stderr.includes(dir));assert.ok(!result.stderr.includes('first'));
- const before=await readFile(keyPath,'utf8');const collision=spawnSync(process.execPath,['scanner/scan.mjs','keygen',keyPath],{encoding:'utf8'});assert.equal(collision.status,1);assert.equal(await readFile(keyPath,'utf8'),before);
+ const before=await readFile(keyPath,'utf8');const collision=spawnSync(process.execPath,['backend/scanner/scan.mjs','keygen',keyPath],{encoding:'utf8'});assert.equal(collision.status,1);assert.equal(await readFile(keyPath,'utf8'),before);
 });
 
 test('config generator creates explicit testnet loopback configs and refuses existing wallet material',async()=>{
- const {initialize,templates}=await import('../scanner/testnet/configure.mjs');
+ const {initialize,templates}=await import('../backend/scanner/testnet/configure.mjs');
  const dir=await mkdtemp(join(tmpdir(),'veil-lab-'));
  await initialize(dir);
  const nodeConfig=await readFile(join(dir,'zebrad.toml'),'utf8');

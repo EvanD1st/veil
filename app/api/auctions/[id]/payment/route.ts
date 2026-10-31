@@ -1,3 +1,3 @@
-import {actor,body,handle,json,paymentStatus,submitPaymentReport} from '@/lib/veil/server';
-export async function GET(request:Request,{params}:{params:Promise<{id:string}>}){return handle(async()=>json(await paymentStatus((await params).id,await actor(request))));}
-export async function POST(request:Request,{params}:{params:Promise<{id:string}>}){return handle(async()=>json(await submitPaymentReport((await params).id,await body(request,6000),await actor(request,true))));}
+// Framework route entrypoint; implementation is kept in the source tree.
+export {GET, POST} from '@/backend/routes/auctions/[id]/payment/route';
+export const dynamic = 'force-dynamic';

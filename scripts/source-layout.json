@@ -1,0 +1,83 @@
+{
+  "special": {
+    "app/chatgpt-auth.ts": "backend/auth/chatgpt-auth.ts",
+    "judging/collection.json": "shared/judging/collection.json",
+    "lib/utils.ts": "frontend/lib/utils.ts",
+    "lib/veil/core.ts": "shared/veil/core.ts",
+    "lib/veil/crypto.ts": "frontend/veil/crypto.ts",
+    "lib/veil/decorative-art.d.mts": "frontend/veil/decorative-art.d.mts",
+    "lib/veil/decorative-art.mjs": "frontend/veil/decorative-art.mjs",
+    "lib/veil/download.ts": "frontend/veil/download.ts",
+    "lib/veil/escrow.ts": "backend/veil/escrow.ts",
+    "lib/veil/payment-queue.ts": "backend/veil/payment-queue.ts",
+    "lib/veil/payment.ts": "shared/veil/payment.ts",
+    "lib/veil/publication.ts": "frontend/veil/publication.ts",
+    "lib/veil/server.ts": "backend/veil/server.ts",
+    "lib/veil/zk/assets.json": "shared/veil/zk/assets.json",
+    "lib/veil/zk/client.ts": "frontend/veil/zk/client.ts",
+    "lib/veil/zk/deadline.ts": "frontend/veil/zk/deadline.ts",
+    "lib/veil/zk/protocol.ts": "shared/veil/zk/protocol.ts",
+    "lib/veil/zk/vendor/Keccak256Transcript.js": "shared/veil/zk/vendor/Keccak256Transcript.js",
+    "lib/veil/zk/vendor/LICENSE": "shared/veil/zk/vendor/LICENSE",
+    "lib/veil/zk/vendor/README.md": "shared/veil/zk/vendor/README.md",
+    "lib/veil/zk/vendor/curve.js": "shared/veil/zk/vendor/curve.js",
+    "lib/veil/zk/vendor/plonk_verify.js": "shared/veil/zk/vendor/plonk_verify.js",
+    "lib/veil/zk/verification_key.json": "shared/veil/zk/verification_key.json",
+    "lib/veil/zk/verify.ts": "shared/veil/zk/verify.ts",
+    "runtime/auth-pages.mjs": "frontend/auth/auth-pages.mjs",
+    "runtime/auth-styles.mjs": "frontend/auth/auth-styles.mjs",
+    "runtime/auth-scene.mjs": "frontend/auth/auth-scene.mjs",
+    "runtime/auth-backdrop.mjs": "frontend/auth/auth-backdrop.mjs",
+    "runtime/reference-fonts.mjs": "frontend/auth/reference-fonts.mjs"
+  },
+  "prefixes": [
+    [
+      "app/api/",
+      "backend/routes/"
+    ],
+    [
+      "app/",
+      "frontend/app/"
+    ],
+    [
+      "components/",
+      "frontend/components/"
+    ],
+    [
+      "hooks/",
+      "frontend/hooks/"
+    ],
+    [
+      "public/",
+      "frontend/public/"
+    ],
+    [
+      "runtime/",
+      "backend/runtime/"
+    ],
+    [
+      "db/",
+      "backend/db/"
+    ],
+    [
+      "drizzle/",
+      "backend/drizzle/"
+    ],
+    [
+      "scanner/",
+      "backend/scanner/"
+    ],
+    [
+      "escrow/",
+      "backend/escrow/"
+    ],
+    [
+      "judging/",
+      "backend/judging/"
+    ],
+    [
+      "lib/",
+      "backend/connectors/"
+    ]
+  ]
+}

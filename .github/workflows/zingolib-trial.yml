@@ -2,7 +2,7 @@ name: Isolated Zingolib trial artifacts
 on:
   push:
     branches: [zingolib-testnet-trial, managed-zingolib-checkout, feat/live-owner-artwork-auctions]
-    paths: ['scanner/zingolib/**', '.github/workflows/zingolib-trial.yml']
+    paths: ['backend/scanner/zingolib/**', '.github/workflows/zingolib-trial.yml']
   workflow_dispatch:
 permissions:
   contents: read

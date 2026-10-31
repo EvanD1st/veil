@@ -9,22 +9,22 @@ import Module,{createRequire} from 'node:module';
 import {spawnSync} from 'node:child_process';
 import {generateKeyPairSync,sign,createHash} from 'node:crypto';
 import sharp from 'sharp';
-import {initializeDatabase,openDatabase,d1Adapter} from '../runtime/database.mjs';
-import {createAccount,authenticate} from '../runtime/accounts.mjs';
-import {authenticationHandler} from '../runtime/http-auth.mjs';
-import {digitalHandler,verifyDraftFiles,LIMITS} from '../runtime/digital-files.mjs';
-import {reviewableReport} from '../runtime/digital-review.mjs';
-import {reportMessage} from '../scanner/scan.mjs';
+import {initializeDatabase,openDatabase,d1Adapter} from '../backend/runtime/database.mjs';
+import {createAccount,authenticate} from '../backend/runtime/accounts.mjs';
+import {authenticationHandler} from '../backend/runtime/http-auth.mjs';
+import {digitalHandler,verifyDraftFiles,LIMITS} from '../backend/runtime/digital-files.mjs';
+import {reviewableReport} from '../backend/runtime/digital-review.mjs';
+import {reportMessage} from '../backend/scanner/scan.mjs';
 const require=createRequire(import.meta.url),receiver=require('./fixtures/synthetic-receiver.json').address;
 
 test('digital purchase boundary: real local files and HTTP, synthetic signed payment evidence only',async t=>{
  const dir=await fs.mkdtemp(join(tmpdir(),'veil-digital-test-')),path=join(dir,'private.sqlite'),root=join(dir,'private-files'),sellers=join(dir,'seller-coverage.json');
- initializeDatabase(path,resolve('drizzle'));let db=openDatabase(path),server,origin,handler,auth;
+ initializeDatabase(path,resolve('backend/drizzle'));let db=openDatabase(path),server,origin,handler,auth;
  const saved={...process.env},realLoad=Module._load,realNow=Date.now;
  const ids={};for(const name of ['seller','buyer','loser','outsider'])ids[name]=await createAccount(db,name,'synthetic-test-password-'+name);
  const cookies={};for(const name of Object.keys(ids))cookies[name]='__Host-veil_session='+await authenticate(db,name,'synthetic-test-password-'+name);
  // Use the exact native cookie name without reflecting session bytes in test diagnostics.
- const {sessionCookie}=await import('../runtime/accounts.mjs');for(const name of Object.keys(ids))cookies[name]=sessionCookie(cookies[name].split('=')[1]).split(';')[0];
+ const {sessionCookie}=await import('../backend/runtime/accounts.mjs');for(const name of Object.keys(ids))cookies[name]=sessionCookie(cookies[name].split('=')[1]).split(';')[0];
  await fs.writeFile(sellers,JSON.stringify({[ids.seller]:receiver}),{mode:0o600});
  process.env.VEIL_DIGITAL_ROOT=root;process.env.VEIL_DIGITAL_SELLERS_FILE=sellers;process.env.VEIL_DIGITAL_PUBLISHING_ENABLED='1';process.env.VEIL_SQLITE_PATH=path;
  const signer=generateKeyPairSync('ed25519'),key=signer.publicKey.export({format:'der',type:'spki'}).subarray(-32).toString('hex');
@@ -146,7 +146,7 @@ test('digital purchase boundary: real local files and HTTP, synthetic signed pay
    assert.equal((await call('/api/digital/download/'+auction.id,{as:'buyer'})).status,409);assert.equal(db.prepare('SELECT state FROM digital_entitlements').get().state,'suspended');
    const again={...valid,observedAt:observedAt+1,expiresAt:observedAt+300001};await service.submitPaymentReport(auction.id,signed(again),ids.buyer);assert.equal(db.prepare('SELECT state FROM digital_entitlements').get().state,'suspended');
    await stop();db.close();
-   const environment={...process.env,VEIL_SCANNER_PUBLIC_KEY:key},script=resolve('runtime/digital-admin.mjs');
+   const environment={...process.env,VEIL_SCANNER_PUBLIC_KEY:key},script=resolve('backend/runtime/digital-admin.mjs');
    assert.notEqual(spawnSync(process.execPath,[script,'review-resume',auction.id],{env:environment,encoding:'utf8'}).status,0);
    assert.equal(spawnSync(process.execPath,[script,'review-resume',auction.id],{env:{...environment,VEIL_DIGITAL_REVIEW_CONFIRM:'I reviewed current chain evidence and the exact frozen purchase'},encoding:'utf8'}).status,0);
    db=openDatabase(path);env.DB=d1Adapter(db);await start();assert.equal((await call('/api/digital/download/'+auction.id,{as:'buyer'})).status,200);
@@ -158,7 +158,7 @@ test('digital purchase boundary: real local files and HTTP, synthetic signed pay
    await fs.writeFile(file,bytes,{mode:0o600});assert.equal((await call('/api/digital/download/'+auction.id,{as:'buyer'})).status,200);
   });
   await t.test('operator cleanup retains active/paid originals; a matched database-plus-files restore serves exact bytes',async()=>{
-   await stop();db.close();const script=resolve('runtime/digital-admin.mjs');assert.equal(spawnSync(process.execPath,[script,'cleanup'],{env:process.env,encoding:'utf8'}).status,0);
+   await stop();db.close();const script=resolve('backend/runtime/digital-admin.mjs');assert.equal(spawnSync(process.execPath,[script,'cleanup'],{env:process.env,encoding:'utf8'}).status,0);
    const backup=join(dir,'paired-backup');const result=spawnSync(process.execPath,[script,'backup',backup],{env:process.env,encoding:'utf8'});assert.equal(result.status,0,result.stderr);const manifest=JSON.parse(await fs.readFile(join(backup,'complete.json'),'utf8'));assert.ok(manifest.files>=2);assert.equal(createHash('sha256').update(await fs.readFile(join(backup,'veil.sqlite'))).digest('hex'),manifest.databaseSha256);assert.deepEqual(await fs.readFile(join(backup,'objects',fileId)),bytes);
    const restoredRoot=join(dir,'restored-files'),restoredPath=join(dir,'restored.sqlite');await fs.mkdir(restoredRoot);await fs.cp(join(backup,'objects'),join(restoredRoot,'objects'),{recursive:true});await fs.copyFile(join(backup,'veil.sqlite'),restoredPath);
    process.env.VEIL_DIGITAL_ROOT=restoredRoot;process.env.VEIL_SQLITE_PATH=restoredPath;db=openDatabase(restoredPath);env.DB=d1Adapter(db);assert.equal(db.prepare('SELECT COUNT(*) n FROM digital_entitlements').get().n,1);await start();const response=await call('/api/digital/download/'+auction.id,{as:'buyer'});assert.equal(response.status,200);assert.deepEqual(Buffer.from(await response.arrayBuffer()),bytes);

@@ -6,7 +6,7 @@ import {join} from 'node:path';
 import {tmpdir} from 'node:os';
 import {generateKeyPairSync} from 'node:crypto';
 import {readFileSync} from 'node:fs';
-import {openOutbox,ScannerWorker,transport,configuredReceivers} from '../scanner/service.mjs';
+import {openOutbox,ScannerWorker,transport,configuredReceivers} from '../backend/scanner/service.mjs';
 const address=JSON.parse(readFileSync('tests/fixtures/synthetic-receiver.json','utf8')).address;
 const auctionId='11111111-1111-4111-8111-111111111111',bidId='22222222-2222-4222-8222-222222222222';
 const invoice={version:1,network:'testnet',invoiceId:'aa'.repeat(32),auctionId,bidId,address,amount:'1',memo:`VEIL:${auctionId}:${bidId}`};

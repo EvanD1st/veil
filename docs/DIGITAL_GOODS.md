@@ -49,12 +49,12 @@ My purchases contains only that account's grants and frozen public terms, not re
 Run operator commands with the service's private environment loaded outside shell history/logs; never print the environment. Use the packaged Node runtime and private paths. Commands operate only on VEIL.
 
 ```sh
-node runtime/digital-admin.mjs audit
-node runtime/digital-admin.mjs cleanup
-node runtime/digital-admin.mjs backup /absolute/new/private-backup-directory
-node runtime/digital-admin.mjs suspend AUCTION_UUID
+node backend/runtime/digital-admin.mjs audit
+node backend/runtime/digital-admin.mjs cleanup
+node backend/runtime/digital-admin.mjs backup /absolute/new/private-backup-directory
+node backend/runtime/digital-admin.mjs suspend AUCTION_UUID
 # After independent review of the exact chain/invoice and current signed confirmation:
-VEIL_DIGITAL_REVIEW_CONFIRM='I reviewed current chain evidence and the exact frozen purchase' node runtime/digital-admin.mjs review-resume AUCTION_UUID
+VEIL_DIGITAL_REVIEW_CONFIRM='I reviewed current chain evidence and the exact frozen purchase' node backend/runtime/digital-admin.mjs review-resume AUCTION_UUID
 ```
 
 Stop only VEIL before cleanup/review/backup during release operations. Cleanup expires unbound drafts older than 24 hours, then removes only old generated regular orphan files. Frozen listings/paid assets remain retained, even if suspended. Quotas never justify deleting a sold original. Monitor the quota/reserve and pause new publishing before storage exhaustion.

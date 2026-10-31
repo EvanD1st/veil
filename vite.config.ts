@@ -60,6 +60,7 @@ export default defineConfig(async (configEnv) => {
   const { cloudflare } = await import("@cloudflare/vite-plugin");
 
   return {
+    publicDir: 'frontend/public',
     server: {
       host: '127.0.0.1',
       ...(managedLinux

@@ -1,4 +1,3 @@
-import { actor, body, createAuction, handle, json, listAuctions, myAuctionIds } from '@/lib/veil/server';
+// Framework route entrypoint; implementation is kept in the source tree.
+export {GET, POST} from '@/backend/routes/auctions/route';
 export const dynamic = 'force-dynamic';
-export async function GET(request: Request) { return handle(async () => { const user = await actor(request); return json({ auctions: await listAuctions(user), mine: await myAuctionIds(user), serverTime: Date.now() }); }); }
-export async function POST(request: Request) { return handle(async () => { const user = await actor(request, true); return json({ auction: await createAuction(await body(request), user) }, 201); }); }

@@ -1,8 +1,8 @@
 // Store/state fixtures only. Fake result JSON below is NOT cryptographic or live-payment evidence.
 import test from 'node:test';import assert from 'node:assert/strict';import{DatabaseSync}from'node:sqlite';import{readFileSync,readdirSync}from'node:fs';import{randomUUID}from'node:crypto';
-import{COLLECTION,registerFamily,reserveEdition,bindEdition,catalogue,claimProof,finishProof,requestWallet,walletStatus,requestEdition,windowSeconds}from'../runtime/judging-store.mjs';
+import{COLLECTION,registerFamily,reserveEdition,bindEdition,catalogue,claimProof,finishProof,requestWallet,walletStatus,requestEdition,windowSeconds}from'../backend/runtime/judging-store.mjs';
 const receiver=JSON.parse(readFileSync('tests/fixtures/synthetic-receiver.json')).address;
-function setup(){const db=new DatabaseSync(':memory:');db.exec('PRAGMA foreign_keys=ON');for(const f of readdirSync('drizzle').filter(f=>f.endsWith('.sql')).sort())db.exec(readFileSync('drizzle/'+f,'utf8'));const meta=COLLECTION[0],p='01'.repeat(16),f='02'.repeat(16),seller='private-demo-account';
+function setup(){const db=new DatabaseSync(':memory:');db.exec('PRAGMA foreign_keys=ON');for(const f of readdirSync('backend/drizzle').filter(f=>f.endsWith('.sql')).sort())db.exec(readFileSync('backend/drizzle/'+f,'utf8'));const meta=COLLECTION[0],p='01'.repeat(16),f='02'.repeat(16),seller='private-demo-account';
  for(const [id,kind,bytes]of[[p,'preview',100],[f,'deliverable',meta.bytes]])db.prepare("INSERT INTO digital_assets VALUES(?,?,?,'png','image/png','complete',?,?,?,0)").run(id,seller,kind,bytes,bytes,'ab'.repeat(32));
  registerFamily(db,{slug:meta.slug,previewId:p,fileId:f},seller,{objects:[{slug:meta.slug,sha256:'ab'.repeat(32)}]});
  function auction(e){const draft=randomUUID();db.prepare('INSERT INTO digital_drafts VALUES(?,?,?,?,?,?,?,?,?,?)').run(draft,seller,p,f,meta.category,meta.license,`Testnet edition ${e.edition} / up to 5; artwork reused`,meta.provenance,receiver,0);

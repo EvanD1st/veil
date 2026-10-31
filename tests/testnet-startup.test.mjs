@@ -1,7 +1,7 @@
 // Synthetic startup conditions; these are not live synchronization or wallet evidence.
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {waitForNode} from '../scanner/testnet/wait-node.mjs';
+import {waitForNode} from '../backend/scanner/testnet/wait-node.mjs';
 
 function clock(){let time=0;return {now:()=>time,pause:async ms=>{time+=ms;}};}
 test('wallet startup waits for authenticated testnet RPC and the separate indexer',async()=>{
